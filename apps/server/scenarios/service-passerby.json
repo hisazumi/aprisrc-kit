@@ -1,0 +1,47 @@
+{
+  "id": "service-passerby",
+  "name": "Service: passerby leaves quickly",
+  "description": "A person crosses the edge of the frame but disappears before the stable-detection threshold, so the rover must not offer or move.",
+  "actions": [
+    {
+      "at_ms": 0,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.91,
+        "person_id": "passerby",
+        "center_x": 0.08,
+        "center_y": 0.5,
+        "width": 0.12,
+        "height": 0.4,
+        "bearing_deg": 30.0
+      }
+    },
+    {
+      "at_ms": 350,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.9,
+        "person_id": "passerby",
+        "center_x": 0.04,
+        "center_y": 0.5,
+        "width": 0.11,
+        "height": 0.38,
+        "bearing_deg": 33.0
+      }
+    },
+    {
+      "at_ms": 700,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "lost",
+        "confidence": 0.0,
+        "person_id": "passerby"
+      }
+    }
+  ]
+}

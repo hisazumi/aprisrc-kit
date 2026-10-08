@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "type": "rover_hello",
+  "protocol_versions": [1],
+  "rover_id": "ugv02-demo-1",
+  "boot_id": "boot-20260822-1",
+  "firmware_version": "0.1.0-dev",
+  "build_id": "fake-rover-test",
+  "hardware_revision": "UGV02-unknown",
+  "capabilities": {
+    "bounded_motion": true,
+    "velocity_control": true,
+    "encoders": true,
+    "imu": true,
+    "battery": true
+  },
+  "safety_limits": {
+    "max_linear_speed_mps": 0.08,
+    "max_angular_speed_rad_s": 0.5,
+    "max_distance_m": 1.0,
+    "max_angle_rad": 3.141592653589793,
+    "max_motion_duration_ms": 10000,
+    "max_lease_ms": 500
+  }
+}

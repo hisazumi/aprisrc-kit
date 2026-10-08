@@ -1,0 +1,41 @@
+{
+  "id": "perception-inputs",
+  "name": "Perception input sequence",
+  "description": "Inject a person, a known marker, and a structured voice intent.",
+  "actions": [
+    {
+      "at_ms": 0,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.94,
+        "person_id": "demo-person",
+        "center_x": 0.43,
+        "center_y": 0.48,
+        "width": 0.18,
+        "height": 0.52,
+        "bearing_deg": 8.0
+      }
+    },
+    {
+      "at_ms": 600,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.91,
+        "marker_id": 1,
+        "relative_x_m": 0.5,
+        "relative_y_m": 0.0,
+        "relative_yaw_rad": 0.0
+      }
+    },
+    {
+      "at_ms": 1200,
+      "type": "event",
+      "kind": "voice_intent",
+      "payload": { "action": "go_to_marker", "markerId": 1 }
+    }
+  ]
+}

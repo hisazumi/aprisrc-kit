@@ -1,0 +1,122 @@
+{
+  "id": "service-person-enters-frame",
+  "name": "Service: person enters the frame",
+  "description": "A person enters from the left, is detected stably, and remains visible while the rover approaches and stops to offer help.",
+  "actions": [
+    {
+      "at_ms": 0,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "lost",
+        "confidence": 0.0,
+        "person_id": "service-visitor"
+      }
+    },
+    {
+      "at_ms": 600,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.93,
+        "person_id": "service-visitor",
+        "center_x": 0.12,
+        "center_y": 0.5,
+        "width": 0.14,
+        "height": 0.42,
+        "bearing_deg": 27.0
+      }
+    },
+    {
+      "at_ms": 1050,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.95,
+        "person_id": "service-visitor",
+        "center_x": 0.3,
+        "center_y": 0.5,
+        "width": 0.17,
+        "height": 0.48,
+        "bearing_deg": 14.0
+      }
+    },
+    {
+      "at_ms": 1500,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.96,
+        "person_id": "service-visitor",
+        "center_x": 0.48,
+        "center_y": 0.5,
+        "width": 0.2,
+        "height": 0.52,
+        "bearing_deg": 1.5
+      }
+    },
+    {
+      "at_ms": 1900,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.96,
+        "person_id": "service-visitor",
+        "center_x": 0.5,
+        "center_y": 0.5,
+        "width": 0.24,
+        "height": 0.56,
+        "bearing_deg": 0.0
+      }
+    },
+    {
+      "at_ms": 2300,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.97,
+        "person_id": "service-visitor",
+        "center_x": 0.5,
+        "center_y": 0.5,
+        "width": 0.29,
+        "height": 0.61,
+        "bearing_deg": 0.0
+      }
+    },
+    {
+      "at_ms": 2700,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.97,
+        "person_id": "service-visitor",
+        "center_x": 0.5,
+        "center_y": 0.5,
+        "width": 0.33,
+        "height": 0.67,
+        "bearing_deg": 0.0
+      }
+    },
+    {
+      "at_ms": 3100,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.98,
+        "person_id": "service-visitor",
+        "center_x": 0.5,
+        "center_y": 0.5,
+        "width": 0.38,
+        "height": 0.72,
+        "bearing_deg": 0.0
+      }
+    }
+  ]
+}

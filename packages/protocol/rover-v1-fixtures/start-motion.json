@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "type": "start_motion",
+  "connection_epoch": "epoch-1",
+  "seq": 1,
+  "command_id": "command-1",
+  "issued_at_ms": 1000,
+  "ttl_ms": 500,
+  "run_id": "run-1",
+  "effect_id": "effect-1",
+  "request_id": "request-1",
+  "motion_id": "motion-1",
+  "kind": "linear",
+  "distance_m": 0.2,
+  "angle_rad": null,
+  "max_linear_speed_mps": 0.08,
+  "max_angular_speed_rad_s": 0.5,
+  "max_duration_ms": 5000,
+  "lease_ms": 500
+}

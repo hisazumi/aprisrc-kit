@@ -1,0 +1,1593 @@
+{
+  "$defs": {
+    "CancelRoverMotion": {
+      "additionalProperties": false,
+      "properties": {
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "motion_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Motion Id",
+          "type": "string"
+        },
+        "reason": {
+          "default": "server_cancelled",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "cancel_motion",
+          "default": "cancel_motion",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms",
+        "motion_id"
+      ],
+      "title": "CancelRoverMotion",
+      "type": "object"
+    },
+    "RenewMotionLease": {
+      "additionalProperties": false,
+      "properties": {
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "lease_ms": {
+          "maximum": 10000,
+          "minimum": 100,
+          "title": "Lease Ms",
+          "type": "integer"
+        },
+        "motion_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Motion Id",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "renew_motion_lease",
+          "default": "renew_motion_lease",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms",
+        "motion_id",
+        "lease_ms"
+      ],
+      "title": "RenewMotionLease",
+      "type": "object"
+    },
+    "RoverCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "battery": {
+          "default": true,
+          "title": "Battery",
+          "type": "boolean"
+        },
+        "bounded_motion": {
+          "default": true,
+          "title": "Bounded Motion",
+          "type": "boolean"
+        },
+        "encoders": {
+          "default": true,
+          "title": "Encoders",
+          "type": "boolean"
+        },
+        "imu": {
+          "default": true,
+          "title": "Imu",
+          "type": "boolean"
+        },
+        "velocity_control": {
+          "default": true,
+          "title": "Velocity Control",
+          "type": "boolean"
+        }
+      },
+      "title": "RoverCapabilities",
+      "type": "object"
+    },
+    "RoverClearEmergencyStop": {
+      "additionalProperties": false,
+      "properties": {
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "clear_estop",
+          "default": "clear_estop",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms"
+      ],
+      "title": "RoverClearEmergencyStop",
+      "type": "object"
+    },
+    "RoverCommandAck": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        },
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "maxLength": 240,
+          "title": "Detail",
+          "type": "string"
+        },
+        "rover_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "type": {
+          "const": "command_ack",
+          "default": "command_ack",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rover_id",
+        "boot_id",
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "status"
+      ],
+      "title": "RoverCommandAck",
+      "type": "object"
+    },
+    "RoverEmergencyStop": {
+      "additionalProperties": false,
+      "properties": {
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "reason": {
+          "default": "server_estop",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "estop",
+          "default": "estop",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms"
+      ],
+      "title": "RoverEmergencyStop",
+      "type": "object"
+    },
+    "RoverError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "command_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command Id"
+        },
+        "detail": {
+          "maxLength": 240,
+          "title": "Detail",
+          "type": "string"
+        },
+        "type": {
+          "const": "rover_error",
+          "default": "rover_error",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "code",
+        "detail"
+      ],
+      "title": "RoverError",
+      "type": "object"
+    },
+    "RoverEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "maxLength": 240,
+          "title": "Detail",
+          "type": "string"
+        },
+        "event": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Event",
+          "type": "string"
+        },
+        "rover_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "rover_event",
+          "default": "rover_event",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rover_id",
+        "boot_id",
+        "connection_epoch",
+        "seq",
+        "event"
+      ],
+      "title": "RoverEvent",
+      "type": "object"
+    },
+    "RoverHeartbeat": {
+      "additionalProperties": false,
+      "properties": {
+        "active_motion_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Motion Id"
+        },
+        "boot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "clock_offset_ms": {
+          "title": "Clock Offset Ms",
+          "type": "number"
+        },
+        "clock_uncertainty_ms": {
+          "minimum": 0.0,
+          "title": "Clock Uncertainty Ms",
+          "type": "number"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "estop_latched": {
+          "title": "Estop Latched",
+          "type": "boolean"
+        },
+        "motor_state": {
+          "enum": [
+            "stopped",
+            "moving",
+            "fault"
+          ],
+          "title": "Motor State",
+          "type": "string"
+        },
+        "rover_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "sent_at_ms": {
+          "minimum": 0,
+          "title": "Sent At Ms",
+          "type": "integer"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "heartbeat",
+          "default": "heartbeat",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rover_id",
+        "boot_id",
+        "connection_epoch",
+        "seq",
+        "sent_at_ms",
+        "clock_offset_ms",
+        "clock_uncertainty_ms",
+        "motor_state",
+        "estop_latched"
+      ],
+      "title": "RoverHeartbeat",
+      "type": "object"
+    },
+    "RoverHello": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "build_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Build Id",
+          "type": "string"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/RoverCapabilities"
+        },
+        "firmware_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Firmware Version",
+          "type": "string"
+        },
+        "hardware_revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Hardware Revision",
+          "type": "string"
+        },
+        "protocol_versions": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Protocol Versions",
+          "type": "array"
+        },
+        "rover_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "safety_limits": {
+          "$ref": "#/$defs/RoverSafetyLimits"
+        },
+        "type": {
+          "const": "rover_hello",
+          "default": "rover_hello",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "protocol_versions",
+        "rover_id",
+        "boot_id",
+        "firmware_version",
+        "build_id",
+        "hardware_revision",
+        "capabilities",
+        "safety_limits"
+      ],
+      "title": "RoverHello",
+      "type": "object"
+    },
+    "RoverMotionStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "motion_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Motion Id",
+          "type": "string"
+        },
+        "motor_stopped": {
+          "title": "Motor Stopped",
+          "type": "boolean"
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Progress"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "rover_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "running",
+            "completed",
+            "cancelled",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "type": {
+          "const": "motion_status",
+          "default": "motion_status",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rover_id",
+        "boot_id",
+        "connection_epoch",
+        "seq",
+        "motion_id",
+        "status",
+        "motor_stopped"
+      ],
+      "title": "RoverMotionStatus",
+      "type": "object"
+    },
+    "RoverSafetyLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_angle_rad": {
+          "exclusiveMinimum": 0.0,
+          "maximum": 100.0,
+          "title": "Max Angle Rad",
+          "type": "number"
+        },
+        "max_angular_speed_rad_s": {
+          "exclusiveMinimum": 0.0,
+          "maximum": 10.0,
+          "title": "Max Angular Speed Rad S",
+          "type": "number"
+        },
+        "max_distance_m": {
+          "exclusiveMinimum": 0.0,
+          "maximum": 100.0,
+          "title": "Max Distance M",
+          "type": "number"
+        },
+        "max_lease_ms": {
+          "maximum": 10000,
+          "minimum": 100,
+          "title": "Max Lease Ms",
+          "type": "integer"
+        },
+        "max_linear_speed_mps": {
+          "exclusiveMinimum": 0.0,
+          "maximum": 2.0,
+          "title": "Max Linear Speed Mps",
+          "type": "number"
+        },
+        "max_motion_duration_ms": {
+          "maximum": 300000,
+          "minimum": 100,
+          "title": "Max Motion Duration Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_linear_speed_mps",
+        "max_angular_speed_rad_s",
+        "max_distance_m",
+        "max_angle_rad",
+        "max_motion_duration_ms",
+        "max_lease_ms"
+      ],
+      "title": "RoverSafetyLimits",
+      "type": "object"
+    },
+    "RoverStop": {
+      "additionalProperties": false,
+      "properties": {
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "reason": {
+          "default": "server_stop",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "stop",
+          "default": "stop",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms"
+      ],
+      "title": "RoverStop",
+      "type": "object"
+    },
+    "RoverTelemetry": {
+      "additionalProperties": false,
+      "properties": {
+        "angular_velocity_rad_s": {
+          "title": "Angular Velocity Rad S",
+          "type": "number"
+        },
+        "battery_percent": {
+          "anyOf": [
+            {
+              "maximum": 100.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Battery Percent"
+        },
+        "boot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "fault_codes": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Fault Codes",
+          "type": "array"
+        },
+        "linear_velocity_mps": {
+          "title": "Linear Velocity Mps",
+          "type": "number"
+        },
+        "measured_at_ms": {
+          "minimum": 0,
+          "title": "Measured At Ms",
+          "type": "integer"
+        },
+        "motor_state": {
+          "enum": [
+            "stopped",
+            "moving",
+            "fault"
+          ],
+          "title": "Motor State",
+          "type": "string"
+        },
+        "odometry_x_m": {
+          "title": "Odometry X M",
+          "type": "number"
+        },
+        "odometry_y_m": {
+          "title": "Odometry Y M",
+          "type": "number"
+        },
+        "odometry_yaw_rad": {
+          "title": "Odometry Yaw Rad",
+          "type": "number"
+        },
+        "rover_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "telemetry",
+          "default": "telemetry",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rover_id",
+        "boot_id",
+        "connection_epoch",
+        "seq",
+        "measured_at_ms",
+        "linear_velocity_mps",
+        "angular_velocity_rad_s",
+        "odometry_x_m",
+        "odometry_y_m",
+        "odometry_yaw_rad",
+        "motor_state"
+      ],
+      "title": "RoverTelemetry",
+      "type": "object"
+    },
+    "RoverWelcome": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id": {
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "build_id": {
+          "title": "Build Id",
+          "type": "string"
+        },
+        "clock_uncertainty_limit_ms": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Clock Uncertainty Limit Ms",
+          "type": "integer"
+        },
+        "connection_epoch": {
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "heartbeat_interval_ms": {
+          "maximum": 10000,
+          "minimum": 100,
+          "title": "Heartbeat Interval Ms",
+          "type": "integer"
+        },
+        "instance_id": {
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "protocol_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Protocol Version",
+          "type": "integer"
+        },
+        "rover_id": {
+          "title": "Rover Id",
+          "type": "string"
+        },
+        "server_version": {
+          "title": "Server Version",
+          "type": "string"
+        },
+        "type": {
+          "const": "rover_welcome",
+          "default": "rover_welcome",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rover_id",
+        "boot_id",
+        "connection_epoch",
+        "server_version",
+        "build_id",
+        "instance_id",
+        "heartbeat_interval_ms",
+        "clock_uncertainty_limit_ms"
+      ],
+      "title": "RoverWelcome",
+      "type": "object"
+    },
+    "SetVelocity": {
+      "additionalProperties": false,
+      "properties": {
+        "angular_velocity_rad_s": {
+          "title": "Angular Velocity Rad S",
+          "type": "number"
+        },
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "lease_ms": {
+          "maximum": 10000,
+          "minimum": 100,
+          "title": "Lease Ms",
+          "type": "integer"
+        },
+        "linear_velocity_mps": {
+          "title": "Linear Velocity Mps",
+          "type": "number"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "set_velocity",
+          "default": "set_velocity",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms",
+        "linear_velocity_mps",
+        "angular_velocity_rad_s",
+        "lease_ms"
+      ],
+      "title": "SetVelocity",
+      "type": "object"
+    },
+    "StartMotion": {
+      "additionalProperties": false,
+      "properties": {
+        "angle_rad": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angle Rad"
+        },
+        "command_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "connection_epoch": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Connection Epoch",
+          "type": "string"
+        },
+        "distance_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distance M"
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Id"
+        },
+        "issued_at_ms": {
+          "minimum": 0,
+          "title": "Issued At Ms",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "linear",
+            "rotate"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "lease_ms": {
+          "maximum": 10000,
+          "minimum": 100,
+          "title": "Lease Ms",
+          "type": "integer"
+        },
+        "max_angular_speed_rad_s": {
+          "exclusiveMinimum": 0.0,
+          "maximum": 10.0,
+          "title": "Max Angular Speed Rad S",
+          "type": "number"
+        },
+        "max_duration_ms": {
+          "maximum": 300000,
+          "minimum": 100,
+          "title": "Max Duration Ms",
+          "type": "integer"
+        },
+        "max_linear_speed_mps": {
+          "exclusiveMinimum": 0.0,
+          "maximum": 2.0,
+          "title": "Max Linear Speed Mps",
+          "type": "number"
+        },
+        "motion_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Motion Id",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ttl_ms": {
+          "maximum": 2000,
+          "minimum": 50,
+          "title": "Ttl Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "start_motion",
+          "default": "start_motion",
+          "title": "Type",
+          "type": "string"
+        },
+        "v": {
+          "const": 1,
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connection_epoch",
+        "seq",
+        "command_id",
+        "issued_at_ms",
+        "ttl_ms",
+        "motion_id",
+        "kind",
+        "max_linear_speed_mps",
+        "max_angular_speed_rad_s",
+        "max_duration_ms",
+        "lease_ms"
+      ],
+      "title": "StartMotion",
+      "type": "object"
+    }
+  },
+  "$id": "https://apris.example/schema/rover-protocol-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "discriminator": {
+    "mapping": {
+      "cancel_motion": "#/$defs/CancelRoverMotion",
+      "clear_estop": "#/$defs/RoverClearEmergencyStop",
+      "command_ack": "#/$defs/RoverCommandAck",
+      "estop": "#/$defs/RoverEmergencyStop",
+      "heartbeat": "#/$defs/RoverHeartbeat",
+      "motion_status": "#/$defs/RoverMotionStatus",
+      "renew_motion_lease": "#/$defs/RenewMotionLease",
+      "rover_error": "#/$defs/RoverError",
+      "rover_event": "#/$defs/RoverEvent",
+      "rover_hello": "#/$defs/RoverHello",
+      "rover_welcome": "#/$defs/RoverWelcome",
+      "set_velocity": "#/$defs/SetVelocity",
+      "start_motion": "#/$defs/StartMotion",
+      "stop": "#/$defs/RoverStop",
+      "telemetry": "#/$defs/RoverTelemetry"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RoverHello"
+    },
+    {
+      "$ref": "#/$defs/RoverHeartbeat"
+    },
+    {
+      "$ref": "#/$defs/RoverTelemetry"
+    },
+    {
+      "$ref": "#/$defs/RoverCommandAck"
+    },
+    {
+      "$ref": "#/$defs/RoverMotionStatus"
+    },
+    {
+      "$ref": "#/$defs/RoverEvent"
+    },
+    {
+      "$ref": "#/$defs/RoverWelcome"
+    },
+    {
+      "$ref": "#/$defs/RoverError"
+    },
+    {
+      "$ref": "#/$defs/StartMotion"
+    },
+    {
+      "$ref": "#/$defs/RenewMotionLease"
+    },
+    {
+      "$ref": "#/$defs/CancelRoverMotion"
+    },
+    {
+      "$ref": "#/$defs/SetVelocity"
+    },
+    {
+      "$ref": "#/$defs/RoverStop"
+    },
+    {
+      "$ref": "#/$defs/RoverEmergencyStop"
+    },
+    {
+      "$ref": "#/$defs/RoverClearEmergencyStop"
+    }
+  ],
+  "title": "APRIS Rover WebSocket protocol v1"
+}

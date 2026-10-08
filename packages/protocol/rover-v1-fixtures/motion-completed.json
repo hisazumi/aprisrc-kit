@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "type": "motion_status",
+  "rover_id": "ugv02-demo-1",
+  "boot_id": "boot-20260822-1",
+  "connection_epoch": "epoch-1",
+  "seq": 4,
+  "motion_id": "motion-1",
+  "status": "completed",
+  "progress": 1.0,
+  "reason": null,
+  "motor_stopped": true
+}

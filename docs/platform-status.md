@@ -1,0 +1,73 @@
+# Platform status
+
+[日本語](platform-status.ja.md)
+
+Documentation reviewed: 2026-10-08. Last physical trial recorded: 2026-09-25.
+
+APRISRC Kit supports participant-created services for APRISRC. It provides Simulator
+development and a supported UGV02 path for the same high-level mission. The Simulator remains
+the default adapter. This is Kit capability status, not challenge rules or qualification of
+participants' services; see [Purpose and scope](positioning.md).
+
+## Available now
+
+- Simulator Playground for greeting, following and marker guidance, with real source,
+  decision highlighting, repeatable marker scenes and a hands-on change/compare workshop
+- Experimental live Playground for camera observations, telemetry and high-level request
+  logs; greeting/following enabled with explicit supervised permission, physical marker guidance disabled
+- A service mission API for `move`, `turn`, `stop`, pose, people, and markers
+- Server-owned control, speed limits, command TTL, disconnect stop, and latched E-stop
+- Carry assistant and Mobile Receptionist on `/app`, manual operation and monitoring on
+  `/console`, and the integrated development environment on `/lab`
+- Simulator demos for person reaction, approach, following, and target loss
+- A marker-based Mobile Receptionist mission with three configured destinations and a
+  deterministic person/intent/marker scenario; the same Service App selects Simulator or
+  UGV02 behavior from the active server adapter
+- In-browser person, upper-body, and APRIS marker perception
+- Local keyword rules and optional LLM structured intent limited to registered missions
+- JSON scenarios, fault injection, three-state front-obstacle safety, structured logs, and replay
+- Simulator, UGV02 WebSocket, and diagnostic factory-HTTP adapter selection
+
+## Physical rover status
+
+The reference Waveshare UGV02 runs APRIS development firmware `0.97-apris-ws-dev`.
+Connection, heartbeat/telemetry, E-stop, lease/watchdog behavior, server-disconnect stop, a
+bounded 15-degree turn, and a bounded 0.05 m reverse have been verified. A floor trial also
+verified supervised person following using upper-body observations from a mounted smartphone
+and a 30-second movement permission.
+
+This is not certification for unattended autonomy or general environments. Keep physical
+tests within the [UGV02 self-test](hardware/ugv02-self-test.md) boundary.
+
+## Current limitations
+
+- Live Playground has software tests and disconnected UI checks only; its actual camera/rover
+  flow has not been physically verified. Earlier phone-following trials used the older service flow.
+- Physical marker guidance remains unverified, including the separate Service App experimental path.
+- No onboard sensor continuously establishes free space ahead. `UNKNOWN` is never treated as clear.
+- Forward person following uses a time-limited, user-confirmed movement permission.
+- Development firmware uses plain WebSocket and a shared token on a private LAN.
+- Production WSS, per-rover credentials, and persistent idempotency are not implemented.
+- IMU/battery telemetry, p95 motion error, and stopping-distance qualification remain open.
+- Mission state is browser-local and is not authoritative in server `/api/status`.
+- Browser speech recognition and synthesis are device-dependent demo adapters.
+- The iron-X ROS 2 bridge, LiDAR, SLAM, and path planning are not implemented.
+
+## Current priority
+
+1. Hand over the Simulator workshop and editable samples so others can try and develop
+   services independently; use [the handoff guide](handoff.md) as the entry point.
+2. Schedule and run the Challenger pilot with a first-time teacher, then remove observed
+   documentation, API, UI, and error-recovery friction.
+3. Finish event-ready offline distribution and device setup.
+4. When hardware is available, verify the new live Playground, the Mobile Receptionist
+   marker approach, remaining UGV02 stop/accuracy tests and the forward-safety sensor boundary.
+
+See the [Development roadmap](roadmap.md) for long-term ordering and the
+[Operations runbook](operations/runbook.md) for startup and recovery.
+Detailed private trial histories and external integration bundles are not shipped here. Consult the hardware guides for limits and validation order.
+
+## Verification baseline
+
+The live Playground implementation passed 122 PWA tests and the production build, plus
+disconnected desktop/mobile UI checks. This is software evidence, not a physical trial.

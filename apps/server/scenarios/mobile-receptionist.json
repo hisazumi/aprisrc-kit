@@ -1,0 +1,113 @@
+{
+  "id": "mobile-receptionist",
+  "name": "Service: mobile receptionist",
+  "description": "A visitor asks for the entrance, the rover finds marker 1, aligns, approaches in bounded steps, and announces arrival.",
+  "actions": [
+    {
+      "at_ms": 0,
+      "type": "front_obstacle",
+      "observation": {
+        "state": "CLEAR",
+        "perception_health": "healthy",
+        "source": "scenario",
+        "confidence": 1.0
+      }
+    },
+    {
+      "at_ms": 150,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.96,
+        "person_id": "reception-visitor",
+        "center_x": 0.5,
+        "center_y": 0.5,
+        "width": 0.2,
+        "height": 0.5,
+        "bearing_deg": 0.0
+      }
+    },
+    {
+      "at_ms": 300,
+      "type": "event",
+      "kind": "voice_intent",
+      "payload": {
+        "action": "guide_visitor",
+        "destination": "entrance"
+      }
+    },
+    {
+      "at_ms": 500,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.94,
+        "marker_id": 3,
+        "relative_x_m": 0.7,
+        "relative_y_m": -0.2
+      }
+    },
+    {
+      "at_ms": 900,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.96,
+        "marker_id": 1,
+        "relative_x_m": 0.9,
+        "relative_y_m": 0.3
+      }
+    },
+    {
+      "at_ms": 1900,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.97,
+        "marker_id": 1,
+        "relative_x_m": 0.82,
+        "relative_y_m": 0.02
+      }
+    },
+    {
+      "at_ms": 3200,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.97,
+        "marker_id": 1,
+        "relative_x_m": 0.65,
+        "relative_y_m": 0.01
+      }
+    },
+    {
+      "at_ms": 4600,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.98,
+        "marker_id": 1,
+        "relative_x_m": 0.5,
+        "relative_y_m": 0.0
+      }
+    },
+    {
+      "at_ms": 5800,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.98,
+        "marker_id": 1,
+        "relative_x_m": 0.4,
+        "relative_y_m": 0.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "front-obstacle-latch",
+  "name": "Front obstacle latch and explicit clear",
+  "description": "Establishes CLEAR, detects a front obstacle, proves that a later CLEAR observation remains latched, then explicitly clears it.",
+  "actions": [
+    {
+      "at_ms": 0,
+      "type": "front_obstacle",
+      "observation": {
+        "state": "CLEAR",
+        "perception_health": "healthy",
+        "source": "scenario",
+        "confidence": 1.0
+      }
+    },
+    {
+      "at_ms": 250,
+      "type": "front_obstacle",
+      "observation": {
+        "state": "BLOCKED",
+        "perception_health": "healthy",
+        "source": "scenario",
+        "confidence": 0.98,
+        "distance_m": 0.3,
+        "lateral_m": 0.0
+      }
+    },
+    {
+      "at_ms": 500,
+      "type": "front_obstacle",
+      "observation": {
+        "state": "CLEAR",
+        "perception_health": "healthy",
+        "source": "scenario",
+        "confidence": 1.0
+      }
+    },
+    {
+      "at_ms": 750,
+      "type": "clear_front_obstacle",
+      "reason": "scenario verified a fresh clear path"
+    }
+  ]
+}

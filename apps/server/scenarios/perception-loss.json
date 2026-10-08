@@ -1,0 +1,43 @@
+{
+  "id": "perception-loss",
+  "name": "Detection and target loss",
+  "description": "Emit a valid person detection followed by an explicit lost event and a rejected marker observation.",
+  "actions": [
+    {
+      "at_ms": 0,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.9,
+        "person_id": "scenario-person",
+        "center_x": 0.5,
+        "center_y": 0.5,
+        "width": 0.2,
+        "height": 0.5
+      }
+    },
+    {
+      "at_ms": 500,
+      "type": "event",
+      "kind": "person",
+      "payload": {
+        "status": "lost",
+        "confidence": 0.0,
+        "person_id": "scenario-person"
+      }
+    },
+    {
+      "at_ms": 900,
+      "type": "event",
+      "kind": "marker",
+      "payload": {
+        "status": "detected",
+        "confidence": 0.2,
+        "marker_id": 1,
+        "relative_x_m": 0.8,
+        "relative_y_m": 0.0
+      }
+    }
+  ]
+}

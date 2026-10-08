@@ -1,0 +1,29 @@
+{
+  "id": "fault-injection-demo",
+  "name": "Deterministic fault injection",
+  "description": "Apply latency, command loss, stale noisy pose, and a low-battery reading, then clear them.",
+  "actions": [
+    { "at_ms": 0, "type": "reset" },
+    {
+      "at_ms": 50,
+      "type": "faults",
+      "faults": {
+        "command_latency_ms": 120,
+        "state_latency_ms": 80,
+        "drop_next_commands": 2,
+        "pose_noise_m": 0.03,
+        "yaw_noise_deg": 3.0,
+        "stale_state_ms": 250,
+        "battery_percent": 18.0,
+        "seed": 2026
+      }
+    },
+    {
+      "at_ms": 400,
+      "type": "event",
+      "kind": "voice_intent",
+      "payload": { "action": "wait_here", "reason": "fault-demo" }
+    },
+    { "at_ms": 3000, "type": "clear_faults" }
+  ]
+}
