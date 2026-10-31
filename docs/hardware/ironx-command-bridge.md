@@ -4,6 +4,10 @@ Status: implemented with unit tests and one supervised wheels-raised command-los
 test. The telemetry bridge and `/ros2` monitor remain read-only.
 The mission API is unchanged; service-to-motion integration is not enabled here.
 
+An experimental same-host Kit Adapter is now available in
+[iron-X Adapter](ironx-adapter.md). Its file-command path is separately tested in
+software and has not yet been motion-tested on the robot.
+
 ## Contract
 
 Run on the robot with ROS Humble and the existing isolated driver setup described

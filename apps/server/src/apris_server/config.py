@@ -14,10 +14,12 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     deployment_profile: Literal["development", "edge", "hosted"] = "development"
-    adapter_type: Literal["simulator", "websocket_rover", "factory_http", "ros2_readonly"] = (
-        "simulator"
-    )
+    adapter_type: Literal[
+        "simulator", "websocket_rover", "factory_http", "ros2_readonly", "ironx"
+    ] = "simulator"
     ros2_state_file: Path | None = None
+    ironx_command_file: Path | None = None
+    ironx_bridge_state_file: Path | None = None
     rover_id: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -33,6 +35,12 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def selected_adapter_has_required_configuration(self) -> AppConfig:
+        if self.adapter_type == "ironx":
+            paths = [self.ros2_state_file, self.ironx_command_file, self.ironx_bridge_state_file]
+            if self.deployment_profile == "hosted" or any(p is None for p in paths):
+                raise ValueError("ironx requires local state, command, and bridge state files")
+            if len({p.resolve() for p in paths}) != 3:
+                raise ValueError("ironx paths must be distinct")
         if self.adapter_type == "ros2_readonly":
             if self.deployment_profile == "hosted" or self.ros2_state_file is None:
                 raise ValueError("ros2_readonly needs a local APRIS_ROS2_STATE_FILE")
@@ -63,6 +71,8 @@ class AppConfig(BaseModel):
             deployment_profile=values.get("APRIS_DEPLOYMENT_PROFILE", "development"),
             adapter_type=values.get("APRIS_ADAPTER", "simulator"),
             ros2_state_file=values.get("APRIS_ROS2_STATE_FILE"),
+            ironx_command_file=values.get("APRIS_IRONX_COMMAND_FILE"),
+            ironx_bridge_state_file=values.get("APRIS_IRONX_BRIDGE_STATE_FILE"),
             rover_id=values.get("APRIS_ROVER_ID"),
             rover_token=(
                 SecretStr(values["APRIS_ROVER_TOKEN"]) if values.get("APRIS_ROVER_TOKEN") else None

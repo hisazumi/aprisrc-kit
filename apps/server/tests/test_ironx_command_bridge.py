@@ -20,6 +20,12 @@ def test_startup_never_moves():
     assert module.CommandLease().output(10, True) == (0, 0)
 
 
+def test_integer_json_components_become_ros_floats():
+    lease = module.CommandLease()
+    assert send(lease, vx=0, wz=0)
+    assert all(type(v) is float for v in lease.output(10.01, True))
+
+
 def test_timeout_and_repeated_zero():
     lease = module.CommandLease()
     assert send(lease)

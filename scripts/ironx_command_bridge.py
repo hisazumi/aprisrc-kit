@@ -3,13 +3,51 @@
 import argparse
 import json
 import math
+import os
 import signal
 import time
+from pathlib import Path
 
 from ironx_motion_probe import COMMAND_TOPIC, valid_odometry
 
 INPUT_TOPIC = "/apris/command_velocity"
 TIMEOUT = 0.3
+
+
+class FileCommands:
+    """Same-host mailbox; reading an unchanged file never renews a command."""
+
+    def __init__(self, path, lease):
+        self.path = path
+        self.lease = lease
+        self.started = time.monotonic()
+        self.seen = None
+        self.accepted_id = None
+
+    def poll(self, now):
+        try:
+            raw = self.path.read_text()
+            if len(raw) > 2048:
+                raise ValueError("oversized command")
+            if raw == self.seen:
+                return
+            self.seen = raw
+            data = json.loads(raw)
+            sent, ttl = data["monotonic"], data["ttl_ms"] / 1000
+            if (
+                not isinstance(data["id"], str)
+                or not data["id"]
+                or not all(math.isfinite(v) for v in (sent, ttl))
+                or sent <= self.started
+                or not 0 < ttl <= TIMEOUT
+                or not 0 <= now - sent < ttl
+            ):
+                raise ValueError("expired or invalid command")
+            if self.lease.accept(sent, now, now, data["vx"], 0, 0, 0, 0, data["wz"]):
+                self.lease.deadline = min(self.lease.deadline, sent + ttl)
+                self.accepted_id = data["id"]
+        except (OSError, ValueError, TypeError, KeyError):
+            self.lease.stop("file_command_unavailable_or_invalid")
 
 
 class CommandLease:
@@ -45,7 +83,7 @@ class CommandLease:
             return False
         self.stamp = stamp
         self.deadline = now + TIMEOUT - age
-        self.velocity = (vx, wz)
+        self.velocity = (float(vx), float(wz))
         self.reason = "command_active"
         return True
 
@@ -62,7 +100,11 @@ class CommandLease:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--enable", action="store_true", help="Enable motor publishing")
+    parser.add_argument("--command-file", type=Path)
+    parser.add_argument("--status-file", type=Path)
     args = parser.parse_args()
+    if bool(args.command_file) != bool(args.status_file):
+        parser.error("--command-file and --status-file must be supplied together")
     import rclpy
     from geometry_msgs.msg import Twist, TwistStamped
     from nav_msgs.msg import Odometry
@@ -71,6 +113,7 @@ def main():
     rclpy.init()
     node = rclpy.create_node("apris_command_bridge")
     lease = CommandLease()
+    mailbox = FileCommands(args.command_file, lease) if args.command_file else None
     latest = None
     publisher = None
 
@@ -115,9 +158,21 @@ def main():
 
     def publish(vx, wz):
         msg = Twist()
-        msg.linear.x, msg.angular.z = vx, wz
+        msg.linear.x, msg.angular.z = float(vx), float(wz)
         publisher.publish(msg)
         record("output", vx=vx, wz=wz, reason=lease.reason)
+        if args.status_file:
+            data = {
+                "monotonic": time.monotonic(),
+                "command_id": mailbox.accepted_id,
+                "vx": vx,
+                "wz": wz,
+                "fault": lease.fault,
+                "reason": lease.reason,
+            }
+            temporary = args.status_file.with_suffix(".tmp")
+            temporary.write_text(json.dumps(data, allow_nan=False))
+            os.replace(temporary, args.status_file)
 
     def interrupted(signum, frame):
         raise KeyboardInterrupt()
@@ -160,20 +215,22 @@ def main():
                 raise RuntimeError("Driver publisher discovery failed")
             publish(0.0, 0.0)
             rclpy.spin_once(node, timeout_sec=0.02)
-        node.create_subscription(TwistStamped, INPUT_TOPIC, command, 1)
+        if mailbox is None:
+            node.create_subscription(TwistStamped, INPUT_TOPIC, command, 1)
         previous = time.monotonic()
         while rclpy.ok():
             now = time.monotonic()
             if now - previous > 0.15:
                 lease.latch("control_loop_delayed_restart_required")
             previous = now
-            if (
-                node.count_publishers(COMMAND_TOPIC) != 1
-                or node.count_publishers(INPUT_TOPIC) > 1
-            ):
+            if node.count_publishers(COMMAND_TOPIC) != 1 or node.count_publishers(
+                INPUT_TOPIC
+            ) > (0 if mailbox else 1):
                 lease.latch("competing_publisher_restart_required")
             if publisher.get_subscription_count() != 1:
                 lease.latch("driver_connection_changed_restart_required")
+            if mailbox:
+                mailbox.poll(now)
             publish(*lease.output(now, fresh()))
             end = now + 0.02
             while time.monotonic() < end:
