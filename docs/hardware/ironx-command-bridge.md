@@ -16,7 +16,7 @@ Run on the robot with ROS Humble and the existing isolated driver setup describe
 in `ironx-motion-probe.md`. Input is `/apris/command_velocity`,
 `geometry_msgs/TwistStamped`, frame `base_footprint`. Use robot ROS time for stamps
 and refresh commands at 20 Hz. Only linear.x and angular.z are supported;
-limits are 0.05 m/s and 0.2 rad/s. Other components must be zero.
+limits are 0.15 m/s and 0.2 rad/s. Other components must be zero.
 
 The bridge publishes `Twist` at 50 Hz to `/apris_readonly/no_commands`, the
 driver's currently remapped command topic. Do not publish directly to that topic

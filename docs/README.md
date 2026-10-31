@@ -26,7 +26,8 @@ points; these guides do not define event rules or judging criteria.
 | Build a small person-responsive service | [Participant quickstart](challenger-quickstart.md) |
 | Understand the mission API and safety boundary | [Mission API and service templates](mission-api.md) |
 | Run the same starter on a supported UGV02 | [UGV02 self-test](hardware/ugv02-self-test.md) |
-| Set up supervised iron-X console operation (experimental) | [iron-X operation](hardware/ironx-quickstart.md) |
+| Try iron-X following, then recover from a stop (experimental) | [iron-X person following](hardware/ironx-follow.md) |
+| Connect a student's Kit server to iron-X over the LAN (experimental) | [iron-X network setup](hardware/ironx-network.md) |
 | Check current capabilities and limitations | [Platform status](platform-status.md) |
 
 
@@ -54,6 +55,7 @@ not normally need them.
 | Goal | Document |
 | --- | --- |
 | Start, stop, diagnose, collect logs, and recover | [Operations runbook](operations/runbook.md) |
+| Maintain same-host iron-X console operation | [iron-X console setup](hardware/ironx-quickstart.md) |
 | Manage priorities and long-term scope | [Development roadmap](roadmap.md) |
 | Inspect the browser/server message schema | [Client protocol](protocol.md) |
 | Inspect the server/rover motion contract | [APRIS Rover WebSocket protocol](rover-protocol.md) |

@@ -25,6 +25,7 @@ This README does not define challenge rules, judging criteria or official/mandat
 | Build a service for the first time | [Participant quickstart](docs/challenger-quickstart.md) |
 | Understand the mission API and safety boundary | [Mission API](docs/mission-api.md) |
 | Test on the supported UGV02 | [UGV02 self-test](docs/hardware/ugv02-self-test.md) |
+| Try supervised iron-X following with a PC and iPhone | [iron-X person following](docs/hardware/ironx-follow.md) |
 | Find development and maintenance material | [Documentation index](docs/README.md) |
 
 See [Platform status](docs/platform-status.md) for implemented capabilities, verified hardware,
@@ -112,9 +113,10 @@ diagnostics, protocols, and design records.
 ## Scope
 
 The supported physical reference is a Waveshare UGV02 running APRIS development firmware.
-An experimental iron-X ROS 2 Humble Adapter now supports supervised console motion;
-see [iron-X operation](docs/hardware/ironx-quickstart.md) for setup, verified trials,
-and limits. iron-X service validation and LiDAR-based autonomy remain future work
+Experimental iron-X ROS 2 Humble integration supports a PC-hosted Kit over the LAN.
+An operator has reported successful iPhone-based following; the latest stop-confirmation
+fix and 0.15 m/s configuration still need physical revalidation. Start with
+[iron-X person following](docs/hardware/ironx-follow.md). Broader qualification and LiDAR-based autonomy remain future work
 tracked in the [Development roadmap](docs/roadmap.md).
 
 ## Distribution and contributions

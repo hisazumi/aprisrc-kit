@@ -3,6 +3,11 @@
 Start with [iron-X supervised operation](ironx-quickstart.md)
 ([日本語](ironx-quickstart.ja.md)) for the normal setup and console workflow.
 
+For a Kit server running on a student's PC without ROS, see
+[iron-X network setup](ironx-network.md) ([日本語](ironx-network.ja.md)).
+That gateway replaces the on-robot Kit mailbox owner; the local trials below do
+not validate the network path.
+
 Implemented against the unchanged RoverAdapter / bounded-motion API. Automated
 tests cover mailbox expiry, move/turn feedback, cancellation, stop confirmation,
 and invalid input. The Adapter and file transport passed supervised wheels-raised
@@ -72,7 +77,7 @@ an acknowledged zero command and at least three fresh stationary observations
 spanning 200 ms. Cancellation sends zero and waits for stop confirmation.
 An unconfirmed stop raises an error rather than claiming success.
 
-Initial limits: 0.05 m/s, 0.2 rad/s, 1 m per move, pi radians per turn, 120 seconds
+Limits: 0.15 m/s, 0.2 rad/s, 1 m per move, pi radians per turn, 120 seconds
 maximum goal duration. Bounded speed is capped; direct Adapter calls outside speed
 limits are rejected. Kit runtime limits are set accordingly for `APRIS_ADAPTER=ironx`.
 Small final tolerances are 3 cm / 0.08 rad. Floor accuracy, braking, heading control

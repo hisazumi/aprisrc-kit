@@ -67,7 +67,9 @@ npm run dev
 ```
 
 When both certificate files exist, Vite starts in HTTPS mode. Connect the PC and phone to the
-same LAN, then open `https://<PC-LAN-IP>:5173/app` on the phone. Use the exact IP included in
+same LAN, then open `https://<PC-LAN-IP>:<HTTPS-port>/app` on the phone. The usual
+port is 5173; a separate HTTPS instance may use 5174. Use the actual startup URL,
+not an HTTP instance's port, and the exact IP included in
 the generated certificate.
 
 For PC-only Simulator work use `APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev`.

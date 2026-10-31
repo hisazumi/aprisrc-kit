@@ -3,8 +3,10 @@
 [日本語](ironx-quickstart.ja.md)
 
 Experimental iron-X Pro Max / ROS 2 Humble integration, checked on 2026-10-31.
-Start here for operation; use [Adapter details](ironx-adapter.md) for contracts and
-trial evidence. UGV02 remains the reference hardware path.
+For PC/iPhone service operation, start with [person following](ironx-follow.md).
+This reference covers the alternative same-host server and manual Console setup.
+Use [Adapter details](ironx-adapter.md) for contracts and historical trial evidence.
+UGV02 remains the reference hardware path.
 
 ## What works and what remains
 
@@ -12,9 +14,10 @@ Verified on one robot: telemetry, Adapter drive/stop and cancellation, two short
 floor moves, a left turn, and operator-console motion with manual path confirmation.
 The two 10 cm goals reported 9.638/9.634 cm; the 15-degree goal reported 14.911 degrees.
 The operator reported plausible motion and approximately 15 degrees, not a precision
-measurement. Person-following, marker guidance and service UI flows on iron-X are
-not yet physically verified. Live Playground eligibility still needs review for
-the new `ironx` adapter; do not assume that UGV02-specific UI gates already accept it.
+measurement. Later PC/network/iPhone following received a successful operator report;
+the latest stop-confirmation fix and 0.15 m/s configuration still need physical
+revalidation. Marker guidance and Live Playground qualification remain open;
+do not equate Service App trials with Playground validation.
 
 ## Preconditions
 
@@ -85,7 +88,7 @@ address at port 8000 to open `/console`. Do not share a fixed robot IP in source
 1. Acquire control in one tab. Other tabs may observe but must not compete for control.
 2. Check the surroundings. Press **Confirm clear path · 30 s** before forward motion.
    It sends temporary manual confirmation, not sensor-derived clearance or a drive command.
-3. Hold the joystick to move; release to stop. Initial limits are 0.05 m/s and 0.2 rad/s.
+3. Hold the joystick to move; release to stop. Limits are 0.15 m/s and 0.2 rad/s.
 4. Confirmation expires after 30 seconds and is revoked on loss of connection/control,
    E-stop, a blocked observation, tab hiding, window blur, explicit revoke, or leaving
    the component. Reconfirm only after checking the path again.
@@ -96,8 +99,9 @@ address at port 8000 to open `/console`. Do not share a fixed robot IP in source
 The console confirmation supplies a short-lived `manual` observation using the
 existing server API; no Adapter fabricates `CLEAR`. The current gate covers forward
 motion only. Rear/side collision avoidance is NOT implemented; manual supervision
-must cover every direction. The button is console-only; service/Playground flows
-retain their existing confirmation controls.
+must cover every direction. Carry helper instead uses **Start service and allow movement**;
+see [service operation and E-stop recovery](ironx-follow.md). Other service/Playground
+flows retain their own permission controls.
 
 ## Stop and recover
 

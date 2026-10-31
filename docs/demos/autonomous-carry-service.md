@@ -2,7 +2,8 @@
 
 [日本語](autonomous-carry-service.ja.md)
 
-Status: **Implemented reference service** (verified 2026-09-25)
+Status: **Implemented reference service**, documentation reviewed 2026-10-31.
+For physical operation and evidence boundaries, see [iron-X person following](../hardware/ironx-follow.md).
 
 ## Purpose
 
@@ -18,10 +19,13 @@ than advanced autonomous navigation.
 
 ```text
 PAUSED -> READY -> NOTICING -> APPROACHING -> OFFERING HELP
-       -> LOADING -> FOLLOWING -> ARRIVED -> READY
+       -> LOADING -> FOLLOWING -> ARRIVED -> PAUSED (explicit restart)
 ```
 
-- **Start service** acquires control and begins person observation.
+- **Start service and allow movement** acquires control and grants supervised movement consent.
+  Stable detection can trigger approach motion; check the area before pressing it.
+- Clearance heartbeats run during approach/following without a 30-second renewal button.
+  Connection/control loss, E-stop and hiding the page revoke consent. Restart explicitly.
 - Three consecutive observations of the same person are required before an offer.
 - The rover approaches slowly, stops at conversation distance, and offers help.
 - Consent may arrive from a button, text, or supported-browser Japanese speech input.
@@ -36,7 +40,7 @@ PAUSED -> READY -> NOTICING -> APPROACHING -> OFFERING HELP
 - `/lab`: virtual person, scenarios, perception values, and the same service UI
 - `/console`: manual driving, safety state, trajectory, and operational monitoring
 
-The Service App defaults to the front camera. **Start vision** enables camera and person
+The Service App defaults to the front camera. **Start camera** enables camera and person
 perception; video stays on-device and only normalized observations reach the Local Server.
 
 ## Scenario matrix
@@ -60,7 +64,7 @@ Reducer, component, and reproducible Lab tests cover these transitions.
 
 ## Reproducible Lab test
 
-1. Open `/lab` and press Carry assistant **Start service**.
+1. Open `/lab` and press Carry assistant **Start service and allow movement**.
 2. Run `Service: passerby leaves quickly`; confirm `NOTICING` returns to `READY`.
 3. Run `Service: person enters the frame`; confirm `APPROACHING`, stop, then `OFFERING HELP`.
 4. Press **Yes, help me** and confirm no motion during `LOADING`.
