@@ -290,6 +290,8 @@ async function runContinuousFollow(rover: ServiceRover, signal: AbortSignal, opt
     receivedAt = performance.now() / 1000;
     if (!controller) controller = new ContinuousFollowController({
       ...defaultFollowTuning,
+      maxSpeed: rover.continuousFollowMaxSpeed ?? defaultFollowTuning.maxSpeed,
+      distanceGain: rover.continuousFollowDistanceGain ?? defaultFollowTuning.distanceGain,
       targetWidth: options.holdWidth ?? followWidths(event, options.followDistance ?? "normal").hold,
       staleAfter: timeout
     });

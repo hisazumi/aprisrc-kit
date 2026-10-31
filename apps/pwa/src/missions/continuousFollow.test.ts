@@ -1,7 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { ContinuousFollowController } from "./continuousFollow";
+import { ContinuousFollowController, defaultFollowTuning } from "./continuousFollow";
 
 describe("continuous P following", () => {
+  it("increases simulator distance response while preserving default gain and slew limits", () => {
+    const baseline = new ContinuousFollowController({ ...defaultFollowTuning, maxSpeed: .25 });
+    const faster = new ContinuousFollowController({ ...defaultFollowTuning, maxSpeed: .25, distanceGain: .8 });
+    let before = 0, after = 0, previous = 0;
+    for (let i = 0; i < 100; i++) {
+      const person = { width: .4, bearing: 0, observedAt: i * .05 };
+      before = baseline.step(person, i * .05, .05, true).vx;
+      after = faster.step(person, i * .05, .05, true).vx;
+      expect(after - previous).toBeLessThanOrEqual(.006001);
+      expect(after).toBeLessThanOrEqual(.25);
+      previous = after;
+    }
+    expect(after).toBeGreaterThan(before);
+    expect(after / before).toBeCloseTo(4 / 3);
+    expect(defaultFollowTuning.distanceGain).toBe(.6);
+  });
+  it("allows the simulator ceiling without changing default tuning or acceleration", () => {
+    const c = new ContinuousFollowController({ ...defaultFollowTuning, maxSpeed: .25 });
+    let previous = 0;
+    for (let i = 0; i < 100; i++) {
+      const v = c.step({ width: .05, bearing: 0, observedAt: i * .05 }, i * .05, .05, true);
+      expect(v.vx - previous).toBeLessThanOrEqual(.006001);
+      expect(v.vx).toBeLessThanOrEqual(.25);
+      previous = v.vx;
+    }
+    expect(previous).toBeCloseTo(.25);
+    expect(defaultFollowTuning.maxSpeed).toBe(.15);
+  });
   it("limits acceleration and smoothly decelerates near the person", () => {
     const c = new ContinuousFollowController();
     let previous = 0;
