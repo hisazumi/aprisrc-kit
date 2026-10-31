@@ -134,11 +134,15 @@ latency/error budgetの定義。
 
 ## M9: iron-X ROS 2 Humble bridge
 
-Status: **Hardware-dependent**
+Status: **基本接続は確認済み、サービス検証は未完了**（2026-10-31）
 
-実際のiron-Xを確認してから着手する。topic、type、frame、QoSを調査し、Jetson側adapterで
-`/cmd_vel`、`/odom`、`/imu`を変換する。再接続と通信断時停止を維持し、mecanumの`vy`は
-当初ゼロに制限する。PWAとmission codeは変更しない。
+ROS状態表示、指令期限付きbridge、同一ホストAdapter、監視付きコンソール操作を実装した。
+動作・停止・キャンセル、床上10cm前進2回と左15度旋回を確認。高水準mission APIは変更せず、
+`vy`はゼロに制限する。
+
+次はサービス・PlaygroundのAdapter判定、認識入力、操作権の受け渡しと監視付きサービス試験。
+再接続やbridge・OS・シリアル故障への独立した保護は未確認。LiDAR安全確認は完了範囲に含めない。
+[iron-X操作ガイド](hardware/ironx-quickstart.ja.md)から進める。
 
 ## M10: LiDAR and advanced autonomy
 

@@ -35,5 +35,8 @@ No observed motion is inconclusive, not a successful stop test.
 Failure to confirm a stop in this short window does not prove that no watchdog
 exists: its timeout may be longer. A successful observation does not establish
 which layer implements stopping, nor validate all disconnection scenarios.
-The independent fallback process has mocked unit tests; its real timing and the
-robot's command-loss response remain unverified until this test is approved and run.
+The supervised 2026-10-31 direct-driver run retained about 0.05 m/s for roughly
+0.65 seconds after the last command and stopped only after fallback zeros.
+The later bridge test produced a timeout stop command after 0.304 seconds and
+zero wheel velocity after about 0.794 seconds, before fallback. This is evidence
+for upstream command loss with a functioning bridge, not bridge/OS failure.

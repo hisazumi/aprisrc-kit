@@ -9,6 +9,9 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 
 ## Start here
 
+実験的なiron-X接続は[iron-Xの監視付き操作](hardware/ironx-quickstart.ja.md)から。
+通常の起動・操作と確認済み範囲をまとめ、個別試験は詳細資料へ分離している。
+
 多くの利用者が最初に読む資料である。
 
 [目的と位置づけ](positioning.ja.md)でAPRIS、APRISRC、Kit、参加者が作るサービスを区別する。

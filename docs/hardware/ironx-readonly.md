@@ -1,5 +1,9 @@
 # iron-X read-only telemetry prototype
 
+For the normal entry point and the motion-capable setup, see
+[iron-X supervised operation](ironx-quickstart.md). This page describes the
+read-only mode specifically; its restrictions do not describe the `ironx` Adapter.
+
 This prototype connects ROS Humble's Python 3.10 subscriptions to the Kit server in
 its separate Python environment. It does not implement motion control, physical
 E-stop, or obstacle clearance. No ROS velocity publisher is created by the bridge.
@@ -31,6 +35,7 @@ against another process deliberately publishing to the remapped topic. Do not ru
 a second driver or the full bringup concurrently. Opening the motor serial port
 can reset the controller; keep the physical stop reachable.
 
-Future motion integration must separately qualify the controller watchdog,
-completion/cancellation, control ownership, and stopping on process/network loss.
+The separate motion integration has now passed basic supervised trials; see
+[Adapter evidence](ironx-adapter.md). Controller watchdog behavior and protection
+against bridge/OS/serial failure still require qualification.
 Do not use the Kit console's stop/E-stop as a physical stop in this read-only mode.

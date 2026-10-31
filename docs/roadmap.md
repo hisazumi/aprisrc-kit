@@ -143,12 +143,16 @@ device variability, and define latency/error budgets.
 
 ## M9: iron-X ROS 2 Humble bridge
 
-Status: **Hardware-dependent**
+Status: **Basic integration verified; service validation pending** (2026-10-31)
 
-Start only after inspecting the actual iron-X system. Inventory topics, types, frames, and
-QoS; map `/cmd_vel`, `/odom`, and `/imu` through a Jetson-side adapter; preserve reconnect and
-disconnect-stop behavior; and initially constrain mecanum `vy` to zero. PWA and mission code
-must remain unchanged.
+ROS telemetry, a command-expiry bridge, the same-host Adapter, and supervised console
+motion are implemented. Drive/stop/cancel, two 10 cm floor moves and a left 15-degree
+turn were checked. The high-level mission API is unchanged; `vy` remains zero.
+
+Next: validate service/Playground adapter selection, perception and ownership handoff,
+then supervised service operation. Qualify reconnect behavior and independent protection
+against bridge/OS/serial failure. LiDAR-based clearance is not part of this milestone's
+completed evidence. Start with [iron-X operation](hardware/ironx-quickstart.md).
 
 ## M10: LiDAR and advanced autonomy
 

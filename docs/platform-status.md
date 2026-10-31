@@ -2,7 +2,8 @@
 
 [日本語](platform-status.ja.md)
 
-Documentation reviewed: 2026-10-08. Last physical trial recorded: 2026-09-25.
+iron-X documentation updated: 2026-10-31. Last iron-X physical trial: 2026-10-31.
+UGV02 trial evidence below remains dated 2026-09-25.
 
 APRISRC Kit supports participant-created services for APRISRC. It provides Simulator
 development and a supported UGV02 path for the same high-level mission. The Simulator remains
@@ -51,7 +52,10 @@ tests within the [UGV02 self-test](hardware/ugv02-self-test.md) boundary.
 - IMU/battery telemetry, p95 motion error, and stopping-distance qualification remain open.
 - Mission state is browser-local and is not authoritative in server `/api/status`.
 - Browser speech recognition and synthesis are device-dependent demo adapters.
-- The iron-X ROS 2 bridge, LiDAR, SLAM, and path planning are not implemented.
+- iron-X telemetry, supervised drive/stop/cancel, floor move/turn, and console operation
+  are verified on one robot. Service flows and Live Playground eligibility are not yet
+  qualified; see [iron-X operation](hardware/ironx-quickstart.md).
+- LiDAR safety integration, SLAM, and path planning are not implemented.
 
 ## Current priority
 
@@ -68,6 +72,10 @@ See the [Development roadmap](roadmap.md) for long-term ordering and the
 Detailed private trial histories and external integration bundles are not shipped here. Consult the hardware guides for limits and validation order.
 
 ## Verification baseline
+
+The iron-X work passed 185 server tests, 12 targeted console/socket tests, and the
+PWA production build. These are separate runs, not a claim of a full PWA regression
+or all-device validation. Console operation was also confirmed by the operator.
 
 The live Playground implementation passed 122 PWA tests and the production build, plus
 disconnected desktop/mobile UI checks. This is software evidence, not a physical trial.

@@ -2,7 +2,7 @@
 
 [English](platform-status.md)
 
-文書見直し: 2026-10-08。最後の実機試験記録: 2026-09-25。
+iron-X関連の更新・実機試験: 2026-10-31。UGV02の試験根拠は引き続き2026-09-25時点。
 
 APRISRC Kitは、APRISRCで参加者がサービスを作るための開発キットである。
 Simulator開発と同じ高水準missionの対応UGV02への移行経路を提供し、既定adapterはSimulatorである。
@@ -49,7 +49,9 @@ Waveshare UGV02の試験機にはAPRIS development firmware `0.97-apris-ws-dev`�
 - IMUとbattery telemetry、p95距離・角度誤差、停止距離の実機qualificationは未完了である。
 - mission状態はbrowser-localであり、serverの`/api/status`は正本を持たない。
 - browser音声認識・読み上げは端末依存で、production speech stackではない。
-- iron-X ROS 2、LiDAR、SLAM、経路計画は未実装である。
+- iron-Xの状態表示、動作・停止・キャンセル、床上の前進・旋回、コンソール操作は1台で確認済み。
+  サービスとLive Playgroundの対応判定は未検証。[iron-X操作ガイド](hardware/ironx-quickstart.ja.md)を参照。
+- LiDARの安全制御への統合、SLAM、経路計画は未実装。
 
 ## Current priority
 

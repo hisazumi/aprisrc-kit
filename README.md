@@ -112,8 +112,10 @@ diagnostics, protocols, and design records.
 ## Scope
 
 The supported physical reference is a Waveshare UGV02 running APRIS development firmware.
-The iron-X ROS 2 bridge and LiDAR-based autonomy remain future work tracked in the
-[Development roadmap](docs/roadmap.md).
+An experimental iron-X ROS 2 Humble Adapter now supports supervised console motion;
+see [iron-X operation](docs/hardware/ironx-quickstart.md) for setup, verified trials,
+and limits. iron-X service validation and LiDAR-based autonomy remain future work
+tracked in the [Development roadmap](docs/roadmap.md).
 
 ## Distribution and contributions
 

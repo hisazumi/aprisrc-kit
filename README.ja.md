@@ -117,8 +117,10 @@ uv run --directory apps/server pytest
 
 ## Scope
 
-現在の対応実機はWaveshare UGV02の開発用APRIS firmware構成である。iron-X ROS 2 bridgeと
-LiDARを使う高度な自律移動は将来項目であり、[Development roadmap](docs/roadmap.ja.md)で管理する。
+基準実機はWaveshare UGV02の開発用APRIS firmware構成である。
+実験的なiron-X ROS 2 Humble Adapterでも監視付きコンソール操作を確認した。
+手順・確認範囲は[iron-X操作ガイド](docs/hardware/ironx-quickstart.ja.md)を参照する。
+iron-Xのサービス検証とLiDARを使う自律移動は引き続き[ロードマップ](docs/roadmap.ja.md)で管理する。
 
 ## 公開と開発への参加
 

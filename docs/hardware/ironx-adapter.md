@@ -1,11 +1,16 @@
 # iron-X service Adapter (experimental)
 
+Start with [iron-X supervised operation](ironx-quickstart.md)
+([日本語](ironx-quickstart.ja.md)) for the normal setup and console workflow.
+
 Implemented against the unchanged RoverAdapter / bounded-motion API. Automated
 tests cover mailbox expiry, move/turn feedback, cancellation, stop confirmation,
 and invalid input. The Adapter and file transport passed supervised wheels-raised
 drive/stop and cancellation trials on 2026-10-31, followed by short floor moves
-and a small left turn. Service UI integration remains untested. The current server stays in
-`ros2_readonly`; trials use a temporary, isolated command bridge.
+and a small left turn. The server was then switched to `ironx`; supervised console
+motion with time-limited manual clearance was confirmed by the operator.
+Service mission UI integration remains untested. Diagnostic trials use a temporary,
+isolated command bridge; they must not run alongside the active service bridge.
 
 ## Recorded hardware trials
 
@@ -108,9 +113,10 @@ Floor probe modes are `--floor-move` (10 cm, up to 0.04 m/s) and `--floor-turn`
 `--execute` is also specified. Motion goals have a 4.5-second deadline; an
 independent fallback is armed for 6.5 seconds after launch preparation.
 
-Next check: connect the Kit console, then validate ownership, limits, stop and
-cancellation through the UI. Keep the server read-only until the operator approves
-activation. Do not treat the read-only `/ros2` monitor as a motion-control page.
+Next check: validate a service through the UI, including perception, ownership,
+stop and cancellation. Console manual motion is already confirmed. For a new setup,
+start read-only until the operator approves activation. Do not treat the read-only
+`/ros2` monitor as a motion-control page.
 The console is `/console` on the same server and uses the same-host `/ws` endpoint.
 Forward motion still needs an explicit, valid clear-path observation; do not bypass
 that gate just to demonstrate movement. Obtain explicit approval before motion.

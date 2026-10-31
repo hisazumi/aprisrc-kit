@@ -4,6 +4,12 @@
 
 Rover PWA は単一のコードベースとビルド成果物を使い、用途別に3つのURLを提供する。画面を分けても、Local Server、WebSocketプロトコル、ミッションAPI、UIコンポーネントは共通である。
 
+コンソールの最新手順は[iron-X操作ガイド](hardware/ironx-quickstart.ja.md)も参照する。
+`/console`には **Confirm clear path · 30 s** を追加した。接続中の操作権保持者が、
+前方を目視確認して既存APIへ期限付きの手動確認を送る。押すだけでは走行しない。
+期限切れ・接続断・操作権喪失・E-stop・障害物検知・タブ非表示・フォーカス喪失・解除・離脱で無効になる。
+後方や側方の障害物保護を追加するものではなく、周囲全体の監視が必要。他画面の操作は変更しない。
+
 ## `/app` — Service App
 
 smartphoneでCarry assistant（既定）または実験的なMobile Receptionist
