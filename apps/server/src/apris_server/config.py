@@ -26,6 +26,8 @@ class AppConfig(BaseModel):
     )
     rover_token: SecretStr | None = None
     assistant_api_key: SecretStr | None = None
+    assistant_provider: Literal["rules", "openai", "gemini"] | None = None
+    gemini_api_key: SecretStr | None = None
     assistant_model: str = Field(default="gpt-6-luna", min_length=1, max_length=100)
     factory_http_host: IPv4Address | None = None
     factory_http_port: int = Field(default=80, ge=1, le=65535)
@@ -35,6 +37,8 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def selected_adapter_has_required_configuration(self) -> AppConfig:
+        if self.assistant_provider in ("openai", "gemini") and not self.assistant_api_key_value():
+            raise ValueError("Selected assistant provider requires its API key")
         if self.adapter_type == "ironx":
             paths = [self.ros2_state_file, self.ironx_command_file, self.ironx_bridge_state_file]
             if self.deployment_profile == "hosted" or any(p is None for p in paths):
@@ -67,6 +71,7 @@ class AppConfig(BaseModel):
         environment: Mapping[str, str] | None = None,
     ) -> AppConfig:
         values = environment if environment is not None else os.environ
+        provider = values.get("APRIS_ASSISTANT_PROVIDER")
         return cls(
             deployment_profile=values.get("APRIS_DEPLOYMENT_PROFILE", "development"),
             adapter_type=values.get("APRIS_ADAPTER", "simulator"),
@@ -80,7 +85,14 @@ class AppConfig(BaseModel):
             assistant_api_key=(
                 SecretStr(values["OPENAI_API_KEY"]) if values.get("OPENAI_API_KEY") else None
             ),
-            assistant_model=values.get("APRIS_ASSISTANT_MODEL", "gpt-6-luna"),
+            assistant_provider=provider,
+            gemini_api_key=SecretStr(values["GEMINI_API_KEY"])
+            if values.get("GEMINI_API_KEY")
+            else None,
+            assistant_model=values.get(
+                "APRIS_ASSISTANT_MODEL",
+                "gemini-3.8-flash" if provider == "gemini" else "gpt-6-luna",
+            ),
             factory_http_host=values.get("APRIS_FACTORY_HTTP_HOST"),
             factory_http_port=values.get("APRIS_FACTORY_HTTP_PORT", "80"),
             instance_id=values.get("APRIS_INSTANCE_ID", uuid.uuid4().hex),
@@ -92,6 +104,10 @@ class AppConfig(BaseModel):
         return self.rover_token.get_secret_value() if self.rover_token is not None else None
 
     def assistant_api_key_value(self) -> str | None:
+        if self.assistant_provider == "rules":
+            return None
+        if self.assistant_provider == "gemini":
+            return self.gemini_api_key.get_secret_value() if self.gemini_api_key else None
         return (
             self.assistant_api_key.get_secret_value()
             if self.assistant_api_key is not None

@@ -9,6 +9,10 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 
 ## Start here
 
+サービスの拡張は[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照。
+
+音声認識後の文章の解釈設定は[Assistant providers](assistant-providers.ja.md)を参照。
+
 実験的なiron-X接続は[iron-Xの監視付き操作](hardware/ironx-quickstart.ja.md)から。
 通常の起動・操作と確認済み範囲をまとめ、個別試験は詳細資料へ分離している。
 

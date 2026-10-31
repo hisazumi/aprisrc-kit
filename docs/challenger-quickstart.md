@@ -62,6 +62,9 @@ change speed limits, communication TTL, control ownership, or E-stop behavior.
 
 ## 4. Add a voice or text trigger
 
+For a complete new-action example, registration, and a change-and-try exercise, see
+[Add a voice-triggered action](adding-actions.md).
+
 Define the intent, representative utterances, local-rule keywords, and acknowledgement in the
 same mission's optional `trigger`. Entering a matching phrase in the `/lab` **Human
 interaction** panel starts the mission without an API key.

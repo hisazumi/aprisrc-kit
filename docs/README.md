@@ -9,6 +9,10 @@ capabilities, [Development roadmap](roadmap.md) for priorities, and
 
 ## Start here
 
+To extend a service, follow [Add a voice-triggered action](adding-actions.md).
+
+For text/voice intent interpretation settings, see [Assistant providers](assistant-providers.md).
+
 Read [Purpose and scope](positioning.md) for the distinction between the APRIS conference,
 APRISRC challenge, Kit and participant-created services. Samples are development starting
 points; these guides do not define event rules or judging criteria.

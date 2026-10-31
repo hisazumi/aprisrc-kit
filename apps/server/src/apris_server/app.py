@@ -89,6 +89,7 @@ async def lifespan(app: FastAPI):
     app.state.assistant_interpreter = AssistantIntentInterpreter(
         config.assistant_api_key_value(),
         config.assistant_model,
+        mode=config.assistant_provider,
     )
     await runtime.start()
     try:
@@ -137,7 +138,7 @@ async def assistant_status() -> dict[str, object]:
     interpreter: AssistantIntentInterpreter = app.state.assistant_interpreter
     return {
         "configured": interpreter.configured,
-        "mode": "openai" if interpreter.configured else "rules",
+        "mode": interpreter.mode,
         "model": interpreter.model if interpreter.configured else None,
     }
 
