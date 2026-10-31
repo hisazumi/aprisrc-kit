@@ -14,7 +14,10 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     deployment_profile: Literal["development", "edge", "hosted"] = "development"
-    adapter_type: Literal["simulator", "websocket_rover", "factory_http"] = "simulator"
+    adapter_type: Literal["simulator", "websocket_rover", "factory_http", "ros2_readonly"] = (
+        "simulator"
+    )
+    ros2_state_file: Path | None = None
     rover_id: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -30,6 +33,9 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def selected_adapter_has_required_configuration(self) -> AppConfig:
+        if self.adapter_type == "ros2_readonly":
+            if self.deployment_profile == "hosted" or self.ros2_state_file is None:
+                raise ValueError("ros2_readonly needs a local APRIS_ROS2_STATE_FILE")
         if self.adapter_type == "websocket_rover":
             if self.rover_id is None:
                 raise ValueError("APRIS_ROVER_ID is required for websocket_rover adapter")
@@ -56,25 +62,20 @@ class AppConfig(BaseModel):
         return cls(
             deployment_profile=values.get("APRIS_DEPLOYMENT_PROFILE", "development"),
             adapter_type=values.get("APRIS_ADAPTER", "simulator"),
+            ros2_state_file=values.get("APRIS_ROS2_STATE_FILE"),
             rover_id=values.get("APRIS_ROVER_ID"),
             rover_token=(
-                SecretStr(values["APRIS_ROVER_TOKEN"])
-                if values.get("APRIS_ROVER_TOKEN")
-                else None
+                SecretStr(values["APRIS_ROVER_TOKEN"]) if values.get("APRIS_ROVER_TOKEN") else None
             ),
             assistant_api_key=(
-                SecretStr(values["OPENAI_API_KEY"])
-                if values.get("OPENAI_API_KEY")
-                else None
+                SecretStr(values["OPENAI_API_KEY"]) if values.get("OPENAI_API_KEY") else None
             ),
             assistant_model=values.get("APRIS_ASSISTANT_MODEL", "gpt-6-luna"),
             factory_http_host=values.get("APRIS_FACTORY_HTTP_HOST"),
             factory_http_port=values.get("APRIS_FACTORY_HTTP_PORT", "80"),
             instance_id=values.get("APRIS_INSTANCE_ID", uuid.uuid4().hex),
             build_id=values.get("APRIS_BUILD_ID", "development"),
-            log_directory=Path(
-                values.get("APRIS_LOG_DIR", repository_root / ".runtime" / "logs")
-            ),
+            log_directory=Path(values.get("APRIS_LOG_DIR", repository_root / ".runtime" / "logs")),
         )
 
     def rover_token_value(self) -> str | None:

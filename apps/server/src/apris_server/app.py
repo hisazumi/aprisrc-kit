@@ -16,6 +16,7 @@ from .factory_http_adapter import FactoryHttpRoverAdapter, UrllibFactoryHttpTran
 from .front_obstacle import ClearFrontObstacleInput, FrontObstacleObservationInput
 from .models import Pose
 from .perception import PoseFusion, load_course_markers
+from .ros2_readonly_adapter import Ros2ReadOnlyAdapter
 from .rover_protocol import RoverError, RoverHello, rover_session_message_adapter
 from .rover_registry import RoverProtocolError, RoverRegistry
 from .runtime import RoverRuntime, RuntimeMetadata
@@ -43,6 +44,8 @@ async def lifespan(app: FastAPI):
     scenarios: ScenarioController | None = None
     if config.adapter_type == "simulator":
         adapter = simulator = DifferentialDriveSimulator()
+    elif config.adapter_type == "ros2_readonly":
+        adapter = Ros2ReadOnlyAdapter(config.ros2_state_file)
     elif config.adapter_type == "websocket_rover":
         if config.rover_id is None:
             raise RuntimeError("validated websocket_rover config has no rover_id")
@@ -103,6 +106,11 @@ app.add_middleware(
 @app.get("/api/livez")
 async def livez() -> dict[str, str]:
     return {"status": "alive"}
+
+
+@app.get("/ros2")
+async def ros2_monitor() -> FileResponse:
+    return FileResponse(Path(__file__).with_name("ros2_monitor.html"))
 
 
 @app.get("/api/readyz")
