@@ -69,7 +69,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
   cancelMotionRef.current = rover.actions.cancelMotion;
   const pose = rover.state?.pose ?? null;
   const simulator = adapterType === "simulator";
-  const hardware = adapterType === "websocket_rover";
+  const hardware = adapterType === "websocket_rover" || adapterType === "ironx_network";
   const person = useVirtualPersonSimulation(pose, target, simulator && placement !== "absent");
   const sceneMarkers = destinations.map((marker) => ({ ...marker,
     xM: scene[marker.destination as "entrance" | "desk"].x,
@@ -300,7 +300,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
             onClick={rover.actions.estop}>Emergency stop</button>
         </div>
       </div>
-      {!simulator && !hardware && <p role="status">{adapterType === null ? "Checking connection..." : "Live trials require the WebSocket rover adapter."}</p>}
+      {!simulator && !hardware && <p role="status">{adapterType === null ? "Checking connection..." : "Live trials require a WebSocket rover or iron-X network adapter."}</p>}
       {hardware && sample === "receptionist" && <p role="status">Physical marker guidance is not enabled in this MVP. Camera marker observations remain available.</p>}
       {rover.control.estopLatched && <div className="estop-banner">
         <strong>Emergency stop is active</strong>

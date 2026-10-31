@@ -122,6 +122,8 @@ An active `move` or `turn` is also stopped by Local Server `cancel_motion`.
 
 ## Natural-language trigger
 
+For a step-by-step example, see [Add a voice-triggered action](adding-actions.md).
+
 `trigger` is optional. When present, the PWA sends only registered triggers to the Local
 Server intent interpreter.
 

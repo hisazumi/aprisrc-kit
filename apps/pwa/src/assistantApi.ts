@@ -11,7 +11,7 @@ export interface AssistantDecision {
   destination: "desk" | "kitchen" | "entrance" | null;
   follow_distance: "near" | "normal" | "far";
   response: string;
-  source: "rules" | "openai";
+  source: "rules" | "openai" | "gemini";
   model: string | null;
 }
 

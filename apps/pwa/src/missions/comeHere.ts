@@ -37,7 +37,7 @@ const TURN_SPEED_RAD_S = 0.35;
 const FOLLOW_HOLD_WIDTH = 0.36;
 const FOLLOW_RESUME_WIDTH = 0.31;
 const FOLLOW_MOVE_STEP_M = 0.1;
-const FOLLOW_SPEED_MPS = 0.1;
+const FOLLOW_SPEED_MPS = 0.15;
 const FOLLOW_DISTANCE_WIDTHS = {
   near: { hold: 0.44, resume: 0.38 },
   normal: { hold: FOLLOW_HOLD_WIDTH, resume: FOLLOW_RESUME_WIDTH },

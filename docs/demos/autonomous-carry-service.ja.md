@@ -2,7 +2,8 @@
 
 [English](autonomous-carry-service.md)
 
-Status: **Implemented reference service** (verified 2026-09-25)
+Status: **Implemented reference service**。文書見直し: 2026-10-31。
+実機操作と確認範囲は[iron-X人追従](../hardware/ironx-follow.ja.md)を参照する。
 
 この文書は実装済みCarry assistantの振る舞いと試験scenarioを記録する。未実装項目だけを
 長期計画として扱い、現在の優先順位は[Development roadmap](../roadmap.md)で管理する。
@@ -24,10 +25,13 @@ PAUSED
   -> LOADING
   -> FOLLOWING
   -> ARRIVED
-  -> READY
+  -> PAUSED（明示的に再開）
 ```
 
-- `Start service`で操作権を取得し、人物待機を開始する。
+- `Start service and allow movement`で操作権を取得し、監視付き走行を許可する。
+  安定検出で接近が始まるため、押す前に周囲を確認する。
+- 接近・追従中はclearance heartbeatを更新し、30秒ごとの押し直しは不要。
+  接続断・操作権喪失・非常停止・画面非表示で許可を取り消す。再開は明示的に行う。
 - 同じ人物を3回連続で観測した場合だけ支援を提案する。
 - 安定検出後は低速で人物に接近し、会話距離で停止してから支援を提案する。
 - 承諾はボタン、文字入力、または日本語音声入力で受け付ける。
@@ -42,7 +46,7 @@ PAUSED
 - `/lab`: 仮想人物、再現シナリオ、認識値、同じService画面を表示する。
 - `/console`: 手動運転、安全状態、軌跡、運用監視を表示する。
 
-スマホのService画面ではフロントカメラを既定にし、`Start vision`でカメラと人物認識を同時に開始する。映像は端末内で処理し、正規化した観測だけをLocal Serverへ送る。
+スマホのService画面ではフロントカメラを既定にし、`Start camera`でカメラと人物認識を同時に開始する。映像は端末内で処理し、正規化した観測だけをLocal Serverへ送る。
 
 ## Scenario matrix
 
@@ -65,7 +69,7 @@ PAUSED
 
 ## Reproducible Lab test
 
-1. `/lab`を開き、Carry assistantの`Start service`を押す。
+1. `/lab`を開き、Carry assistantの`Start service and allow movement`を押す。
 2. `Service: passerby leaves quickly`を実行し、`NOTICING`から`READY`へ戻ることを確認する。
 3. `Service: person enters the frame`を実行し、`APPROACHING`、停止、`OFFERING HELP`の順に遷移することを確認する。
 4. `Yes, help me`を押し、`LOADING`の間は停止していることを確認する。

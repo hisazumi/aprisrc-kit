@@ -31,6 +31,14 @@ The PC monitoring and manual-control view.
 
 Use it primarily for observation and acquire control only for manual operation.
 
+The console now offers **Confirm clear path · 30 s** to the connected control
+owner. It sends the existing time-limited manual clearance observation, not a
+motion command. Permission expires or is revoked on disconnect, ownership loss,
+E-stop, blocked state, tab hiding, window blur, explicit revoke or component exit.
+This is not sensor-derived clearance, and rear/side obstacle protection is not
+implemented. Check the whole swept area. Other views keep their existing controls.
+The iron-X console workflow is described in [iron-X operation](hardware/ironx-quickstart.md).
+
 ## `/lab`: Development Lab
 
 For first-time trials, use `/lab?sample=greeting`, `follow`, or `receptionist` via the

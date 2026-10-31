@@ -2,6 +2,12 @@
 
 [日本語](service-hardware-porting.ja.md)
 
+An experimental implementation now exists for iron-X ROS 2 Humble:
+[operation and limits](ironx-quickstart.md), [Adapter contract](ironx-adapter.md).
+It uses same-host files between Kit and the ROS command bridge, not the UGV02 wire
+protocol. Supervised console motion is checked; running the same services is still
+a separate validation step. The abstract mission API remains unchanged.
+
 ## Reference configuration
 
 ```text

@@ -14,13 +14,22 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     deployment_profile: Literal["development", "edge", "hosted"] = "development"
-    adapter_type: Literal["simulator", "websocket_rover", "factory_http"] = "simulator"
+    adapter_type: Literal[
+        "simulator", "websocket_rover", "factory_http", "ros2_readonly", "ironx", "ironx_network"
+    ] = "simulator"
+    ros2_state_file: Path | None = None
+    ironx_command_file: Path | None = None
+    ironx_bridge_state_file: Path | None = None
+    ironx_url: str | None = None
+    ironx_token: SecretStr | None = None
     rover_id: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
     )
     rover_token: SecretStr | None = None
     assistant_api_key: SecretStr | None = None
+    assistant_provider: Literal["rules", "openai", "gemini"] | None = None
+    gemini_api_key: SecretStr | None = None
     assistant_model: str = Field(default="gpt-6-luna", min_length=1, max_length=100)
     factory_http_host: IPv4Address | None = None
     factory_http_port: int = Field(default=80, ge=1, le=65535)
@@ -30,6 +39,33 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def selected_adapter_has_required_configuration(self) -> AppConfig:
+        if self.adapter_type == "ironx_network":
+            from urllib.parse import urlsplit
+
+            url = urlsplit(self.ironx_url or "")
+            if (
+                self.deployment_profile == "hosted"
+                or url.scheme not in ("ws", "wss")
+                or not url.hostname
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+                or not self.ironx_token
+                or not self.ironx_token.get_secret_value()
+            ):
+                raise ValueError("ironx_network requires a ws/wss URL and private token")
+        if self.assistant_provider in ("openai", "gemini") and not self.assistant_api_key_value():
+            raise ValueError("Selected assistant provider requires its API key")
+        if self.adapter_type == "ironx":
+            paths = [self.ros2_state_file, self.ironx_command_file, self.ironx_bridge_state_file]
+            if self.deployment_profile == "hosted" or any(p is None for p in paths):
+                raise ValueError("ironx requires local state, command, and bridge state files")
+            if len({p.resolve() for p in paths}) != 3:
+                raise ValueError("ironx paths must be distinct")
+        if self.adapter_type == "ros2_readonly":
+            if self.deployment_profile == "hosted" or self.ros2_state_file is None:
+                raise ValueError("ros2_readonly needs a local APRIS_ROS2_STATE_FILE")
         if self.adapter_type == "websocket_rover":
             if self.rover_id is None:
                 raise ValueError("APRIS_ROVER_ID is required for websocket_rover adapter")
@@ -53,34 +89,47 @@ class AppConfig(BaseModel):
         environment: Mapping[str, str] | None = None,
     ) -> AppConfig:
         values = environment if environment is not None else os.environ
+        provider = values.get("APRIS_ASSISTANT_PROVIDER")
         return cls(
             deployment_profile=values.get("APRIS_DEPLOYMENT_PROFILE", "development"),
             adapter_type=values.get("APRIS_ADAPTER", "simulator"),
+            ros2_state_file=values.get("APRIS_ROS2_STATE_FILE"),
+            ironx_command_file=values.get("APRIS_IRONX_COMMAND_FILE"),
+            ironx_bridge_state_file=values.get("APRIS_IRONX_BRIDGE_STATE_FILE"),
+            ironx_url=values.get("APRIS_IRONX_URL"),
+            ironx_token=SecretStr(values["APRIS_IRONX_TOKEN"])
+            if values.get("APRIS_IRONX_TOKEN")
+            else None,
             rover_id=values.get("APRIS_ROVER_ID"),
             rover_token=(
-                SecretStr(values["APRIS_ROVER_TOKEN"])
-                if values.get("APRIS_ROVER_TOKEN")
-                else None
+                SecretStr(values["APRIS_ROVER_TOKEN"]) if values.get("APRIS_ROVER_TOKEN") else None
             ),
             assistant_api_key=(
-                SecretStr(values["OPENAI_API_KEY"])
-                if values.get("OPENAI_API_KEY")
-                else None
+                SecretStr(values["OPENAI_API_KEY"]) if values.get("OPENAI_API_KEY") else None
             ),
-            assistant_model=values.get("APRIS_ASSISTANT_MODEL", "gpt-6-luna"),
+            assistant_provider=provider,
+            gemini_api_key=SecretStr(values["GEMINI_API_KEY"])
+            if values.get("GEMINI_API_KEY")
+            else None,
+            assistant_model=values.get(
+                "APRIS_ASSISTANT_MODEL",
+                "gemini-3.8-flash" if provider == "gemini" else "gpt-6-luna",
+            ),
             factory_http_host=values.get("APRIS_FACTORY_HTTP_HOST"),
             factory_http_port=values.get("APRIS_FACTORY_HTTP_PORT", "80"),
             instance_id=values.get("APRIS_INSTANCE_ID", uuid.uuid4().hex),
             build_id=values.get("APRIS_BUILD_ID", "development"),
-            log_directory=Path(
-                values.get("APRIS_LOG_DIR", repository_root / ".runtime" / "logs")
-            ),
+            log_directory=Path(values.get("APRIS_LOG_DIR", repository_root / ".runtime" / "logs")),
         )
 
     def rover_token_value(self) -> str | None:
         return self.rover_token.get_secret_value() if self.rover_token is not None else None
 
     def assistant_api_key_value(self) -> str | None:
+        if self.assistant_provider == "rules":
+            return None
+        if self.assistant_provider == "gemini":
+            return self.gemini_api_key.get_secret_value() if self.gemini_api_key else None
         return (
             self.assistant_api_key.get_secret_value()
             if self.assistant_api_key is not None

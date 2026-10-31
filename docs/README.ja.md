@@ -9,6 +9,13 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 
 ## Start here
 
+サービスの拡張は[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照。
+
+音声認識後の文章の解釈設定は[Assistant providers](assistant-providers.ja.md)を参照。
+
+実験的なiron-X接続は[PC・iPhoneでの人追従と復旧](hardware/ironx-follow.ja.md)から。
+通常の起動・操作と確認済み範囲をまとめ、個別試験は詳細資料へ分離している。
+
 多くの利用者が最初に読む資料である。
 
 [目的と位置づけ](positioning.ja.md)でAPRIS、APRISRC、Kit、参加者が作るサービスを区別する。
@@ -23,6 +30,8 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 | 独自の人物反応serviceを作る | [参加者向けquickstart](challenger-quickstart.ja.md) |
 | 利用できるmission APIと安全境界を知る | [Mission API and service templates](mission-api.ja.md) |
 | 対応UGV02で同じstarterを試す | [UGV02 self-test](hardware/ugv02-self-test.ja.md) |
+| 学生PCのKitサーバーからLAN経由でiron-Xへ接続する（実験的） | [iron-Xネットワーク接続](hardware/ironx-network.ja.md) |
+| iron-Xで人追従を実行し、停止から復旧する（実験的） | [iron-X人追従](hardware/ironx-follow.ja.md) |
 | 現在できることと制約を確認する | [Platform status](platform-status.ja.md) |
 
 

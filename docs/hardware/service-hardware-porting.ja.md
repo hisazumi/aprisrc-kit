@@ -2,6 +2,11 @@
 
 [English](service-hardware-porting.md)
 
+iron-X ROS 2 Humble向けの実験実装を追加した。
+[操作と制約](ironx-quickstart.ja.md)、[Adapter契約](ironx-adapter.md)を参照。
+UGV02のwire protocolではなく、KitとROS bridge間の同一ホストファイルを使う。
+監視付きコンソール走行は確認済みだが、同じサービスの実行は別途検証する。mission APIは変更しない。
+
 ## Reference configuration
 
 チャレンジャー向けmission APIの実機参照構成は次である。

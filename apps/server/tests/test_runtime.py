@@ -110,6 +110,24 @@ async def test_estop_is_latched() -> None:
         await runtime.close()
 
 
+@pytest.mark.asyncio
+async def test_failed_emergency_stop_and_reset_keep_local_latch(monkeypatch) -> None:
+    simulator = DifferentialDriveSimulator()
+    runtime = RoverRuntime(simulator)
+    runtime.owner_client_id = "test-client"
+
+    async def unavailable(*args):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr(simulator, "emergency_stop", unavailable)
+    monkeypatch.setattr(simulator, "clear_emergency_stop", unavailable)
+    await runtime._estop("test disconnect")
+    assert runtime.estop_latched
+    await runtime._clear_estop("test-client")
+    assert runtime.estop_latched
+    assert runtime.command_deadline is None
+
+
 async def wait_for_motion(runtime: RoverRuntime) -> None:
     task = runtime._motion_task
     assert task is not None

@@ -52,9 +52,9 @@ local fallback keywords, and acknowledgements are colocated with their mission
 definitions. The PWA sends only those registered triggers to the Local Server.
 Reserved `stop`, `wait_here`, `report_status`, and `clarify` intents remain
 platform-owned, and stop phrases are resolved locally before any model call.
-With `OPENAI_API_KEY` set, the Local Server uses the OpenAI Responses API with
-strict Structured Outputs and `gpt-6-luna` by default; without a key,
-deterministic local rules keep the demo usable. Model output can never contain
+Select `rules`, `openai` or `gemini` using `APRIS_ASSISTANT_PROVIDER`;
+see [provider configuration](../assistant-providers.md) for keys, models and legacy defaults.
+Rules need no API key. Model output can never contain
 velocity, motor, distance, angle, or rover-protocol commands.
 
 Where browser speech recognition is available, **Speak** captures one Japanese
@@ -86,7 +86,7 @@ sends a normal stop, cancels the bounded motion, and transitions the service to
 - Observation stale timeout: 1.8 s
 - Simulator follow hysteresis: resume below 31% frame width, hold at 36%
 - Phone upper-body follow hysteresis: resume below 52% frame width, hold at 65%
-- Follow step: 0.10 m at 0.10 m/s
+- Follow step: 0.10 m at a requested 0.15 m/s; bounded-motion deceleration may keep actual speed lower
 
 The interaction consumes only `ServiceRover.onPerson()`, `move()`, `turn()`,
 `stop()`, and the optional authoritative front-obstacle snapshot. It does not
@@ -96,22 +96,18 @@ unchanged.
 
 ## Supervised hardware pilot
 
-Open `https://<Mac LAN address>:5173/app` on the phone and use **Start vision**
-and **Start service**. Person bearing may trigger bounded alignment turns while
-the front-obstacle state is `UNKNOWN`. Forward approach and following remain
-paused until the operator taps **Allow movement for 30 s**. During that window,
-the service sends a narrow `path_clearance` heartbeat and the server alone
-converts it into a fresh manual `CLEAR` observation. The mission then advances
-in bounded 0.08 m approach or 0.10 m follow steps.
+Use [iron-X person following](../hardware/ironx-follow.md) for the PC/iPhone setup,
+start/stop sequence and E-stop recovery. Open the PC's actual HTTPS port, use
+**Start camera**, and check the area before **Start service and allow movement**.
+Carry helper sends short-lived `path_clearance` heartbeats during approach/following;
+there is no 30-second renewal button in this service. The server expires clearance
+within one second if heartbeats stop. Connection/control loss, E-stop and hiding
+the page revoke consent. Explicitly restart after interruption.
 
-The permission ends after 30 seconds and may be cancelled with another tap.
-The server independently expires it within one second if heartbeats stop.
-Releasing control or losing the owning WebSocket also revokes clearance and
-stops motion. Browser clients cannot set arbitrary obstacle state, source,
-health, confidence, or timestamps. This is a supervised MVP bridge, not a
-replacement for vehicle-mounted free-space perception; autonomous unattended
-forward motion remains out of scope until a measured obstacle sensor supplies
-authoritative observations.
+The Console still uses its separate 30-second manual confirmation. Neither flow
+is sensor-derived obstacle avoidance. Browser clients cannot set arbitrary
+obstacle state, source, health, confidence or timestamps. Unattended operation
+and general collision avoidance remain out of scope.
 
 ## Verification
 

@@ -9,7 +9,7 @@ hardware記録で管理する。完了した実装の詳細はGit履歴に残し
 これはKit開発の計画で、APRISRCの締切・必須課題・審査基準ではない。
 参加者はKitを使って独自サービスを作る。[目的と位置づけ](positioning.ja.md)を参照する。
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-31
 
 Current focus: 変更可能なSimulatorサンプルを引き継ぎ、他の開発者が独立して試用・拡張できるようにする。
 実機依存の検証は未完了として残し、引き継ぎの前提条件にはしない。
@@ -125,7 +125,7 @@ Exit: 設定だけでSimulator/UGV02を切り替えられ、missionは変更せ�
 
 Status: **In progress; production provider work deferred**
 
-利用可能: browser speech recognition/synthesis、local keyword rules、任意のOpenAI structured
+利用可能: browser speech recognition/synthesis、local keyword rules、任意のOpenAI/Gemini structured
 intent、allowlist検証、予約済みstop処理、mission dispatch。model出力にmotion parameterや
 transport commandを含めることはできない。
 
@@ -134,11 +134,15 @@ latency/error budgetの定義。
 
 ## M9: iron-X ROS 2 Humble bridge
 
-Status: **Hardware-dependent**
+Status: **ネットワーク経由サービスの試行報告あり、最新構成は実機再試験待ち**（2026-10-31）
 
-実際のiron-Xを確認してから着手する。topic、type、frame、QoSを調査し、Jetson側adapterで
-`/cmd_vel`、`/odom`、`/imu`を変換する。再接続と通信断時停止を維持し、mecanumの`vy`は
-当初ゼロに制限する。PWAとmission codeは変更しない。
+ROS状態表示、指令期限付きbridge、同一ホストAdapter、認証付きLAN gatewayとPC Adapterを実装した。
+コンソールの床上試験とiPhone人追従の操作者報告を記録している。mission APIは変更せず`vy`はゼロ。
+
+次は停止確認キャンセル修正と0.15 m/s設定を実機で再確認し、対象喪失時の停止を計測して
+観測が途切れる原因を調べる。その後、認識・操作権の引き継ぎ、Live Playground、通信断からの復旧、
+bridge・OS・シリアル故障への独立した保護を評価する。ソフトウェアの復旧テストは実機故障評価ではない。
+LiDAR安全確認は未実装。[iron-X人追従](hardware/ironx-follow.ja.md)から進める。
 
 ## M10: LiDAR and advanced autonomy
 

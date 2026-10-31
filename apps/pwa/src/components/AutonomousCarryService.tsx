@@ -1,7 +1,6 @@
 import {
   type CSSProperties,
   type FormEvent,
-  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -102,7 +101,6 @@ const loadingIntents: readonly AssistantIntentDefinition[] = [
   }
 ];
 
-const SUPERVISED_MOTION_MS = 30_000;
 const PATH_CLEARANCE_HEARTBEAT_MS = 400;
 const ignorePathClearance = () => false;
 
@@ -145,8 +143,7 @@ export function AutonomousCarryService({
   const [assistantReply, setAssistantReply] = useState("Say yes when you would like help.");
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [listening, setListening] = useState(false);
-  const [pathClearUntilMs, setPathClearUntilMs] = useState<number | null>(null);
-  const [pathClearClockMs, setPathClearClockMs] = useState(() => Date.now());
+  const [movementConsent, setMovementConsent] = useState(false);
   const missionAbortRef = useRef<AbortController | null>(null);
   const pendingMissionInputRef = useRef<Partial<MissionInput>>({});
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -156,42 +153,46 @@ export function AutonomousCarryService({
   const pathClearEnabled = connected
     && isOwner
     && !estopLatched
+    && movementConsent
     && ["approaching", "following"].includes(state.phase);
 
-  const authorizePathClearance = useCallback(() => {
-    if (!pathClearEnabled) return;
-    const now = Date.now();
-    setPathClearClockMs(now);
-    setPathClearUntilMs(now + SUPERVISED_MOTION_MS);
-  }, [pathClearEnabled]);
-
-  const cancelPathClearance = useCallback(() => {
-    setPathClearUntilMs(null);
-  }, []);
-
   useEffect(() => {
-    if (pathClearUntilMs === null) return;
+    if (!pathClearEnabled) return;
     onPathClearanceChange(true);
     const heartbeat = window.setInterval(
       () => onPathClearanceChange(true),
       PATH_CLEARANCE_HEARTBEAT_MS
     );
-    const clock = window.setInterval(() => setPathClearClockMs(Date.now()), 250);
-    const expiry = window.setTimeout(
-      () => setPathClearUntilMs(null),
-      Math.max(0, pathClearUntilMs - Date.now())
-    );
     return () => {
       window.clearInterval(heartbeat);
-      window.clearInterval(clock);
-      window.clearTimeout(expiry);
       onPathClearanceChange(false);
     };
-  }, [onPathClearanceChange, pathClearUntilMs]);
+  }, [onPathClearanceChange, pathClearEnabled]);
 
   useEffect(() => {
-    if (pathClearUntilMs !== null && !pathClearEnabled) cancelPathClearance();
-  }, [cancelPathClearance, pathClearEnabled, pathClearUntilMs]);
+    if (connected && !estopLatched && (isOwner || startRequested)) return;
+    setMovementConsent(false);
+    setStartRequested(false);
+    if (!connected) {
+      missionAbortRef.current?.abort();
+      onCancelMotion();
+      dispatch({ type: "disarm" });
+    }
+  }, [connected, estopLatched, isOwner, onCancelMotion, startRequested]);
+
+  useEffect(() => {
+    const suspend = () => {
+      if (document.visibilityState !== "hidden") return;
+      setMovementConsent(false);
+      setStartRequested(false);
+      onPathClearanceChange(false);
+      missionAbortRef.current?.abort();
+      onCancelMotion();
+      dispatch({ type: "disarm" });
+    };
+    document.addEventListener("visibilitychange", suspend);
+    return () => document.removeEventListener("visibilitychange", suspend);
+  }, [onCancelMotion, onPathClearanceChange]);
 
   const statusNote = useMemo(() => {
     if (!connected) return "Connecting to the rover";
@@ -247,6 +248,7 @@ export function AutonomousCarryService({
 
   const startService = () => {
     if (!connected || estopLatched || !controlAvailable || !approachMission || !mission) return;
+    setMovementConsent(true);
     if (isOwner) {
       dispatch({ type: "arm" });
       speak("I am ready to help.");
@@ -332,6 +334,7 @@ export function AutonomousCarryService({
   };
 
   const stopMotion = async (completed: boolean) => {
+    setMovementConsent(false);
     missionAbortRef.current?.abort();
     onCancelMotion();
     try {
@@ -447,16 +450,13 @@ export function AutonomousCarryService({
 
   const restart = () => {
     setAssistantReply("Say yes when you would like help.");
-    dispatch({ type: "reset" });
+    setMovementConsent(false);
+    dispatch({ type: "disarm" });
   };
 
   const direction = personDirection(state.person);
   const markerStyle = personMarkerStyle(state.person);
   const commandEnabled = ["offering", "loading", "following"].includes(state.phase);
-  const pathClearAuthorized = pathClearUntilMs !== null && pathClearClockMs < pathClearUntilMs;
-  const pathClearSeconds = pathClearUntilMs === null
-    ? 0
-    : Math.max(0, Math.ceil((pathClearUntilMs - pathClearClockMs) / 1000));
 
   return (
     <section className={`carry-service carry-service--${state.phase}`} aria-label="Carry assistant">
@@ -490,16 +490,7 @@ export function AutonomousCarryService({
 
         {active && (
           <div className="path-clearance">
-            <button
-              className={`button path-clearance__button${pathClearAuthorized ? " is-authorized" : ""}`}
-              disabled={!pathClearEnabled}
-              aria-pressed={pathClearAuthorized}
-              onClick={pathClearAuthorized ? cancelPathClearance : authorizePathClearance}
-            >
-              {pathClearAuthorized
-                ? `Movement enabled · ${pathClearSeconds} s`
-                : "Allow movement for 30 s"}
-            </button>
+            <span>{pathClearEnabled ? "Supervised movement enabled" : "Movement paused"}</span>
             <span>
               {frontObstacle?.state === "CLEAR"
                 ? "Forward steps enabled"
@@ -523,7 +514,7 @@ export function AutonomousCarryService({
             }
             onClick={startService}
           >
-            {startRequested ? "Starting…" : "Start service"}
+            {startRequested ? "Starting…" : "Start service and allow movement"}
           </button>
         )}
 

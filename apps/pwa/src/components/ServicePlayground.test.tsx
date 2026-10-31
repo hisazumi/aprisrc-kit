@@ -140,7 +140,7 @@ describe("ServicePlayground", () => {
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Follow me")!.click());
     expect(simulatorApi.setFrontObstacle).toHaveBeenCalledWith("CLEAR", "healthy");
     await act(async () => mock.emit());
-    expect(mock.rover.serviceRover.move).toHaveBeenCalledWith(.1, .1);
+    expect(mock.rover.serviceRover.move).toHaveBeenCalledWith(.1, .15);
     expect(container.querySelector(".is-executing")?.textContent).toContain("rover.move");
     await act(async () => mock.emit({ status: "lost" }));
     expect(mock.rover.serviceRover.stop).toHaveBeenCalledWith("person lost");
@@ -199,11 +199,11 @@ describe("ServicePlayground", () => {
     await act(async () => root.unmount());
   });
 
-  it("starts a supervised hardware greeting without any Simulator calls and filters synthetic events", async () => {
+  it.each(["websocket_rover", "ironx_network"] as const)("starts a supervised %s greeting without Simulator calls and filters synthetic events", async (adapterType) => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="websocket_rover" />));
+    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType={adapterType} />));
     const click = async (text: string) => act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === text)!.click());
     await click("Test live camera");
     await act(async () => mock.emit({ source: "camera" }));

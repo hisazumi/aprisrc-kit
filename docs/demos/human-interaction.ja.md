@@ -38,7 +38,7 @@ OPENAI_API_KEY='<development key>' npm run dev
 
 **Natural language**は、英語または日本語の依頼を許可済みのサービス意図へ変換します。アプリケーション意図、説明、例、ローカルfallbackキーワード、応答はMission定義と同じ場所にあります。PWAがLocal Serverへ送れるのは登録済みtriggerだけです。
 
-`stop`、`wait_here`、`report_status`、`clarify`はプラットフォームが所有します。停止表現はモデル呼び出しより先にローカルで解決します。`OPENAI_API_KEY`がある場合、Local Serverはstrict Structured Outputsを指定したOpenAI Responses APIを使います。既定モデルは`gpt-6-luna`です。キーがない場合は決定的なローカルルールで動作します。モデル出力から速度、モーター、距離、角度、Rover protocol命令を生成することはできません。
+`stop`、`wait_here`、`report_status`、`clarify`はプラットフォームが所有します。停止表現はモデル呼び出しより先にローカルで解決します。`APRIS_ASSISTANT_PROVIDER`で`rules`、`openai`、`gemini`を選べます。キー・モデル・従来互換の既定値は[provider設定](../assistant-providers.ja.md)を参照してください。rulesにはAPIキーは不要です。モデル出力から速度、モーター、距離、角度、Rover protocol命令を生成することはできません。
 
 ブラウザが音声認識に対応している場合、**Speak**は日本語の発話を一つ取得し、同じ意図変換境界へ渡します。これはデモ用入力adapterです。本番では、明示的に選定・評価した文字起こしproviderを使いつつ、許可済み意図の契約を維持します。
 
@@ -60,15 +60,16 @@ OPENAI_API_KEY='<development key>' npm run dev
 - 観測期限切れ: 1.8 s
 - Simulator追従hysteresis: 31%未満で再開、36%で待機
 - 上半身追従hysteresis: 52%未満で再開、65%で待機
-- 追従step: 0.10 mを0.10 m/sで実行
+- 追従step: 0.10 m、指定速度0.15 m/s。短距離の減速制御で実際の速度は低くなることがあります。
 
 インタラクション実装が使うのは`ServiceRover.onPerson()`、`move()`、`turn()`、`stop()`と、任意の権威ある前方障害snapshotだけです。Simulator固有のmotion APIは使いません。そのため、仮想観測をbrowser camera観測へ交換しても、サービス状態機械は変わりません。
 
 ## 監視付き実機pilot
 
-スマートフォンで`https://<MacのLANアドレス>:5173/app`を開き、**Start vision**と**Start service**を押します。前方障害状態が`UNKNOWN`でも人物のbearingに基づくbounded alignment turnは実行できます。前進と追従は、operatorが**Allow movement for 30 s**を押すまで待機します。その30秒間、サービスは限定された`path_clearance` heartbeatを送信し、サーバだけがそれを新鮮なmanual `CLEAR`観測へ変換します。Missionは0.08 mの接近または0.10 mの追従stepで進みます。
+PC・iPhoneの準備、開始・停止、非常停止からの復旧は[iron-X人追従](../hardware/ironx-follow.ja.md)を参照してください。PCの実際のHTTPSポートを開き、**Start camera**で認識を確認し、周囲を確認してから**Start service and allow movement**を押します。
+Carry helperでは接近・追従中だけ短期限の`path_clearance` heartbeatを送信し、30秒ごとの押し直しは不要です。heartbeatが途絶えるとサーバーは1秒以内にclearanceを失効させます。通信断、操作権喪失、非常停止、画面非表示で許可を取り消し、中断後は明示的に再開します。
 
-許可は30秒後に終了し、同じボタンで取り消せます。heartbeatが止まるとサーバ側も1秒以内に失効させます。操作権の解放または所有WebSocketの切断でもclearanceを取り消し、停止します。browser clientは障害物状態、source、health、confidence、timestampを任意に設定できません。これは監視付きMVPのための橋渡しであり、車載free-space sensorの代替ではありません。
+Consoleの30秒確認は手動運転用として残ります。いずれも車載センサーによる障害物回避ではありません。browser clientは障害物状態、source、health、confidence、timestampを任意に設定できません。無人運用と一般的な衝突回避は対象外です。
 
 ## 確認結果
 

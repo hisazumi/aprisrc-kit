@@ -363,9 +363,7 @@ class RoverRuntime:
             return
         async with self._path_clearance_lock:
             self._path_clearance_client_id = client_id
-            self._path_clearance_deadline = (
-                time.monotonic() + self.config.path_clearance_ttl_s
-            )
+            self._path_clearance_deadline = time.monotonic() + self.config.path_clearance_ttl_s
             await self.ingest_front_obstacle(
                 FrontObstacleObservationInput(
                     state="CLEAR",
@@ -385,10 +383,7 @@ class RoverRuntime:
 
     async def _expire_path_clearance(self, now: float) -> None:
         async with self._path_clearance_lock:
-            if (
-                self._path_clearance_deadline is None
-                or now < self._path_clearance_deadline
-            ):
+            if self._path_clearance_deadline is None or now < self._path_clearance_deadline:
                 return
             self._path_clearance_client_id = None
             self._path_clearance_deadline = None
@@ -467,8 +462,22 @@ class RoverRuntime:
         await self.broadcast(EventMessage(event="stopped", detail=reason))
 
     async def _estop(self, reason: str) -> None:
+        async with self._lock:
+            self.estop_latched = True
+            self.command_deadline = None
+            self.last_command_at = None
+        await self._broadcast_control()
         await self._cancel_motion("emergency stop")
-        await self.adapter.emergency_stop(reason)
+        try:
+            await self.adapter.emergency_stop(reason)
+        except Exception:
+            await self.broadcast(
+                EventMessage(
+                    event="emergency_stop_unconfirmed",
+                    detail="Emergency stop remains latched; robot acknowledgement unavailable",
+                )
+            )
+            return
         if self.log:
             self.log.record("adapter_command", "emergency_stop", {"reason": reason})
         async with self._lock:
@@ -481,7 +490,13 @@ class RoverRuntime:
     async def _clear_estop(self, client_id: str) -> None:
         if not await self._require_owner(client_id):
             return
-        await self.adapter.clear_emergency_stop()
+        try:
+            await self.adapter.clear_emergency_stop()
+        except Exception:
+            await self._error(
+                client_id, "clear_estop_failed", "Stop remains latched; retry after reconnection"
+            )
+            return
         async with self._lock:
             self.estop_latched = False
         await self.broadcast(EventMessage(event="emergency_stop_cleared"))
@@ -625,9 +640,7 @@ class RoverRuntime:
         if snapshot.state == "CLEAR":
             return
         reason = (
-            "front_obstacle_blocked"
-            if snapshot.state == "BLOCKED"
-            else "front_obstacle_unknown"
+            "front_obstacle_blocked" if snapshot.state == "BLOCKED" else "front_obstacle_unknown"
         )
         if self._motion_task is not None and self._motion_forward:
             await self._cancel_motion(reason)
@@ -1048,6 +1061,9 @@ class RoverRuntime:
             if self.last_command_at is not None:
                 age_ms = (time.monotonic() - self.last_command_at) * 1000.0
             state = await self.adapter.state(command_age_ms=age_ms)
+            if getattr(self.adapter, "requires_rearm", False) and not self.estop_latched:
+                self.estop_latched = True
+                await self._broadcast_control()
             state = self.pose_fusion.apply(state)
             if self.log:
                 self.log.record("state", "rover_state", state.model_dump(mode="json"))
@@ -1145,9 +1161,7 @@ class RoverRuntime:
             else {"enabled": False, "healthy": True, "error": None}
         )
         adapter_ready = (
-            adapter_error is None
-            and adapter_state is not None
-            and adapter_state.connected
+            adapter_error is None and adapter_state is not None and adapter_state.connected
         )
         ready = (
             self._started_at is not None
@@ -1246,9 +1260,7 @@ class RoverRuntime:
                     else None
                 ),
                 "state": (
-                    adapter_state.model_dump(mode="json")
-                    if adapter_state is not None
-                    else None
+                    adapter_state.model_dump(mode="json") if adapter_state is not None else None
                 ),
                 "error": adapter_error,
             },

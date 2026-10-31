@@ -14,11 +14,14 @@ from .assistant import AssistantCommandRequest, AssistantIntentInterpreter
 from .config import AppConfig
 from .factory_http_adapter import FactoryHttpRoverAdapter, UrllibFactoryHttpTransport
 from .front_obstacle import ClearFrontObstacleInput, FrontObstacleObservationInput
+from .ironx_adapter import IronXAdapter
+from .ironx_network_adapter import IronXNetworkAdapter
 from .models import Pose
 from .perception import PoseFusion, load_course_markers
+from .ros2_readonly_adapter import Ros2ReadOnlyAdapter
 from .rover_protocol import RoverError, RoverHello, rover_session_message_adapter
 from .rover_registry import RoverProtocolError, RoverRegistry
-from .runtime import RoverRuntime, RuntimeMetadata
+from .runtime import RoverRuntime, RuntimeConfig, RuntimeMetadata
 from .scenario import ReplayRequest, ScenarioController, ScenarioEventInput
 from .simulator import DifferentialDriveSimulator, SimulatorFaults, SimulatorPoseInput
 from .structured_log import StructuredLog
@@ -43,6 +46,14 @@ async def lifespan(app: FastAPI):
     scenarios: ScenarioController | None = None
     if config.adapter_type == "simulator":
         adapter = simulator = DifferentialDriveSimulator()
+    elif config.adapter_type == "ros2_readonly":
+        adapter = Ros2ReadOnlyAdapter(config.ros2_state_file)
+    elif config.adapter_type == "ironx":
+        adapter = IronXAdapter(
+            config.ros2_state_file, config.ironx_command_file, config.ironx_bridge_state_file
+        )
+    elif config.adapter_type == "ironx_network":
+        adapter = IronXNetworkAdapter(config.ironx_url, config.ironx_token.get_secret_value())
     elif config.adapter_type == "websocket_rover":
         if config.rover_id is None:
             raise RuntimeError("validated websocket_rover config has no rover_id")
@@ -58,6 +69,9 @@ async def lifespan(app: FastAPI):
         )
     runtime = RoverRuntime(
         adapter,
+        config=RuntimeConfig(max_vx=0.15, max_wz=0.2, motion_ttl_ms=200)
+        if config.adapter_type in ("ironx", "ironx_network")
+        else None,
         structured_log=structured_log,
         pose_fusion=pose_fusion,
         metadata=RuntimeMetadata(
@@ -78,6 +92,7 @@ async def lifespan(app: FastAPI):
     app.state.assistant_interpreter = AssistantIntentInterpreter(
         config.assistant_api_key_value(),
         config.assistant_model,
+        mode=config.assistant_provider,
     )
     await runtime.start()
     try:
@@ -105,6 +120,11 @@ async def livez() -> dict[str, str]:
     return {"status": "alive"}
 
 
+@app.get("/ros2")
+async def ros2_monitor() -> FileResponse:
+    return FileResponse(Path(__file__).with_name("ros2_monitor.html"))
+
+
 @app.get("/api/readyz")
 async def readyz() -> JSONResponse:
     status = await _server_status()
@@ -121,7 +141,7 @@ async def assistant_status() -> dict[str, object]:
     interpreter: AssistantIntentInterpreter = app.state.assistant_interpreter
     return {
         "configured": interpreter.configured,
-        "mode": "openai" if interpreter.configured else "rules",
+        "mode": interpreter.mode,
         "model": interpreter.model if interpreter.configured else None,
     }
 

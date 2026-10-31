@@ -11,7 +11,7 @@ occupying the main roadmap.
 This roadmap covers the Kit, not APRISRC event deadlines, required tasks or judging criteria.
 Participants create their own services using the Kit; see [Purpose and scope](positioning.md).
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-31
 
 Current focus: hand over editable Simulator samples so other developers can try and extend
 services independently. Hardware-dependent validation remains open rather than blocking this handoff.
@@ -134,7 +134,7 @@ path stops safely, and predeclared motion/safety limits pass.
 
 Status: **In progress; production provider work deferred**
 
-Available now: browser speech recognition/synthesis, local keyword rules, optional OpenAI
+Available now: browser speech recognition/synthesis, local keyword rules, optional OpenAI/Gemini
 structured intent, allowlist validation, reserved stop handling, and mission dispatch. Model
 output cannot contain motion parameters or transport commands.
 
@@ -143,12 +143,18 @@ device variability, and define latency/error budgets.
 
 ## M9: iron-X ROS 2 Humble bridge
 
-Status: **Hardware-dependent**
+Status: **Network service trial reported; latest configuration revalidation pending** (2026-10-31)
 
-Start only after inspecting the actual iron-X system. Inventory topics, types, frames, and
-QoS; map `/cmd_vel`, `/odom`, and `/imu` through a Jetson-side adapter; preserve reconnect and
-disconnect-stop behavior; and initially constrain mecanum `vy` to zero. PWA and mission code
-must remain unchanged.
+ROS telemetry, the command-expiry bridge, same-host Adapter and authenticated LAN
+gateway/PC Adapter are implemented. Console floor trials and an operator-reported
+iPhone following trial are recorded. The mission API is unchanged; `vy` remains zero.
+
+Next: physically revalidate the stop-confirmation cancellation fix and 0.15 m/s
+configuration; measure target-loss stopping and investigate observation gaps.
+Then qualify perception/ownership handoff, Live Playground, network-loss recovery
+and independent protection against bridge/OS/serial failure. Software recovery
+tests are not physical fault qualification. LiDAR clearance remains unimplemented.
+Start with [iron-X person following](hardware/ironx-follow.md).
 
 ## M10: LiDAR and advanced autonomy
 

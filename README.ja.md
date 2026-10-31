@@ -24,6 +24,7 @@ Simulatorから始め、対応する高水準missionを実機で検証する。
 | 自分のサービスを作る | [参加者向けquickstart](docs/challenger-quickstart.ja.md) |
 | mission APIと安全境界を知る | [Mission API](docs/mission-api.ja.md) |
 | 対応UGV02で試す | [UGV02 self-test](docs/hardware/ugv02-self-test.ja.md) |
+| PC・iPhoneでiron-Xの監視付き人追従を試す | [iron-X人追従](docs/hardware/ironx-follow.ja.md) |
 | 開発・保守資料を探す | [Documentation index](docs/README.ja.md) |
 
 実装済み機能、確認済み範囲、残る制約は[Platform status](docs/platform-status.ja.md)を参照する。
@@ -117,8 +118,11 @@ uv run --directory apps/server pytest
 
 ## Scope
 
-現在の対応実機はWaveshare UGV02の開発用APRIS firmware構成である。iron-X ROS 2 bridgeと
-LiDARを使う高度な自律移動は将来項目であり、[Development roadmap](docs/roadmap.ja.md)で管理する。
+基準実機はWaveshare UGV02の開発用APRIS firmware構成である。
+実験的なiron-X ROS 2 Humble対応では、PC上のKitをLAN経由で接続できる。
+iPhoneによる人追従の成功報告があるが、最新の停止確認修正と0.15 m/s設定は実機再試験待ち。
+手順・確認範囲は[iron-X人追従](docs/hardware/ironx-follow.ja.md)を参照する。
+広範な実機評価とLiDARを使う自律移動は引き続き[ロードマップ](docs/roadmap.ja.md)で管理する。
 
 ## 公開と開発への参加
 

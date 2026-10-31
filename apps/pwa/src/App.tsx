@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ManualPathClearance } from "./components/ManualPathClearance";
 
 import { CameraPreview } from "./components/CameraPreview";
 import { AutonomousCarryService } from "./components/AutonomousCarryService";
@@ -264,6 +265,12 @@ export function App() {
       </div>
       {controlActions}
       {estopBanner}
+      {view === "console" && <ManualPathClearance
+        eligible={rover.status === "connected" && rover.control.isOwner
+          && !rover.control.estopLatched && rover.state?.connected === true}
+        blocked={rover.frontObstacle?.state === "BLOCKED"}
+        onChange={rover.actions.setPathClearance}
+      />}
       <Joystick
         disabled={driveDisabled}
         onDrive={driveManually}

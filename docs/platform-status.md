@@ -2,7 +2,8 @@
 
 [日本語](platform-status.ja.md)
 
-Documentation reviewed: 2026-10-08. Last physical trial recorded: 2026-09-25.
+iron-X documentation updated: 2026-10-31. Last iron-X physical trial: 2026-10-31.
+UGV02 trial evidence below remains dated 2026-09-25.
 
 APRISRC Kit supports participant-created services for APRISRC. It provides Simulator
 development and a supported UGV02 path for the same high-level mission. The Simulator remains
@@ -26,7 +27,7 @@ participants' services; see [Purpose and scope](positioning.md).
 - In-browser person, upper-body, and APRIS marker perception
 - Local keyword rules and optional LLM structured intent limited to registered missions
 - JSON scenarios, fault injection, three-state front-obstacle safety, structured logs, and replay
-- Simulator, UGV02 WebSocket, and diagnostic factory-HTTP adapter selection
+- Simulator, UGV02 WebSocket, diagnostic factory-HTTP, and experimental iron-X local/network adapters
 
 ## Physical rover status
 
@@ -41,17 +42,26 @@ tests within the [UGV02 self-test](hardware/ugv02-self-test.md) boundary.
 
 ## Current limitations
 
+iron-X: PC-hosted Kit and mounted-iPhone following received a successful operator
+report on 2026-10-31. Subsequent trials exposed cancellation/stop-response races.
+The latest stop-confirmation fix and 0.15 m/s settings need physical revalidation;
+see [current operation and evidence](hardware/ironx-follow.md).
+
 - Live Playground has software tests and disconnected UI checks only; its actual camera/rover
   flow has not been physically verified. Earlier phone-following trials used the older service flow.
 - Physical marker guidance remains unverified, including the separate Service App experimental path.
 - No onboard sensor continuously establishes free space ahead. `UNKNOWN` is never treated as clear.
-- Forward person following uses a time-limited, user-confirmed movement permission.
+- Carry helper grants supervised consent through **Start service and allow movement**,
+  with short-lived heartbeats during approach/following. Console retains its 30-second confirmation.
 - Development firmware uses plain WebSocket and a shared token on a private LAN.
 - Production WSS, per-rover credentials, and persistent idempotency are not implemented.
 - IMU/battery telemetry, p95 motion error, and stopping-distance qualification remain open.
 - Mission state is browser-local and is not authoritative in server `/api/status`.
 - Browser speech recognition and synthesis are device-dependent demo adapters.
-- The iron-X ROS 2 bridge, LiDAR, SLAM, and path planning are not implemented.
+- iron-X telemetry, supervised drive/stop/cancel, floor move/turn and console operation
+  have been checked on one robot. The service trial is not full qualification;
+  Live Playground and physical marker guidance remain separate unverified paths.
+- LiDAR safety integration, SLAM, and path planning are not implemented.
 
 ## Current priority
 
@@ -68,6 +78,14 @@ See the [Development roadmap](roadmap.md) for long-term ordering and the
 Detailed private trial histories and external integration bundles are not shipped here. Consult the hardware guides for limits and validation order.
 
 ## Verification baseline
+
+Latest local software run (2026-10-31): 265 server tests, 130 PWA tests and PWA
+typecheck passed after the stop-confirmation and 0.15 m/s changes. No new physical
+motion trial or production build is claimed for this run. Earlier baselines follow.
+
+The iron-X work passed 185 server tests, 12 targeted console/socket tests, and the
+PWA production build. These are separate runs, not a claim of a full PWA regression
+or all-device validation. Console operation was also confirmed by the operator.
 
 The live Playground implementation passed 122 PWA tests and the production build, plus
 disconnected desktop/mobile UI checks. This is software evidence, not a physical trial.

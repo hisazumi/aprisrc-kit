@@ -2,7 +2,7 @@
 
 [English](platform-status.md)
 
-文書見直し: 2026-10-08。最後の実機試験記録: 2026-09-25。
+iron-X関連の更新・実機試験: 2026-10-31。UGV02の試験根拠は引き続き2026-09-25時点。
 
 APRISRC Kitは、APRISRCで参加者がサービスを作るための開発キットである。
 Simulator開発と同じ高水準missionの対応UGV02への移行経路を提供し、既定adapterはSimulatorである。
@@ -25,7 +25,7 @@ Simulator開発と同じ高水準missionの対応UGV02への移行経路を提�
 - smartphone browser内の人物・上半身・APRIS marker認識
 - 登録済みmissionだけを選ぶlocal keyword rulesと任意のLLM structured intent
 - JSON scenario、fault injection、三値の前方障害状態、structured log、replay
-- Simulator、UGV02 WebSocket、純正firmware診断用Factory HTTPのadapter選択
+- Simulator、UGV02 WebSocket、純正firmware診断用Factory HTTP、実験的iron-X local/network adapterの選択
 
 ## Physical rover status
 
@@ -39,17 +39,24 @@ Waveshare UGV02の試験機にはAPRIS development firmware `0.97-apris-ws-dev`�
 
 ## Current limitations
 
+iron-Xでは2026-10-31にPC上のKitと車載iPhoneによる人追従の成功報告があった。
+その後キャンセルと停止応答の競合が判明した。最新の停止確認修正と0.15 m/s設定は
+実機再試験待ち。[現在の手順・確認範囲](hardware/ironx-follow.ja.md)を参照する。
+
 - 実機Playgroundはソフトウェアテストと未接続画面のみ確認済み。実カメラ・実機の確認は未完了。
   従来のスマホ追従試験は別のサービス画面で行ったもの。
 - 実機marker案内は、別経路のService Appも含め未検証。
 - 前方のfree-spaceを常時保証する車載sensorはまだない。`UNKNOWN`は前進可能と扱わない。
-- 前進を伴う人物追従は、利用者が期限付きで与える監督許可を使うMVPである。
+- Carry helperは **Start service and allow movement** で監視付き走行を許可し、接近・追従中に
+  短期限heartbeatを更新する。Consoleの30秒確認は残る。
 - firmwareはprivate development LAN向けのplain WebSocketと共有tokenを使用する。
 - production WSS、roverごとのcredential、永続idempotencyは未実装である。
 - IMUとbattery telemetry、p95距離・角度誤差、停止距離の実機qualificationは未完了である。
 - mission状態はbrowser-localであり、serverの`/api/status`は正本を持たない。
 - browser音声認識・読み上げは端末依存で、production speech stackではない。
-- iron-X ROS 2、LiDAR、SLAM、経路計画は未実装である。
+- iron-Xの状態表示、動作・停止・キャンセル、床上の前進・旋回、コンソール操作は1台で確認済み。
+  サービスの試行は全面的な評価完了ではなく、Live Playgroundと実機マーカー案内は別途未検証である。
+- LiDARの安全制御への統合、SLAM、経路計画は未実装。
 
 ## Current priority
 
@@ -66,6 +73,10 @@ Waveshare UGV02の試験機にはAPRIS development firmware `0.97-apris-ws-dev`�
 詳細な個別試験記録と外部integration bundleはこの公開版に含まない。現在の制約と試験順序はハードガイドで確認する。
 
 ## Verification baseline
+
+最新のローカルソフトウェア検証（2026-10-31）: 停止確認修正と0.15 m/s変更後に
+server 265 tests、PWA 130 tests、PWA型チェックが成功。この実行で新たな実機走行や
+production buildを確認したとは扱わない。以下は過去の基準である。
 
 実機Playground実装はPWA 122 testsとproduction build、未接続PC/スマホ画面の確認が成功した。
 これはソフトウェアの根拠で、実機試験ではない。

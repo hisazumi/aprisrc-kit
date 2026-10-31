@@ -60,6 +60,9 @@ E-stopをミッションから変更してはいけない。
 
 ## 4. Add a voice or text trigger
 
+新しい行動のコード、登録、変更して試す手順は
+[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照してください。
+
 同じファイルの`trigger`に、サービスを表すintent、発話例、ローカル判定用keywordを
 記述する。`/lab`の**Human interaction**欄へkeywordを含む文を入力すると、API keyが
 なくても登録したミッションを開始できる。

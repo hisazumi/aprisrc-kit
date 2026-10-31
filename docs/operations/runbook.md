@@ -119,6 +119,15 @@ carry this Simulator-only procedure over as a substitute for camera/sensor heart
 
 ## Recovery order
 
+For iron-X Carry helper, first follow the operator-specific
+[stop diagnosis and E-stop recovery](../hardware/ironx-follow.md#if-it-stops)
+([日本語](../hardware/ironx-follow.ja.md)). A normal target-distance hold needs no
+server restart. The network Adapter reconnects for observation only; a motion
+fault may require explicit stop reset. The maintenance sequence below is for
+cases that actually require a server/configuration restart, not every service stop.
+Preserve E-stop at the gateway before restarting a PC process: a PC-only latch
+that never reached the gateway is not persistent across process restart.
+
 1. Stop the mission and latch E-stop if hardware is connected; use physical power if required.
 2. Stop APRIS, then restart with the intended adapter configuration.
 3. Inspect doctor, connection, telemetry, firmware limits, observations and stopped wheels.

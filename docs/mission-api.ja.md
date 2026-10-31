@@ -113,6 +113,9 @@ export const greetingMission = defineMission({
 
 ## Natural-language trigger
 
+コード作成から登録・試行までの例は
+[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照してください。
+
 `trigger`は任意である。省略したミッションは従来どおり画面から選択して実行する。指定した場合、PWAは登録済みtriggerだけをLocal Serverの意図解釈候補として送る。
 
 - `intent`: ミッションを識別する安定したID
