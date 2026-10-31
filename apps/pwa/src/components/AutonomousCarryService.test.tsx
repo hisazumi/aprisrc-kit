@@ -52,6 +52,7 @@ describe("AutonomousCarryService", () => {
   });
 
   it("offers help after stable detection, starts the mission, and surfaces target loss", async () => {
+    vi.useFakeTimers();
     let personListener: ((person: Readonly<PersonEvent>) => void) | undefined;
     const stop = vi.fn(async () => undefined);
     const rover: ServiceRover = {
@@ -119,7 +120,7 @@ describe("AutonomousCarryService", () => {
     ));
 
     const start = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Start service");
+      .find((button) => button.textContent === "Start service and allow movement");
     await act(async () => start?.click());
     expect(container.textContent).toContain("I am ready to help");
 
@@ -135,16 +136,10 @@ describe("AutonomousCarryService", () => {
     expect(container.textContent).toContain("I am coming closer");
     expect(container.textContent).not.toContain("Yes, help me");
 
-    const allowMovement = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Allow movement for 30 s");
-    await act(async () => allowMovement?.click());
     expect(pathClearance).toHaveBeenLastCalledWith(true);
-    expect(container.textContent).toContain("Movement enabled · 30 s");
-
-    const cancelMovement = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent?.startsWith("Movement enabled"));
-    await act(async () => cancelMovement?.click());
-    expect(pathClearance).toHaveBeenLastCalledWith(false);
+    expect(container.textContent).toContain("Supervised movement enabled");
+    await act(async () => vi.advanceTimersByTime(31_000));
+    expect(pathClearance).toHaveBeenLastCalledWith(true);
 
     await act(async () => approachContext?.report({
       phase: "arrived",
@@ -243,7 +238,7 @@ describe("AutonomousCarryService", () => {
     ));
 
     const start = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Start service");
+      .find((button) => button.textContent === "Start service and allow movement");
     await act(async () => start?.click());
 
     expect(acquire).toHaveBeenCalledOnce();
@@ -298,7 +293,7 @@ describe("AutonomousCarryService", () => {
       />
     ));
     const start = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Start service");
+      .find((button) => button.textContent === "Start service and allow movement");
     await act(async () => start?.click());
     await act(async () => {
       personListener?.(detected(1));

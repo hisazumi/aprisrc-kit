@@ -78,7 +78,7 @@ class CommandLease:
         if not 0 <= age < TIMEOUT or stamp <= self.stamp:
             self.stop("stale_or_replayed_command")
             return False
-        if abs(vx) > 0.05 or abs(wz) > 0.2 or any(v != 0 for v in (vy, vz, wx, wy)):
+        if abs(vx) > 0.15 or abs(wz) > 0.2 or any(v != 0 for v in (vy, vz, wx, wy)):
             self.stop("unsupported_velocity")
             return False
         self.stamp = stamp

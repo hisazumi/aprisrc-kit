@@ -12,7 +12,7 @@ interface Vector {
 }
 
 export const JOYSTICK_DEAD_ZONE = 0.08;
-export const JOYSTICK_TRANSMIT_INTERVAL_MS = 200;
+export const JOYSTICK_TRANSMIT_INTERVAL_MS = 50;
 
 export function applyJoystickDeadZone(vector: Vector): Vector {
   const snapped = {

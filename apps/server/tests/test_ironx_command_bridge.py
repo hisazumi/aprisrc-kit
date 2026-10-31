@@ -55,7 +55,7 @@ def test_refresh_then_fresh_restart():
     [
         dict(vx=float("nan")),
         dict(wz=float("inf")),
-        dict(vx=0.051),
+        dict(vx=0.151),
         dict(wz=0.201),
         dict(vy=0.01),
         dict(stamp=99),

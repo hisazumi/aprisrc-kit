@@ -15,11 +15,13 @@ class AppConfig(BaseModel):
 
     deployment_profile: Literal["development", "edge", "hosted"] = "development"
     adapter_type: Literal[
-        "simulator", "websocket_rover", "factory_http", "ros2_readonly", "ironx"
+        "simulator", "websocket_rover", "factory_http", "ros2_readonly", "ironx", "ironx_network"
     ] = "simulator"
     ros2_state_file: Path | None = None
     ironx_command_file: Path | None = None
     ironx_bridge_state_file: Path | None = None
+    ironx_url: str | None = None
+    ironx_token: SecretStr | None = None
     rover_id: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -37,6 +39,22 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def selected_adapter_has_required_configuration(self) -> AppConfig:
+        if self.adapter_type == "ironx_network":
+            from urllib.parse import urlsplit
+
+            url = urlsplit(self.ironx_url or "")
+            if (
+                self.deployment_profile == "hosted"
+                or url.scheme not in ("ws", "wss")
+                or not url.hostname
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+                or not self.ironx_token
+                or not self.ironx_token.get_secret_value()
+            ):
+                raise ValueError("ironx_network requires a ws/wss URL and private token")
         if self.assistant_provider in ("openai", "gemini") and not self.assistant_api_key_value():
             raise ValueError("Selected assistant provider requires its API key")
         if self.adapter_type == "ironx":
@@ -78,6 +96,10 @@ class AppConfig(BaseModel):
             ros2_state_file=values.get("APRIS_ROS2_STATE_FILE"),
             ironx_command_file=values.get("APRIS_IRONX_COMMAND_FILE"),
             ironx_bridge_state_file=values.get("APRIS_IRONX_BRIDGE_STATE_FILE"),
+            ironx_url=values.get("APRIS_IRONX_URL"),
+            ironx_token=SecretStr(values["APRIS_IRONX_TOKEN"])
+            if values.get("APRIS_IRONX_TOKEN")
+            else None,
             rover_id=values.get("APRIS_ROVER_ID"),
             rover_token=(
                 SecretStr(values["APRIS_ROVER_TOKEN"]) if values.get("APRIS_ROVER_TOKEN") else None

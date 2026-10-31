@@ -221,7 +221,7 @@ describe("runFollowMe", () => {
     });
 
     await expect(running).rejects.toMatchObject({ name: "AbortError" });
-    expect(rover.move).toHaveBeenCalledWith(0.1, 0.1);
+    expect(rover.move).toHaveBeenCalledWith(0.1, 0.15);
     expect(rover.stop).toHaveBeenCalledWith("follow distance reached");
     expect(rover.stop).toHaveBeenCalledWith("follow-me mission stopped");
   });
@@ -239,7 +239,7 @@ describe("runFollowMe", () => {
     });
 
     await expect(running).rejects.toMatchObject({ name: "AbortError" });
-    expect(rover.move).toHaveBeenCalledWith(0.1, 0.1);
+    expect(rover.move).toHaveBeenCalledWith(0.1, 0.15);
     expect(rover.turn).not.toHaveBeenCalled();
     expect(rover.stop).toHaveBeenCalledWith("follow distance reached");
   });

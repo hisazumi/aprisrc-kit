@@ -38,7 +38,8 @@ def state(x=0, yaw=0, vx=0, wz=0):
 
 
 @pytest.mark.asyncio
-async def test_drive_mailbox_expiry_and_no_renewal(tmp_path, monkeypatch):
+@pytest.mark.parametrize("vx", [0.04, 0.15, -0.15])
+async def test_drive_mailbox_expiry_and_no_renewal(tmp_path, monkeypatch, vx):
     a = adapter(tmp_path)
     lease = bridge_module.CommandLease()
     mailbox = bridge_module.FileCommands(a.command_file, lease)
@@ -47,10 +48,10 @@ async def test_drive_mailbox_expiry_and_no_renewal(tmp_path, monkeypatch):
         return state()
 
     monkeypatch.setattr(a, "state", current)
-    await a.drive(0.04, 0, 0.1, ttl_ms=100)
+    await a.drive(vx, 0, 0.1, ttl_ms=100)
     data = json.loads(a.command_file.read_text())
     mailbox.poll(time.monotonic())
-    assert lease.output(data["monotonic"] + 0.05, True) == (0.04, 0.1)
+    assert lease.output(data["monotonic"] + 0.05, True) == (vx, 0.1)
     mailbox.poll(data["monotonic"] + 0.2)
     assert lease.output(data["monotonic"] + 0.2, True) == (0, 0)
     assert mailbox.accepted_id == data["id"]
@@ -80,7 +81,7 @@ def test_mailbox_rejects_bad_commands(tmp_path, case):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "vx,vy,wz", [(0.06, 0, 0), (0, 0.01, 0), (0, 0, 0.3), (float("nan"), 0, 0)]
+    "vx,vy,wz", [(0.151, 0, 0), (0, 0.01, 0), (0, 0, 0.3), (float("nan"), 0, 0)]
 )
 async def test_invalid_drive_writes_zero(tmp_path, vx, vy, wz):
     a = adapter(tmp_path)

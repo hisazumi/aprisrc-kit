@@ -15,6 +15,7 @@ from .config import AppConfig
 from .factory_http_adapter import FactoryHttpRoverAdapter, UrllibFactoryHttpTransport
 from .front_obstacle import ClearFrontObstacleInput, FrontObstacleObservationInput
 from .ironx_adapter import IronXAdapter
+from .ironx_network_adapter import IronXNetworkAdapter
 from .models import Pose
 from .perception import PoseFusion, load_course_markers
 from .ros2_readonly_adapter import Ros2ReadOnlyAdapter
@@ -51,6 +52,8 @@ async def lifespan(app: FastAPI):
         adapter = IronXAdapter(
             config.ros2_state_file, config.ironx_command_file, config.ironx_bridge_state_file
         )
+    elif config.adapter_type == "ironx_network":
+        adapter = IronXNetworkAdapter(config.ironx_url, config.ironx_token.get_secret_value())
     elif config.adapter_type == "websocket_rover":
         if config.rover_id is None:
             raise RuntimeError("validated websocket_rover config has no rover_id")
@@ -66,8 +69,8 @@ async def lifespan(app: FastAPI):
         )
     runtime = RoverRuntime(
         adapter,
-        config=RuntimeConfig(max_vx=0.05, max_wz=0.2, motion_ttl_ms=200)
-        if config.adapter_type == "ironx"
+        config=RuntimeConfig(max_vx=0.15, max_wz=0.2, motion_ttl_ms=200)
+        if config.adapter_type in ("ironx", "ironx_network")
         else None,
         structured_log=structured_log,
         pose_fusion=pose_fusion,

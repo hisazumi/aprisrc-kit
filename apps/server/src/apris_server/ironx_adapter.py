@@ -74,22 +74,27 @@ class IronXAdapter(Ros2ReadOnlyAdapter):
         return state
 
     async def drive(self, vx, vy, wz, *, ttl_ms=500):
+        started = time.monotonic()
         epoch = self._epoch
         if self._stop_lock.locked():
             raise RuntimeError("iron-X stop confirmation in progress")
         if not all(math.isfinite(v) for v in (vx, vy, wz, ttl_ms)) or vy != 0 or ttl_ms <= 0:
             self._write(0, 0, 300)
             raise ValueError("Invalid differential-drive command")
-        if abs(vx) > 0.05 or abs(wz) > 0.2:
+        if abs(vx) > 0.15 or abs(wz) > 0.2:
             self._write(0, 0, 300)
-            raise ValueError("iron-X limits: 0.05 m/s and 0.2 rad/s")
+            raise ValueError("iron-X limits: 0.15 m/s and 0.2 rad/s")
         state = await self.state()
         if self._stop_lock.locked() or epoch != self._epoch:
             raise RuntimeError("iron-X drive superseded by stop")
         if self._estop or not state.connected:
             self._write(0, 0, 300)
             raise RuntimeError("iron-X stopped or telemetry unavailable")
-        self._write(vx, wz, min(ttl_ms, 300))
+        remaining_ms = min(ttl_ms, 300) - (time.monotonic() - started) * 1000
+        if remaining_ms < 1:
+            self._write(0, 0, 300)
+            raise RuntimeError("iron-X command expired during telemetry validation")
+        self._write(vx, wz, remaining_ms)
 
     async def stop(self):
         self._epoch += 1
@@ -159,7 +164,7 @@ class IronXAdapter(Ros2ReadOnlyAdapter):
                 or abs(target) > (1 if linear else math.pi)
             ):
                 raise ValueError("Invalid bounded motion goal")
-            speed = min(speed, 0.05 if linear else 0.2)
+            speed = min(speed, 0.15 if linear else 0.2)
             tolerance = 0.015 if linear else 0.04
             initial = await self.state()
             if not initial.connected:
@@ -171,6 +176,8 @@ class IronXAdapter(Ros2ReadOnlyAdapter):
                 if epoch != self._epoch:
                     raise asyncio.CancelledError()
                 state = await self.state()
+                if epoch != self._epoch:
+                    raise asyncio.CancelledError()
                 if not state.connected:
                     raise RuntimeError("Odometry lost during motion")
                 dx, dy = state.pose.x - initial.pose.x, state.pose.y - initial.pose.y

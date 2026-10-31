@@ -1,4 +1,5 @@
-export type RoverAdapterType = "simulator" | "websocket_rover" | "factory_http";
+export type RoverAdapterType = "simulator" | "websocket_rover" | "factory_http"
+  | "ros2_readonly" | "ironx" | "ironx_network";
 
 interface RuntimeStatus {
   adapter: {
