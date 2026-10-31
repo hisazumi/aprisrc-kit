@@ -3,8 +3,8 @@
 Implemented against the unchanged RoverAdapter / bounded-motion API. Automated
 tests cover mailbox expiry, move/turn feedback, cancellation, stop confirmation,
 and invalid input. The Adapter and file transport passed supervised wheels-raised
-drive/stop and cancellation trials on 2026-10-31. Floor distance, turn accuracy,
-and the service UI integration remain untested. The current server stays in
+drive/stop and cancellation trials on 2026-10-31, followed by short floor moves
+and a small left turn. Service UI integration remains untested. The current server stays in
 `ros2_readonly`; trials use a temporary, isolated command bridge.
 
 ## Recorded hardware trials
@@ -18,11 +18,18 @@ and the service UI integration remain untested. The current server stays in
 - `adapter-cancel-01.jsonl`: a bounded move was cancelled after 0.4 seconds;
   zero output followed after approximately 16 ms, and stop confirmation after
   0.782 seconds, before fallback. This does not validate target completion.
+- `adapter-floor-01.jsonl` and `adapter-floor-02.jsonl`: two 10 cm forward goals
+  completed with stopping before fallback. Reported forward displacement was
+  9.638 cm and 9.634 cm respectively. The operator reported the first looked good
+  and requested the repeat; no independent ruler measurement was recorded.
+- `adapter-turn-01.jsonl`: a left 15-degree goal completed with stopping before
+  fallback, reporting 14.911 degrees. The operator estimated approximately
+  15 degrees visually. This is a coarse check, not precision calibration.
 
 Logs reside under `.runtime/ironx/` on the robot and are not committed. The runner
 is `scripts/ironx_adapter_probe.py`: default mode starts no publishers; use
 `--execute` only with operator approval, adding `--cancel` for cancellation.
-Both trials ended stopped and shut down their temporary bridges. SSH, telemetry,
+All trials ended stopped and shut down their temporary bridges. SSH, telemetry,
 and the read-only server were left running.
 
 ## Initial calibration scope
@@ -36,7 +43,7 @@ short, low-speed floor trials.
 
 ## Architecture
 
-Kit server (Python 3.12) -> atomic local command file -> ROS Humble command bridge
+Kit server (separate Python environment) -> atomic local command file -> ROS Humble command bridge
 (Python 3.10) -> isolated iron-X driver -> motor controller.
 The existing telemetry bridge supplies EKF pose and velocity to the server.
 The command bridge also requires fresh raw wheel odometry.
@@ -96,7 +103,16 @@ The existing front-obstacle and control-ownership checks remain in force. The
 Adapter does not fabricate clear-path observations or wire LiDAR into perception.
 Forward service commands can still be refused when perception is unavailable.
 
-Next hardware checks: low-speed drive and zero, bounded turn, cancellation,
-sender loss, then floor move accuracy. Obtain explicit approval before motion.
+Floor probe modes are `--floor-move` (10 cm, up to 0.04 m/s) and `--floor-turn`
+(left 15 degrees, up to 0.15 rad/s). They remain preparation-only unless
+`--execute` is also specified. Motion goals have a 4.5-second deadline; an
+independent fallback is armed for 6.5 seconds after launch preparation.
+
+Next check: connect the Kit console, then validate ownership, limits, stop and
+cancellation through the UI. Keep the server read-only until the operator approves
+activation. Do not treat the read-only `/ros2` monitor as a motion-control page.
+The console is `/console` on the same server and uses the same-host `/ws` endpoint.
+Forward motion still needs an explicit, valid clear-path observation; do not bypass
+that gate just to demonstrate movement. Obtain explicit approval before motion.
 Bridge/OS/serial failures still need an independent downstream watchdog; see
 [command bridge](ironx-command-bridge.md) and [porting guide](service-hardware-porting.md).
