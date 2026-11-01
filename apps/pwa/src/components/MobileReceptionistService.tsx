@@ -28,6 +28,7 @@ interface MobileReceptionistServiceProps {
   runScenario?: (id: string) => Promise<unknown>;
   stopScenario?: () => Promise<unknown>;
   speak?: (text: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
 const SUPERVISED_MOTION_MS = 30_000;
@@ -51,6 +52,7 @@ export function MobileReceptionistService({
   onPathClearanceChange = ignorePathClearance,
   onCameraFacingChange,
   onVisionActiveChange,
+  onRunningChange,
   runScenario = simulatorApi.runScenario,
   stopScenario = simulatorApi.stopScenario,
   speak = speakEnglish
@@ -68,6 +70,7 @@ export function MobileReceptionistService({
   const abortRef = useRef<AbortController | null>(null);
   const simulatorMode = adapterType === "simulator";
   const active = status === "starting" || status === "running";
+  useEffect(() => { onRunningChange?.(active || startWhenOwned); }, [active, startWhenOwned, onRunningChange]);
 
   const pathClearSeconds = pathClearUntilMs === null
     ? 0

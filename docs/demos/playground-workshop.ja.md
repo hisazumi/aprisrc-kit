@@ -24,7 +24,7 @@ uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 
-ターミナルを起動したまま、[Person greeting](http://localhost:5173/lab?sample=greeting)を開きます。
+ターミナルを起動したまま、[Person greeting](http://localhost:5173/playground?service=greeting)を開きます。
 この設定はSimulatorとHTTPを明示し、証明書があってもPCだけで試せます。
 実機やスマホカメラの試験にはこの起動方法を使わないでください。
 ポートが使用中なら既存のAPRISサーバーを使うか、停止してから起動します。終了はCtrl-Cです。

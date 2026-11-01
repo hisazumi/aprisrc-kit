@@ -25,7 +25,7 @@ APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 
 Keep that terminal running. Open
-[Person greeting](http://localhost:5173/lab?sample=greeting).
+[Person greeting](http://localhost:5173/playground?service=greeting).
 These environment settings explicitly select the Simulator and HTTP for a desktop-only
 trial, even when local HTTPS certificates exist. Do not use this startup for a physical rover
 or smartphone camera trial. If the ports are occupied, use the existing APRIS server or stop

@@ -45,7 +45,7 @@ export default defineConfig({
         background_color: "#f1f4ec",
         display: "standalone",
         id: "/app",
-        start_url: "/app",
+        start_url: "/service?service=my-service",
         scope: "/",
         shortcuts: [
           {
@@ -54,9 +54,9 @@ export default defineConfig({
             url: "/console"
           },
           {
-            name: "Development Lab",
-            short_name: "Lab",
-            url: "/lab"
+            name: "Playground",
+            short_name: "Playground",
+            url: "/playground?service=my-service"
           }
         ],
         icons: [

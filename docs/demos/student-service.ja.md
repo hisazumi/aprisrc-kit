@@ -25,11 +25,11 @@ npm.cmd run dev
 ```
 
 この設定は実機ではなくPC上のSimulatorを明示的に選びます。
-`http://localhost:5173/lab?sample=student` を開きます。
+`http://localhost:5173/playground?service=my-service` を開きます。
 証明書が存在してもHTTPで起動します。既存のPython環境からの切り替えや起動エラーは
 [Windowsの起動・トラブル対応](../windows-setup.ja.md)を参照してください。
 
-1. 上部の「Student service」を開きます。既定は**Manual test**です。**Start service**で操作権・シミュレータの前方確認を準備して開始します。
+1. 共通ヘッダーで「My service」を選び、「Playground」を開きます。既定は**Manual test**です。**Start service**で操作権・シミュレータの前方確認を準備して開始します。
 2. **Enter view**でローバーの正面に人を置き、質問に「Yes」→「Items are loaded」と答えます。
 3. **Test person**のMove away（離れる）、Come closer（近づく）、Walk left／right（左右に歩く）を押します。Stand still、位置変更、サービス終了、ページ非表示、移動範囲の端まで歩き続けます。速度は人物の速度で、ローバーの速度ではありません。
 4. **Leave view**で対象喪失を試すか、**We have arrived**で正常終了します。**Reset person**は現在のローバーの前方1.35 mに人を置くだけで、ローバーの位置やサービスはリセットしません。対象喪失で終了したら、Enter viewとStart serviceで再度試せます。
@@ -67,8 +67,8 @@ npm.cmd run dev
 
 **Export JSON**で保存、**Import JSON**で検証して読み込みます。読み込むだけでは動きません。編集を残す場合は再読み込み前に保存してください。形式は`version: 1`、読み込みは64 KBまで、20ステップ・各20通過点まで、座標は±10 m、待ち時間0〜120秒、人物の速度0.01〜0.5 m/sです。[シーン例](scenes/person-enters.json)も参照できます。チェック項目は人が観察するためのもので、自動合否判定ではありません。複数人、障害物形状、サービスへの回答の自動化は今回の範囲外です。
 
-実際のカメラを使うサービス画面は `http://localhost:5173/app?service=student` です。
-Simulatorの仮想人物・障害操作は `/lab` にあります。複数画面で同時に操作権を取得しないでください。
+実際のカメラを使うサービス画面は `http://localhost:5173/service?service=my-service` です。
+Simulatorの仮想人物・障害操作は `/playground` にあります。複数画面で同時に操作権を取得しないでください。
 
 ## 編集例と境界
 

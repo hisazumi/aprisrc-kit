@@ -83,9 +83,9 @@ npm run dev
 
 `npm run dev` starts the FastAPI server at `http://localhost:8000` and the Vite development server at `http://localhost:5173`. The PWA development server proxies `/ws` and `/api` to FastAPI. If development certificates are present in `.certs/`, Vite automatically switches to `https://localhost:5173` and the WebSocket connection also uses WSS.
 
-- `https://localhost:5173/app`: Service App for smartphones
+- `https://localhost:5173/service`: Service App for smartphones
 - `https://localhost:5173/console`: Operator Console for PCs
-- `https://localhost:5173/lab`: Integrated interface for Simulator development
+- `https://localhost:5173/playground`: Integrated interface for Simulator development
 
 Visiting `/` also displays the Service App. See [PWA views](docs/pwa-views.md) for the role of each view.
 
@@ -102,7 +102,7 @@ uv run --directory apps/server ruff check src tests
 uv run --directory apps/server pytest
 ```
 
-Commit only after all checks pass. For browser-related changes, also open and verify `/app`, `/console`, and `/lab` as appropriate.
+Commit only after all checks pass. For browser-related changes, also open and verify `/service`, `/console`, and `/playground` as appropriate.
 
 Use the [documentation index](docs/README.md) for adapter configuration, factory-firmware
 diagnostics, protocols, and design records.
@@ -131,4 +131,4 @@ Original Kit code/docs use [MIT](LICENSE); vendored firmware retains its GPL ter
 
 ### Student service template
 
-Edit the service flow in `apps/pwa/src/missions/studentCarry.ts`, then run `/lab?sample=student` with the Simulator or `/app?service=student` with camera observations. See [the quick start](docs/demos/student-service.md) ([日本語](docs/demos/student-service.ja.md)) for setup, UI input, safety boundaries, and limitations.
+Edit the service flow in `apps/pwa/src/missions/studentCarry.ts`, then run `/playground?service=my-service` with the Simulator or `/service?service=my-service` with camera observations. See [the quick start](docs/demos/student-service.md) ([日本語](docs/demos/student-service.ja.md)) for setup, UI input, safety boundaries, and limitations.

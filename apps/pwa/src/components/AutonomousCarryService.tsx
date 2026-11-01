@@ -41,6 +41,7 @@ interface AutonomousCarryServiceProps {
   onEmergencyStop: () => void;
   onPathClearanceChange?: (confirmed: boolean) => boolean;
   speak?: (text: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
 interface SpeechRecognitionResultEvent {
@@ -134,6 +135,7 @@ export function AutonomousCarryService({
   onReleaseControl,
   onCancelMotion,
   onEmergencyStop,
+  onRunningChange,
   onPathClearanceChange = ignorePathClearance,
   speak = speakEnglish
 }: AutonomousCarryServiceProps) {
@@ -150,6 +152,7 @@ export function AutonomousCarryService({
   const recognitionConstructor = getSpeechRecognitionConstructor();
   const copy = phaseCopy[state.phase];
   const active = state.phase !== "paused";
+  useEffect(() => { onRunningChange?.(active || startRequested); }, [active, startRequested, onRunningChange]);
   const pathClearEnabled = connected
     && isOwner
     && !estopLatched

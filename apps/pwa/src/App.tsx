@@ -34,20 +34,8 @@ import {
 import { useVirtualPersonSimulation } from "./simulation/useVirtualPersonSimulation";
 import { useRoverSocket } from "./useRoverSocket";
 
-export type PwaView = "app" | "console" | "lab";
-
-export function viewForPathname(pathname: string): PwaView {
-  if (pathname === "/console" || pathname.startsWith("/console/")) return "console";
-  if (pathname === "/lab" || pathname.startsWith("/lab/")) return "lab";
-  return "app";
-}
-
-export function serviceModeForSearch(search: string): "carry" | "receptionist" | "student" {
-  if (new URLSearchParams(search).get("service") === "student") return "student";
-  return new URLSearchParams(search).get("service") === "receptionist"
-    ? "receptionist"
-    : "carry";
-}
+import { viewForPathname, serviceModeForSearch, viewUrl, type PwaView } from "./navigation";
+export { viewForPathname, serviceModeForSearch } from "./navigation";
 
 const viewContent: Record<PwaView, { eyebrow: string; title: string; description: string }> = {
   app: {
@@ -61,8 +49,8 @@ const viewContent: Record<PwaView, { eyebrow: string; title: string; description
     description: "Observe the rover, take manual control, and inspect safety state without editing service UI."
   },
   lab: {
-    eyebrow: "APRIS 2026 · DEVELOPMENT LAB",
-    title: "Rover Lab",
+    eyebrow: "APRIS 2026 · PLAYGROUND",
+    title: "Rover Playground",
     description: "Use the service UI and Simulator tools together while developing without hardware."
   }
 };
@@ -78,14 +66,19 @@ function number(value: number | undefined): string {
 
 export function App() {
   const view = viewForPathname(window.location.pathname);
-  const playground = view === "lab" && ["greeting", "follow", "receptionist"].includes(new URLSearchParams(window.location.search).get("sample") ?? "");
-  const studentLab = view === "lab" && new URLSearchParams(window.location.search).get("sample") === "student";
+  const serviceMode = serviceModeForSearch(window.location.search);
+  const playground = view === "lab" && serviceMode !== "student";
+  const studentLab = view === "lab" && serviceMode === "student";
   const content = viewContent[view];
   const [adapterType, setAdapterType] = useState<RoverAdapterType | null>(null);
   const rover = useRoverSocket(selectFollowProfile(adapterType, import.meta.env.VITE_IRONX_CONTINUOUS_FOLLOW));
-  const [serviceMode, setServiceMode] = useState<"carry" | "receptionist" | "student">(
-    () => serviceModeForSearch(window.location.search)
-  );
+  const [serviceRunning, setServiceRunning] = useState(false);
+  useEffect(() => {
+    const canonical = viewUrl(view, serviceMode, window.location.search);
+    if (window.location.pathname + window.location.search !== canonical) {
+      window.history.replaceState(null, "", canonical + window.location.hash);
+    }
+  }, [view, serviceMode]);
   const [receptionistCameraFacing, setReceptionistCameraFacing] = useState<
     "user" | "environment"
   >("user");
@@ -183,14 +176,6 @@ export function App() {
     setManualCommand((current) => ({ sampleId: current.sampleId + 1, vx: 0, wz: 0 }));
     rover.actions.stop("joystick released");
   }, [rover.actions.stop]);
-
-  const selectServiceMode = useCallback((mode: "carry" | "receptionist" | "student") => {
-    setServiceMode(mode);
-    const url = new URL(window.location.href);
-    if (mode !== "carry") url.searchParams.set("service", mode);
-    else url.searchParams.delete("service");
-    window.history.replaceState(null, "", url);
-  }, []);
 
   const connectionText = useMemo(() => {
     if (rover.status === "connecting") return "Connecting";
@@ -339,6 +324,7 @@ export function App() {
 
   const mobileReceptionistService = (
     <MobileReceptionistService
+      onRunningChange={setServiceRunning}
       connected={rover.status === "connected"}
       isOwner={rover.control.isOwner}
       controlAvailable={rover.control.isOwner || rover.control.ownerClientId === null}
@@ -416,6 +402,7 @@ export function App() {
 
   const autonomousCarryService = (
     <AutonomousCarryService
+      onRunningChange={setServiceRunning}
       connected={rover.status === "connected"}
       isOwner={rover.control.isOwner}
       controlAvailable={rover.control.isOwner || rover.control.ownerClientId === null}
@@ -497,20 +484,25 @@ export function App() {
           <h1>{content.title}</h1>
         </div>
         <div className="topbar__aside">
-          <nav className="view-nav" aria-label="PWA views">
-            <a href="/lab?sample=student">Student service</a>
-            <a href="/app" aria-current={view === "app" ? "page" : undefined}>App</a>
-            <a
-              href="/console"
-              aria-current={view === "console" ? "page" : undefined}
-              target={view === "app" ? "_blank" : undefined}
-              rel={view === "app" ? "noreferrer" : undefined}
-              title={view === "app" ? "Open the operator console in a new tab" : undefined}
-            >
-              Console{view === "app" ? " ↗" : ""}
-            </a>
-            <a href="/lab" aria-current={view === "lab" ? "page" : undefined}>Lab</a>
-          </nav>
+          <div className="service-navigation">
+            <select aria-label="Selected service" value={serviceMode}
+              disabled={studentRunning || serviceRunning}
+              onChange={event => window.location.assign(viewUrl(view,
+                event.target.value as import("./navigation").ServiceMode, window.location.search))}>
+              <option value="student">{studentCarry.title}</option>
+              <option value="carry">Carry helper</option>
+              <option value="receptionist">Mobile receptionist</option>
+              <option value="greeting">Person greeting</option>
+            </select>
+            <nav className="view-nav" aria-label="PWA views">
+              {([["app", "Service"], ["lab", "Playground"], ["console", "Console"]] as const).map(([target, label]) =>
+                <a key={target} href={viewUrl(target, serviceMode, window.location.search)}
+                  aria-current={view === target ? "page" : undefined}
+                  aria-disabled={studentRunning || serviceRunning || undefined}
+                  onClick={event => { if (studentRunning || serviceRunning) event.preventDefault(); }}>{label}</a>)}
+            </nav>
+          </div>
+          {(studentRunning || serviceRunning) && <span role="status">Stop the service to switch.</span>}
           <div className={`connection connection--${rover.status}`}>
             <span className="connection__dot" />
             {connectionText}
@@ -527,27 +519,12 @@ export function App() {
 
       {view === "app" && (
         <section className="service-app">
-          <div className="service-selector" role="tablist" aria-label="Service prototype">
-            <button role="tab" aria-selected={serviceMode === "student"} onClick={() => selectServiceMode("student")}>Student service</button>
-            <button
-              role="tab"
-              aria-selected={serviceMode === "carry"}
-              onClick={() => selectServiceMode("carry")}
-            >
-              Carry helper
-            </button>
-            <button
-              role="tab"
-              aria-selected={serviceMode === "receptionist"}
-              onClick={() => selectServiceMode("receptionist")}
-            >
-              Mobile receptionist
-            </button>
-          </div>
           {serviceMode === "student" ? (
             <>{studentServicePanel}{serviceVision}</>
           ) : serviceMode === "carry" ? (
             <>{autonomousCarryService}{serviceVision}</>
+          ) : serviceMode === "greeting" ? (
+            <ServicePlayground rover={rover} adapterType={adapterType} sample="greeting" serviceOnly onRunningChange={setServiceRunning} />
           ) : (
             <>{mobileReceptionistService}{receptionistVision}</>
           )}
@@ -562,7 +539,9 @@ export function App() {
         </>
       )}
 
-      {playground && <ServicePlayground rover={rover} adapterType={adapterType} />}
+      {playground && <ServicePlayground rover={rover} adapterType={adapterType}
+        sample={serviceMode === "carry" ? "follow" : serviceMode === "receptionist" ? "receptionist" : "greeting"}
+        onRunningChange={setServiceRunning} />}
 
       {view === "lab" && !playground && (
         <>

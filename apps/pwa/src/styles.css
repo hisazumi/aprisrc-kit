@@ -112,6 +112,9 @@ h2 { font-size: 1.25rem; letter-spacing: -.025em; }
 .connection--connected .connection__dot { background: #1bc980; box-shadow: 0 0 0 5px rgba(27, 201, 128, .15); }
 .connection--connecting .connection__dot { background: #f3b443; }
 .topbar__aside { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.service-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; max-width: 100%; }
+.service-navigation select { min-width: 0; max-width: 100%; padding: 9px 12px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); }
+.view-nav a[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .view-nav { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: rgba(247, 248, 242, .72); }
 .view-nav a { padding: 7px 11px; border-radius: 999px; color: #53685f; font: 700 .7rem "SFMono-Regular", Consolas, monospace; letter-spacing: .04em; text-decoration: none; text-transform: uppercase; }
 .view-nav a[aria-current="page"] { background: var(--ink); color: var(--acid); }
