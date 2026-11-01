@@ -21,7 +21,7 @@ Without a selection, My service is the default.
 
 All four selections now use one service runner and interaction panel in both views.
 Playground adds shared manual person inputs, scenarios, the map, and actual definition source.
-Reception adds marker inputs rather than a separate service UI. Service always offers camera
+Marker inputs and map markers are available for every service, independent of its script. Service always offers camera
 input, including greeting on the simulator. Legacy dedicated UI components remain in source,
 but their specialized voice/LLM controls and preview sliders are not exposed in this shared MVP.
 Live marker guidance is disabled; physical validation of the shared UI remains outstanding.

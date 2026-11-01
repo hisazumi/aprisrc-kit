@@ -87,7 +87,7 @@ export function App() {
   const [markerReady, setMarkerReady] = useState(false);
   const [markers, setMarkers] = useState(() => serviceConfig.courseMarkers.filter(m => m.destination !== "kitchen")
     .map((m, i) => ({ ...m, xM: 1.8 + i * .7, yM: i ? -.6 : .6 })));
-  const markerEnabled = studentSimulator && !!selectedService.markers && markerReady && rover.control.isOwner;
+  const markerEnabled = studentSimulator && markerReady && rover.control.isOwner;
   const entranceInput = useVirtualMarkerSimulation(pose, markersVisible ? markers[0] : null, markerEnabled);
   const deskInput = useVirtualMarkerSimulation(pose, markersVisible ? markers[1] : null, markerEnabled);
   const manualPerson = useManualPerson(pose, studentSimulator && testMode === "manual" && rover.status === "connected");
@@ -210,7 +210,7 @@ export function App() {
         pose={pose}
         path={path}
         person={view === "lab" && (personEnabled || (studentSimulator && !sceneRun.active)) ? observedPerson : null}
-        markers={studentSimulator && selectedService.markers ? markers.map(m => ({
+        markers={studentSimulator ? markers.map(m => ({
           id: m.id, label: m.label, x: m.xM, y: m.yM, selected: false, visible: markersVisible
         })) : []}
       />
@@ -287,7 +287,7 @@ export function App() {
   const studentServicePanel = (
     <StudentServicePanel
       service={selectedService.definition}
-      blockedReason={selectedService.markers && adapterType !== null && adapterType !== "simulator"
+      blockedReason={selectedService.simulatorOnly && adapterType !== null && adapterType !== "simulator"
         ? "Live marker guidance is not enabled in this shared MVP. Use the simulator for this service." : undefined}
       rover={rover.serviceRover}
       config={serviceConfig}
@@ -322,11 +322,9 @@ export function App() {
           if (status.adapter.type !== "simulator" || !pose) throw new Error("Simulator is not available");
           if (testMode === "manual") {
             sceneRun.stop();
-            if (selectedService.markers) {
-              await simulatorApi.placePose({ ...pose, markers: markers.map(m => ({ id: m.id, x_m: m.xM, y_m: m.yM })) });
-              signal.throwIfAborted();
-              setMarkerReady(true);
-            }
+            await simulatorApi.placePose({ ...pose, markers: markers.map(m => ({ id: m.id, x_m: m.xM, y_m: m.yM })) });
+            signal.throwIfAborted();
+            setMarkerReady(true);
             const response = await simulatorApi.setFrontObstacle("CLEAR", "healthy");
             signal.throwIfAborted();
             if (response.front_obstacle.latched) throw new Error("Clear the obstacle latch in Advanced controls before restarting.");
@@ -336,9 +334,9 @@ export function App() {
           const definition = parseStudentScene(studentScene);
           sceneRun.stop();
           await simulatorApi.placePose({ ...definition.rover,
-            markers: selectedService.markers ? markers.map(m => ({ id: m.id, x_m: m.xM, y_m: m.yM })) : undefined });
+            markers: markers.map(m => ({ id: m.id, x_m: m.xM, y_m: m.yM })) });
           signal.throwIfAborted();
-          setMarkerReady(!!selectedService.markers);
+          setMarkerReady(true);
           setPath([]);
           signal.throwIfAborted();
           const response = await simulatorApi.setFrontObstacle("CLEAR", "healthy");
@@ -473,7 +471,7 @@ export function App() {
           {studentSimulator && testMode === "scenario" && <StudentScenePanel scene={studentScene} onChange={setStudentScene} />}
           {studentLab && <>{estopBanner}<section className="dashboard">{studentServicePanel}
             <div className="workbench-observation">{simulatorPanel}{implementationPanel}</div></section>
-            {studentSimulator && selectedService.markers && <section className="shared-environment" aria-label="Test markers">
+            {studentSimulator && <section className="shared-environment" aria-label="Test markers">
               <h2>Test markers</h2>
               <label><input type="checkbox" checked={markersVisible} onChange={e => setMarkersVisible(e.target.checked)} />Markers visible</label>
               {markers.map((marker, index) => <fieldset key={marker.id} disabled={studentRunning}>
