@@ -6,8 +6,10 @@ export interface StudentServiceApi {
   waitForPerson(): Promise<void>;
   approachPerson(): Promise<void>;
   ask(message: string): Promise<boolean>;
+  confirm(message: string, buttonLabel?: string): Promise<void>;
+  choose(message: string, choices: readonly string[]): Promise<string>;
   waitForLoaded(message: string): Promise<void>;
-  followPerson(): Promise<void>;
+  followPerson(options?: { message?: string; buttonLabel?: string }): Promise<void>;
   /** Requests display and speech; does not wait for speech to finish. */
   say(message: string): void;
 }
@@ -15,8 +17,8 @@ export interface StudentService {
   title: string;
   run(service: StudentServiceApi): Promise<void>;
 }
-export type PromptKind = "question" | "loaded" | "arrived";
-export type ServicePrompt = (kind: PromptKind, message: string, signal: AbortSignal) => Promise<boolean>;
+export interface ServiceQuestion { message: string; choices: readonly string[] }
+export type ServicePrompt = (question: ServiceQuestion, signal: AbortSignal) => Promise<string>;
 
 /** Runs only through the existing safety-enforced ServiceRover boundary. */
 export async function runStudentService(
@@ -38,10 +40,20 @@ export async function runStudentService(
     signal.throwIfAborted();
     return value;
   };
-  const request = (kind: PromptKind, message: string) => checked(async () => {
+  const question = async (message: string, choices: readonly string[], inputSignal: AbortSignal) => {
+    if (!choices.length || choices.some(choice => !choice.trim()) || new Set(choices).size !== choices.length) {
+      throw new Error("Choices must be non-empty, distinct labels");
+    }
+    const labels = [...choices];
+    const answer = await prompt({ message, choices: labels }, inputSignal);
+    inputSignal.throwIfAborted();
+    if (!labels.includes(answer)) throw new Error("Unexpected service answer");
+    return answer;
+  };
+  const request = (message: string, choices: readonly string[]) => checked(async () => {
     await rover.stop("waiting for service input");
     say(message);
-    return prompt(kind, message, signal);
+    return question(message, choices, signal);
   });
   try {
     await definition.run({
@@ -57,15 +69,18 @@ export async function runStudentService(
         const outcome = await runComeHere(rover, signal, { onUpdate: report });
         if (outcome !== "arrived") throw new Error("Target lost. Service interrupted.");
       }),
-      ask: (message) => request("question", message),
-      waitForLoaded: async (message) => { await request("loaded", message); },
-      followPerson: () => checked(async () => {
+      ask: async (message) => await request(message, ["Yes", "No"]) === "Yes",
+      confirm: async (message, buttonLabel = "Continue") => { await request(message, [buttonLabel]); },
+      choose: request,
+      waitForLoaded: async (message) => { await request(message, ["Items are loaded"]); },
+      followPerson: (options = {}) => checked(async () => {
         const controller = new AbortController();
         const abort = () => controller.abort(signal.reason);
         signal.addEventListener("abort", abort, { once: true });
         // Both operations are cancelled and joined before allowing a restart.
         const following = runFollowMe(rover, controller.signal, { onUpdate: report });
-        const arrival = prompt("arrived", "Press We have arrived when you reach your destination", controller.signal);
+        const arrival = question(options.message ?? "Press We have arrived when you reach your destination",
+          [options.buttonLabel ?? "We have arrived"], controller.signal);
         try {
           const result = await Promise.race([
             following.then(() => "lost" as const),
@@ -75,9 +90,11 @@ export async function runStudentService(
           if (result === "lost") throw new Error("Target lost. Service interrupted.");
         } finally {
           controller.abort();
-          await Promise.allSettled([following, arrival]);
+          // Abort alone cannot cancel an in-flight distance-based move.
+          const stopping = rover.stop("student following finished");
+          const results = await Promise.allSettled([following, arrival, stopping]);
           signal.removeEventListener("abort", abort);
-          await rover.stop("student following finished");
+          if (results[2].status === "rejected") throw results[2].reason;
         }
       }),
       say: (message) => { signal.throwIfAborted(); say(message); }

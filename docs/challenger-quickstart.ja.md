@@ -15,11 +15,14 @@ starterはAPIを示す例で、課題の指定解ではありません。サー�
 
 ## 1. Start the development environment
 
-必要なものはNode.js、npm、Python 3.11以上、`uv`である。repository rootで実行する。
+必要なものはNode.js 22.12以降または24以降、npm、Python 3.12（固定）、`uv`です。
+Windowsでは[PowerShellの起動・トラブル対応](windows-setup.ja.md)を使ってください。
+以下はmacOS/LinuxのBash・zsh向けです。リポジトリのルートで実行します。
 
 ```bash
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 

@@ -67,13 +67,16 @@ docs/                   Guides, reference, operations, and design records
 
 ## Development
 
-Requirements: Node.js 22.x (22.12+) or 24+, npm, Python 3.11 or later, and `uv`.
+必要なものはNode.js 22.x（22.12以降）または24以降、npm、Python 3.12、`uv`です。
+ローカル開発ではPython 3.12を使うよう固定しています。Windows PowerShellでは
+[Windowsの起動・トラブル対応](docs/windows-setup.ja.md)を参照してください。
 
 ```bash
 git clone https://github.com/hisazumi/aprisrc-kit.git
 cd aprisrc-kit
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 npm run dev
 ```
 
@@ -97,6 +100,7 @@ PC の `localhost` ではカメラを利用できるが、スマートフォン�
 変更後は次の標準チェックを実行する。
 
 ```bash
+uv sync --directory apps/server --dev
 npm run typecheck
 npm test
 npm run build

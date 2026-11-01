@@ -13,11 +13,14 @@
 ## 起動する
 
 この公開リポジトリを手元にcloneしてください。アクセス権の申請は不要です。
-Node.js/npm、Python 3.11以上、uvを用意し、リポジトリのルートで実行します。
+Node.js/npm、Python 3.12（固定）、uvを用意します。
+Windowsでは[PowerShellの起動手順](../windows-setup.ja.md)を使ってください。
+以下はmacOS/Linux（Bash・zsh）向けで、リポジトリのルートで実行します。
 
 ```bash
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 

@@ -1,4 +1,11 @@
 import { StudentServicePanel } from "./components/StudentServicePanel";
+import { studentCarry } from "./missions/studentCarry";
+import { simulatorApi } from "./simulatorApi";
+import { StudentScenePanel, StudentSceneExecution } from "./components/StudentScenePanel";
+import { parseStudentScene, studentScenes } from "./simulation/studentScene";
+import { useStudentScene } from "./simulation/useStudentScene";
+import { useManualPerson } from "./simulation/useManualPerson";
+import { ManualPersonPanel } from "./components/ManualPersonPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { selectFollowProfile } from "./missions/followProfile";
 import { ManualPathClearance } from "./components/ManualPathClearance";
@@ -20,6 +27,7 @@ import type { Pose } from "./protocol";
 import { runtimeApi, type RoverAdapterType } from "./runtimeApi";
 import {
   VIRTUAL_PERSON_WALK_DURATION_S,
+  projectVirtualPerson,
   walkVirtualPerson,
   type VirtualPersonTarget
 } from "./simulation/virtualPerson";
@@ -71,6 +79,7 @@ function number(value: number | undefined): string {
 export function App() {
   const view = viewForPathname(window.location.pathname);
   const playground = view === "lab" && ["greeting", "follow", "receptionist"].includes(new URLSearchParams(window.location.search).get("sample") ?? "");
+  const studentLab = view === "lab" && new URLSearchParams(window.location.search).get("sample") === "student";
   const content = viewContent[view];
   const [adapterType, setAdapterType] = useState<RoverAdapterType | null>(null);
   const rover = useRoverSocket(selectFollowProfile(adapterType, import.meta.env.VITE_IRONX_CONTINUOUS_FOLLOW));
@@ -93,11 +102,24 @@ export function App() {
     x: 1.35,
     y: 0.3
   });
+  const [studentScene, setStudentScene] = useState(() => structuredClone(studentScenes[0]));
+  const sceneRun = useStudentScene();
+  const [studentRunning, setStudentRunning] = useState(false);
+  const [testMode, setTestMode] = useState<"manual" | "scenario">("manual");
+  const [testSpeech, setTestSpeech] = useState<{ id: number; text: string }>();
+  const studentSimulator = studentLab && adapterType === "simulator";
   const pose = rover.state?.pose ?? null;
+  const manualPerson = useManualPerson(pose, studentSimulator && testMode === "manual" && rover.status === "connected");
+  const observedPerson = studentSimulator ? testMode === "manual" ? manualPerson.person : sceneRun.frame?.person ?? studentScene.person : virtualPersonTarget;
+  const personEnabled = studentSimulator ? testMode === "manual" ? rover.control.isOwner : sceneRun.active && sceneRun.frame?.visible === true : virtualPersonEnabled;
+  const studentRunningChanged = useCallback((running: boolean) => {
+    setStudentRunning(running);
+    if (!running) { sceneRun.stop(); manualPerson.stop(); }
+  }, [sceneRun.stop, manualPerson.stop]);
   const virtualPerson = useVirtualPersonSimulation(
     pose,
-    virtualPersonTarget,
-    view === "lab" && !playground && virtualPersonEnabled
+    observedPerson,
+    view === "lab" && !playground && personEnabled
   );
 
   useEffect(() => {
@@ -220,7 +242,7 @@ export function App() {
         </div>
         <button
           className="button button--quiet"
-          disabled={!rover.control.isOwner}
+          disabled={!rover.control.isOwner || (studentSimulator && studentRunning)}
           onClick={() => {
             rover.actions.resetPose();
             setPath([]);
@@ -232,7 +254,7 @@ export function App() {
       <RoverMap
         pose={pose}
         path={path}
-        person={view === "lab" && virtualPersonEnabled ? virtualPersonTarget : null}
+        person={view === "lab" && (personEnabled || (studentSimulator && !sceneRun.active)) ? observedPerson : null}
       />
       <div className="telemetry">
         <div><span>x</span><strong>{number(pose?.x)} m</strong></div>
@@ -289,7 +311,7 @@ export function App() {
     <section className="camera-section">
       <CameraPreview
         onObservation={rover.actions.observe}
-        virtualPerson={view === "lab" && virtualPersonEnabled
+        virtualPerson={view === "lab" && personEnabled
           ? virtualPerson.projection
           : undefined}
       />
@@ -337,6 +359,7 @@ export function App() {
 
   const studentServicePanel = (
     <StudentServicePanel
+      service={studentCarry}
       rover={rover.serviceRover}
       config={serviceConfig}
       eligible={rover.status === "connected" && rover.control.isOwner && !rover.control.estopLatched}
@@ -344,6 +367,50 @@ export function App() {
       cancel={rover.actions.cancelMotion}
       emergencyStop={rover.actions.estop}
       clearance={rover.actions.setPathClearance}
+      onRunningChange={studentRunningChanged}
+      speech={studentSimulator && testMode === "manual" ? testSpeech : undefined}
+      execution={studentSimulator && testMode === "manual" ? <ManualPersonPanel
+        enabled={rover.status === "connected" && !!pose} visible={pose ? projectVirtualPerson(pose, manualPerson.person).visible : false}
+        motion={manualPerson.motion} speed={manualPerson.speed} onMotion={manualPerson.setMotion}
+        onPlace={manualPerson.place} onSpeed={manualPerson.setSpeed}
+        onSay={text => setTestSpeech(previous => ({ id: (previous?.id ?? 0) + 1, text }))}
+      /> : studentSimulator && sceneRun.definition && sceneRun.frame ?
+        <StudentSceneExecution scene={sceneRun.definition} frame={sceneRun.frame} active={sceneRun.active} onNext={sceneRun.next} /> : undefined}
+      simulator={studentLab && adapterType === "simulator" ? {
+        name: testMode === "scenario" ? studentScene.name : undefined,
+        startLabel: testMode === "manual" ? (studentRunning ? "Restart service" : "Start service") : undefined,
+        available: rover.status === "connected" && !!pose && !rover.control.estopLatched
+          && (rover.control.isOwner || rover.control.ownerClientId === null),
+        unavailableReason: rover.status !== "connected" ? "Waiting for the server connection."
+          : rover.control.estopLatched ? "Emergency stop is active. Release it in Advanced controls before starting."
+          : !pose ? "Waiting for the rover position."
+          : !rover.control.isOwner && rover.control.ownerClientId !== null
+            ? "Another tab or client has control. Release control there, or close that tab and wait for control to become available."
+            : undefined,
+        prepare: async (signal) => {
+          const status = await runtimeApi.status();
+          signal.throwIfAborted();
+          if (status.adapter.type !== "simulator" || !pose) throw new Error("Simulator is not available");
+          if (testMode === "manual") {
+            sceneRun.stop();
+            const response = await simulatorApi.setFrontObstacle("CLEAR", "healthy");
+            signal.throwIfAborted();
+            if (response.front_obstacle.latched) throw new Error("Clear the obstacle latch in Advanced controls before restarting.");
+            signal.addEventListener("abort", manualPerson.stop, { once: true });
+            return;
+          }
+          const definition = parseStudentScene(studentScene);
+          sceneRun.stop();
+          await simulatorApi.placePose(definition.rover);
+          setPath([]);
+          signal.throwIfAborted();
+          const response = await simulatorApi.setFrontObstacle("CLEAR", "healthy");
+          signal.throwIfAborted();
+          if (response.front_obstacle.latched) throw new Error("Clear the obstacle latch in Advanced controls before restarting.");
+          signal.addEventListener("abort", sceneRun.stop, { once: true });
+          sceneRun.start(definition);
+        }
+      } : undefined}
     />
   );
 
@@ -431,6 +498,7 @@ export function App() {
         </div>
         <div className="topbar__aside">
           <nav className="view-nav" aria-label="PWA views">
+            <a href="/lab?sample=student">Student service</a>
             <a href="/app" aria-current={view === "app" ? "page" : undefined}>App</a>
             <a
               href="/console"
@@ -450,7 +518,7 @@ export function App() {
         </div>
       </header>
 
-      {view !== "app" && !playground && (
+      {view !== "app" && !playground && !studentLab && (
         <section className="hero-note">
           <p>{content.description}</p>
           <span>Client {rover.clientId ?? "—"}</span>
@@ -498,9 +566,16 @@ export function App() {
 
       {view === "lab" && !playground && (
         <>
-          <a className="playground-link" href="/lab?sample=greeting">Open greeting playground</a>
-          <section className="dashboard">{simulatorPanel}{manualControlPanel}</section>
-          <section className="virtual-person-section">
+          {!studentLab && <a className="playground-link" href="/lab?sample=student">Try student service</a>}
+          {!studentLab && <a className="playground-link" href="/lab?sample=greeting">Open greeting playground</a>}
+          {studentSimulator && <div className="scene-toolbar" role="tablist" aria-label="Test mode">
+            <button role="tab" aria-selected={testMode === "manual"} disabled={studentRunning} onClick={() => setTestMode("manual")}>Manual test</button>
+            <button role="tab" aria-selected={testMode === "scenario"} disabled={studentRunning} onClick={() => setTestMode("scenario")}>Scenario runner</button>
+          </div>}
+          {studentSimulator && testMode === "scenario" && <StudentScenePanel scene={studentScene} onChange={setStudentScene} />}
+          {studentLab && <>{estopBanner}<section className="dashboard">{studentServicePanel}{simulatorPanel}</section></>}
+          {!studentLab && <section className="dashboard">{simulatorPanel}{manualControlPanel}</section>}
+          {!studentSimulator && <section className="virtual-person-section">
             <VirtualPersonPanel
               pose={pose}
               enabled={virtualPersonEnabled}
@@ -514,10 +589,11 @@ export function App() {
               }}
               onWalking={setVirtualPersonWalking}
             />
-          </section>
-          <section className="autonomous-service-section">
-            {new URLSearchParams(window.location.search).get("sample") === "student" ? studentServicePanel : autonomousCarryService}
-          </section>
+          </section>}
+          {!studentLab && <section className="autonomous-service-section">{autonomousCarryService}</section>}
+          <details open={studentLab ? undefined : true}>
+          <summary>Advanced controls</summary>
+          {studentLab && manualControlPanel}
           <section className="simulator-tools">
             <SimulatorScenarioPanel events={rover.scenarioEvents} />
           </section>
@@ -525,6 +601,7 @@ export function App() {
           {interactionPanel}
           {missionPanel}
           {diagnostics}
+          </details>
         </>
       )}
     </main>

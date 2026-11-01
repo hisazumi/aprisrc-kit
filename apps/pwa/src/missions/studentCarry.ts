@@ -10,9 +10,12 @@ export const studentCarry: StudentService = {
       service.say("No problem. Ask me again when you need help.");
       return;
     }
-    await service.waitForLoaded("Place your belongings on the rover, then press Items are loaded.");
+    await service.confirm("Place your belongings on the rover.", "Items are loaded");
     service.say("I will follow you. Press We have arrived when you reach your destination.");
-    await service.followPerson();
+    await service.followPerson({
+      message: "Press We have arrived when you reach your destination",
+      buttonLabel: "We have arrived"
+    });
     service.say("We have arrived. Please take your belongings.");
   }
 };
