@@ -233,7 +233,9 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
     {execution}
     {speechResult && <p role="status">{speechResult}</p>}
     {(running || switching) && startButton}
-    <button className="button button--stop" disabled={!running && !switching} onClick={stop}>Cancel and stop</button>
-    <button className="button button--estop" onClick={() => { stop(); emergencyStop(); }}>Emergency stop</button>
+    <div className="service-stop-actions" data-active={running || switching}>
+      <button className="button button--stop" disabled={!running && !switching} onClick={stop}>Cancel and stop</button>
+      <button className="button button--estop" onClick={() => { stop(); emergencyStop(); }}>Emergency stop</button>
+    </div>
   </section>;
 }
