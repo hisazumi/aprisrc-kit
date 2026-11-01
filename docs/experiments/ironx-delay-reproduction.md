@@ -78,6 +78,35 @@ the existing acquisition-failure path (including its local stop error) and verif
 that no remote stop is sent. General rejection classification remains future work.
 No change has been merged into main or deployed to the demonstration server.
 
+## Reducing avoidable lease expiry
+
+Checkpoint `750f811` saves the initial reproductions and the stopping-response fix.
+The next experimental change targets redundant display polling, not lease duration.
+While the PC owns control, fresh connected telemetry (conservatively aged under
+100 ms) is reused for display instead of starting a state RPC that can hold the
+same connection's RPC lock ahead of the next drive. The timestamp is not reset,
+ownership is not renewed by reads, and stale/idle/rearm-required state is not
+eligible for this shortcut. Existing in-flight-command polling behavior remains.
+
+New regression: after one drive, delay standalone state replies by 320 ms. Baseline
+started that redundant RPC, returned stale/disconnected telemetry and expired the
+lease. With the change, 12 display/drive cycles (20 ms between cycles) reuse fresh
+telemetry and accept 13 total commands without the delayed extra read. Separate
+tests verify that a 120 ms-old cache is refreshed and idle polling still uses RPC.
+
+This does **not** tolerate arbitrary 320 ms delays on drive messages, prevent all
+lease expiry, or automatically reacquire expired control. The original delayed
+state, delayed drive and actual timeout experiments remain and must still stop or
+reject motion. Lease (300 ms), command TTL ceiling (200 ms), telemetry freshness
+threshold and speed limits are unchanged. A separate telemetry connection or a
+different scheduling protocol would require further design and testing.
+
+Validation after this change: 287 server tests passed in 31.93 seconds; the final
+eight delay experiments passed in 1.71 seconds, including assertions that display
+reuse changes neither the ownership deadline nor the cached acquisition time.
+Ruff passed on both Python files. This is offline evidence only, not physical
+validation or proof of robustness on the university network.
+
 - These are fixed delay schedules using real wall-clock time, not a seeded
   packet-loss model or exact replay. A heavily loaded test host can affect timing.
 - Fake robot state is stationary; it does not integrate wheel physics or implement

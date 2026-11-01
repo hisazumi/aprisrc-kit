@@ -191,16 +191,23 @@ class IronXNetworkAdapter(IronXAdapter):
             await self._recover()
         if self._failed or self._socket is None or self._stop_lock.locked():
             return self._unavailable(command_age_ms)
-        if self._command_lock.locked():
-            if self._last_state is None:
-                return self._unavailable(command_age_ms)
-            state = self._last_state.model_copy(deep=True)
-            state.pose_quality.age_ms = (state.pose_quality.age_ms or 0) + (
+        cached_state = None
+        if self._last_state is not None:
+            cached_state = self._last_state.model_copy(deep=True)
+            cached_state.pose_quality.age_ms = (cached_state.pose_quality.age_ms or 0) + (
                 time.monotonic() - self._received_at
             ) * 1000
-            state.connected = state.connected and state.pose_quality.age_ms < 300
-            state.command_age_ms = command_age_ms
-            return state
+            cached_state.connected = (
+                cached_state.connected and cached_state.pose_quality.age_ms < 300
+            )
+            cached_state.command_age_ms = command_age_ms
+        if self._command_lock.locked():
+            return cached_state or self._unavailable(command_age_ms)
+        # Display polling must not queue a redundant RPC ahead of a fresh drive.
+        # Reading this snapshot neither renews ownership nor refreshes its age.
+        if (self._owned and not self.requires_rearm and cached_state is not None
+                and cached_state.connected and cached_state.pose_quality.age_ms < 100):
+            return cached_state
         try:
             started = time.monotonic()
             result = await self._rpc("state", deadline_s=1)

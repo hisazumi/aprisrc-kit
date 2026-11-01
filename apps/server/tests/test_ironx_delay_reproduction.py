@@ -81,6 +81,46 @@ async def test_small_variable_reply_delays_complete_without_rearm():
         assert gateway.owner is None
 
 
+async def test_fresh_owned_telemetry_avoids_slow_poll_blocking_drive():
+    async with offline_link() as (adapter, gateway, robot):
+        await adapter.drive(0.10, 0, 0)
+        gateway.reply_delays["state"] = 0.32
+        state_reads = sum(method == "state" for method, _ in gateway.responses)
+        for _ in range(12):
+            await asyncio.sleep(0.02)
+            deadline = gateway.deadline
+            received_at = adapter._received_at
+            state = await adapter.state()
+            assert state.connected
+            assert gateway.deadline == deadline
+            assert adapter._received_at == received_at
+            await adapter.drive(0.10, 0, 0)
+        assert sum(method == "state" for method, _ in gateway.responses) == state_reads
+        assert len(robot.drives) == 13
+        assert not adapter.requires_rearm
+        assert gateway.owner is not None
+        await adapter.stop()
+
+
+async def test_owned_telemetry_cache_ages_out_and_refreshes():
+    async with offline_link() as (adapter, gateway, _):
+        await adapter.drive(0.10, 0, 0)
+        state_reads = sum(method == "state" for method, _ in gateway.responses)
+        await asyncio.sleep(0.12)
+        assert (await adapter.state()).connected
+        assert sum(method == "state" for method, _ in gateway.responses) == state_reads + 1
+        await adapter.stop()
+
+
+async def test_idle_state_never_uses_owned_motion_cache():
+    async with offline_link() as (adapter, gateway, _):
+        await adapter.drive(0.10, 0, 0)
+        await adapter.stop()
+        state_reads = sum(method == "state" for method, _ in gateway.responses)
+        await adapter.state()
+        assert sum(method == "state" for method, _ in gateway.responses) == state_reads + 1
+
+
 async def test_delayed_state_reply_reproduces_ownership_expiry():
     async with offline_link() as (adapter, gateway, robot):
         await adapter.drive(0.10, 0, 0)
