@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseStudentScene, studentScenes, type StudentScene, type SceneStep, type SceneFrame } from "../simulation/studentScene";
 
 interface Props {
@@ -6,6 +6,14 @@ interface Props {
   onChange(scene: StudentScene): void;
 }
 const actionNames = { walk: "Walk", stand: "Stand", disappear: "Disappear" };
+const checkLines = (text: string) => text.split("\n").map(line => line.trim()).filter(Boolean);
+
+function matchingPreset(scene: StudentScene): string {
+  try {
+    const definition = JSON.stringify(parseStudentScene(scene));
+    return studentScenes.find(preset => JSON.stringify(parseStudentScene(preset)) === definition)?.name ?? "custom";
+  } catch { return "custom"; }
+}
 
 export function StudentSceneExecution({ scene, frame, active, onNext }: {
   scene: StudentScene; frame: SceneFrame; active: boolean; onNext(): void;
@@ -29,6 +37,12 @@ export function StudentSceneExecution({ scene, frame, active, onNext }: {
 export function StudentScenePanel({ scene, onChange }: Props) {
   const upload = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState("");
+  const [checksText, setChecksText] = useState(() => scene.checks.join("\n"));
+  useEffect(() => {
+    // Preserve blank lines while typing, but synchronize preset/import changes.
+    setChecksText(current => JSON.stringify(checkLines(current)) === JSON.stringify(scene.checks)
+      ? current : scene.checks.join("\n"));
+  }, [scene.checks]);
   const change = (next: StudentScene) => { setFileError(""); onChange(next); };
   const stepChange = (index: number, update: Partial<SceneStep>) => change({ ...scene,
     steps: scene.steps.map((step, i) => i === index ? { ...step, ...update } : step) });
@@ -46,7 +60,7 @@ export function StudentScenePanel({ scene, onChange }: Props) {
   return <section className="student-scene" aria-label="Test scene">
     <h2>Selected scenario</h2>
     <div className="scene-toolbar">
-      <label>Preset<select aria-label="Scene preset" value={studentScenes.some(s => s.name === scene.name) ? scene.name : "custom"}
+      <label>Preset<select aria-label="Scene preset" value={matchingPreset(scene)}
         onChange={event => { const selected = studentScenes.find(s => s.name === event.target.value); if (selected) change(structuredClone(selected)); }}>
         <option value="custom" disabled>Custom</option>
         {studentScenes.map(preset => <option key={preset.name}>{preset.name}</option>)}
@@ -106,7 +120,9 @@ export function StudentScenePanel({ scene, onChange }: Props) {
         </li>)}</ol>
         <button className="button" disabled={scene.steps.length >= 20} onClick={() => change({ ...scene, steps: [...scene.steps,
           { action: "walk", trigger: { type: "manual" }, speedMps: 0.1, points: [{ ...scene.person }] }] })}>Add step</button>
-        <label>Checks<textarea rows={3} value={scene.checks.join("\n")} onChange={e => change({ ...scene, checks: e.target.value.split("\n") })} /></label>
+        <label>Checks<textarea rows={3} value={checksText} onChange={e => {
+          setChecksText(e.target.value); change({ ...scene, checks: checkLines(e.target.value) });
+        }} /></label>
       </fieldset>
     </details>
   </section>;
