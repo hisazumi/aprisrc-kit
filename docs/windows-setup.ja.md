@@ -136,6 +136,12 @@ uv run --directory apps/server --no-dev python --version
 最初の`[server]`エラー全文とパッケージ配布元・ミラー・インストール設定を確認してください。
 Rustの導入や同じ環境の作り直しを繰り返す前に、失敗している依存を特定します。
 
+## 実機を起動する
+
+設定済みの実機へ切り替える場合は[iron-X・UGV02の起動方法](hardware/startup.ja.md)を参照してください。
+機体側の準備、PowerShell設定、スマホのURL、動かさない接続確認を分けています。
+シミュレータ用の設定のまま実機試験へ進まないでください。
+
 ## テスト・開発ツール
 
 通常の`npm.cmd run dev`は`uv run --no-dev`を使い、試すだけならpytestやruffを追加取得しません。

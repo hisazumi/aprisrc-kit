@@ -25,11 +25,11 @@ points; these guides do not define event rules or judging criteria.
 
 | Goal | Document |
 | --- | --- |
+| Start iron-X or UGV02 from Windows and check the connection | [Hardware startup](hardware/startup.md) |
 | Start on Windows or recover from Python/backend setup errors | [Windows setup](windows-setup.md) |
 | Choose a trial, service-development, or hardware handoff path | [Try, change, and hand over APRISRC Kit](handoff.md) |
 | Run the MVP and compare a small service change | [Playground hands-on](demos/playground-workshop.md) |
 | Try a service and connect its behavior to code | [Service playground](demos/service-playground.md) |
-
 | Build a small person-responsive service | [Participant quickstart](challenger-quickstart.md) |
 | Understand the mission API and safety boundary | [Mission API and service templates](mission-api.md) |
 | Run the same starter on a supported UGV02 | [UGV02 self-test](hardware/ugv02-self-test.md) |

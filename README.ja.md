@@ -17,6 +17,7 @@ Simulatorから始め、対応する高水準missionを実機で検証する。
 
 | やりたいこと | 読むもの |
 | --- | --- |
+| Windowsから設定済みのiron-X・UGV02を起動する | [実機の起動方法](docs/hardware/startup.ja.md) |
 | 体験・開発・実機引き継ぎの入口を選ぶ | [試す・変更する・引き継ぐ](docs/handoff.ja.md) |
 | MVPを動かし、小さな改善を2つ試す（20〜30分） | [Playground実習ガイド](docs/demos/playground-workshop.ja.md) |
 | 挨拶・人追従・マーカー案内の操作を確認する | [Service playground](docs/demos/service-playground.ja.md) |

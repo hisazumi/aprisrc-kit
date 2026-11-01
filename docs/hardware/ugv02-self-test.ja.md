@@ -2,6 +2,9 @@
 
 [English](ugv02-self-test.md)
 
+接続確認までの毎回の起動は[iron-X・UGV02の起動方法](startup.ja.md)を使います。
+以下は明示的に承認を得た後の動作試験です。
+
 この手順は、一人でSimulator確認済みのmissionを対応UGV02へ移して試すためのものである。
 firmwareの書き込みとnetwork provisioningが済んだ1台を想定し、missionコードは変更しない。
 先に[Challenger quickstart](../challenger-quickstart.ja.md)をSimulatorで完了する。

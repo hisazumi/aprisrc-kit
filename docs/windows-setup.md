@@ -146,6 +146,12 @@ Inspect the first full `[server]` error and package-index, mirror, and installat
 settings. Identify the failing dependency before installing Rust or repeatedly
 recreating the same environment.
 
+## Start a physical rover
+
+To switch from Simulator to a provisioned robot, use [iron-X / UGV02 startup](hardware/startup.md).
+It separates robot-side preparation, PowerShell settings, phone URLs, and connection checks
+without motion. Do not use simulator startup settings for a physical trial.
+
 ## Tests and development tools
 
 Normal `npm.cmd run dev` uses `uv run --no-dev`, so a simulator trial does not

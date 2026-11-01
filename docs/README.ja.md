@@ -29,11 +29,11 @@ WebのチャットやAIを使う場合は[AIを使った開発手順](ai-assiste
 
 | やりたいこと | ドキュメント |
 | --- | --- |
+| Windowsからiron-X・UGV02を起動し接続確認する | [実機の起動方法](hardware/startup.ja.md) |
 | Windowsで起動する・Pythonやバックエンドの準備エラーを解決する | [Windowsの起動・トラブル対応](windows-setup.ja.md) |
 | 体験・開発・実機引き継ぎの入口を選ぶ | [試す・変更する・引き継ぐ](handoff.ja.md) |
 | MVPを動かし、小さな変更の効果を比較する | [Playground実習ガイド](demos/playground-workshop.ja.md) |
 | サービスの体験とコードの関係を試す | [Service playground](demos/service-playground.ja.md) |
-
 | 独自の人物反応serviceを作る | [参加者向けquickstart](challenger-quickstart.ja.md) |
 | 利用できるmission APIと安全境界を知る | [Mission API and service templates](mission-api.ja.md) |
 | 対応UGV02で同じstarterを試す | [UGV02 self-test](hardware/ugv02-self-test.ja.md) |

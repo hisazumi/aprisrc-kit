@@ -2,6 +2,8 @@
 
 [English](ironx-network.md)
 
+毎回のWindows側の起動は[iron-X・UGV02の起動方法](startup.ja.md)から始めてください。
+
 学生PCは**Windows・PowerShell**を標準とし、macOS/Linuxは折りたたみ補足を参照します。
 ロボット上の準備コマンドはiron-XのLinuxで実行します。学生PCにROSやWSLは不要です。
 

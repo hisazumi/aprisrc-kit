@@ -18,6 +18,7 @@ This README does not define challenge rules, judging criteria or official/mandat
 
 | Goal | Guide |
 | --- | --- |
+| Start a provisioned iron-X or UGV02 from Windows | [Hardware startup](docs/hardware/startup.md) |
 | Choose a trial, development, or hardware handoff path | [Try, change, and hand over APRISRC Kit](docs/handoff.md) |
 | Try the MVP and make two small improvements (20-30 min) | [Playground hands-on](docs/demos/playground-workshop.md) |
 | Try and change greeting, following, and marker-guidance services | [Service playground](docs/demos/service-playground.md) |

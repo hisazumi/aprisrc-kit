@@ -2,6 +2,8 @@
 
 [日本語](ironx-network.ja.md)
 
+For daily Windows startup, begin with [iron-X / UGV02 startup](startup.md).
+
 The student PC instructions default to **Windows PowerShell**; macOS/Linux alternatives are collapsed.
 Robot-host commands run on iron-X Linux, not on the student's PC. ROS and WSL are not required on the student PC.
 

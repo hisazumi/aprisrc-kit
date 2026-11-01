@@ -2,6 +2,9 @@
 
 [日本語](ugv02-self-test.ja.md)
 
+For connection-only daily startup, use [iron-X / UGV02 startup](startup.md) first.
+Continue below for an explicitly approved motion test.
+
 This procedure is for one person moving a Simulator-verified mission to the supported UGV02.
 It assumes one rover with firmware and network provisioning already completed. Do not change
 mission code during the handoff. Complete the
