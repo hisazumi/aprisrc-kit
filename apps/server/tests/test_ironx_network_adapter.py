@@ -281,7 +281,7 @@ async def test_client_lock_wait_consumes_drive_ttl():
 
 
 async def test_timeout_latches_and_never_replays_drive():
-    async with endpoint(delay_method="drive") as (adapter, requests, _):
+    async with endpoint(delay_method="drive", delay_s=1.1) as (adapter, requests, _):
         with pytest.raises(TimeoutError):
             await adapter.drive(0.04, 0, 0)
         assert not (await adapter.state()).connected
@@ -348,7 +348,7 @@ async def test_idle_reconnect_restores_only_telemetry():
 
 
 async def test_drive_fault_reconnect_requires_explicit_rearm():
-    async with endpoint(delay_method="drive") as (adapter, requests, _):
+    async with endpoint(delay_method="drive", delay_s=1.1) as (adapter, requests, _):
         with pytest.raises(TimeoutError):
             await adapter.drive(0.04, 0, 0)
         adapter._retry_at = 0
@@ -359,6 +359,18 @@ async def test_drive_fault_reconnect_requires_explicit_rearm():
         assert len([r for r in requests if r["method"] == "drive"]) == 1
         await adapter.clear_emergency_stop()
         assert not adapter.requires_rearm
+
+
+async def test_delayed_drive_ack_does_not_extend_command_or_disconnect():
+    async with endpoint(delay_method="drive", delay_s=0.3) as (adapter, requests, _):
+        await adapter.drive(0.04, 0, 0)
+        drives = [r for r in requests if r["method"] == "drive"]
+        assert len(drives) == 1
+        assert 0 < drives[0]["params"]["ttl_ms"] <= 200
+        assert not adapter._failed
+        assert not adapter.requires_rearm
+        await adapter.stop()
+        assert requests[-1]["method"] == "release"
 
 
 async def test_emergency_stop_with_state_polling_keeps_connection():

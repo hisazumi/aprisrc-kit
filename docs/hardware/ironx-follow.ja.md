@@ -2,6 +2,9 @@
 
 [English (canonical)](ironx-follow.md)
 
+任意で有効化するP制御版は[連続追従の実機試験準備](continuous-follow-trial.ja.md)を参照してください。
+現時点はソフトウェア準備のみで、以下の実機既定フローは距離指定方式のままです。
+
 監視付きCarry helper試験の入口です。無人自律走行や新規ROS環境構築のガイドではありません。
 
 ## どこで何を動かすか

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { selectFollowProfile } from "./missions/followProfile";
 import { ManualPathClearance } from "./components/ManualPathClearance";
 
 import { CameraPreview } from "./components/CameraPreview";
@@ -70,7 +71,7 @@ export function App() {
   const playground = view === "lab" && ["greeting", "follow", "receptionist"].includes(new URLSearchParams(window.location.search).get("sample") ?? "");
   const content = viewContent[view];
   const [adapterType, setAdapterType] = useState<RoverAdapterType | null>(null);
-  const rover = useRoverSocket(adapterType === "simulator");
+  const rover = useRoverSocket(selectFollowProfile(adapterType, import.meta.env.VITE_IRONX_CONTINUOUS_FOLLOW));
   const [serviceMode, setServiceMode] = useState<"carry" | "receptionist">(
     () => serviceModeForSearch(window.location.search)
   );

@@ -75,6 +75,7 @@ class IronXNetworkAdapter(IronXAdapter):
             socket = self._socket
             if socket is None:
                 raise RuntimeError("iron-X network connection unavailable")
+            started = time.monotonic()
             try:
                 async with asyncio.timeout(deadline_s):
                     request_id = uuid.uuid4().hex
@@ -85,6 +86,9 @@ class IronXNetworkAdapter(IronXAdapter):
                         )
                     )
                     reply = json.loads(await socket.recv())
+                    elapsed_ms = (time.monotonic() - started) * 1000
+                    if elapsed_ms >= 100:
+                        logger.warning("iron-X slow reply (%s, elapsed=%.1f ms)", method, elapsed_ms)
                     if reply.get("id") != request_id:
                         raise ValueError("iron-X response ID mismatch")
                     if "error" in reply:
@@ -92,7 +96,9 @@ class IronXNetworkAdapter(IronXAdapter):
                     return reply["result"]
             except BaseException as exc:
                 self.last_transport_error = f"{method}:{type(exc).__name__}"
-                logger.warning("iron-X transport lost (%s)", self.last_transport_error)
+                logger.warning("iron-X transport lost (%s, elapsed=%.1f ms, deadline=%.1f ms)",
+                               self.last_transport_error, (time.monotonic() - started) * 1000,
+                               deadline_s * 1000)
                 self.requires_rearm |= self._owned or self._busy or self._estop
                 self._epoch += 1
                 self._failed = True
@@ -223,6 +229,9 @@ class IronXNetworkAdapter(IronXAdapter):
                 "ttl_ms": remaining_ms,
                 "nonce": result["nonce"],
             },
+            # Reply latency is not permission to keep moving: the robot still
+            # expires this command within 200 ms and its ownership within 300 ms.
+            deadline_s=1,
         )
 
     async def stop(self):

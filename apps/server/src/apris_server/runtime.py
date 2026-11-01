@@ -221,9 +221,11 @@ class RoverRuntime:
                 owner_disconnected = True
         if owner_disconnected:
             await self._cancel_motion("controller disconnected")
-            await self._stop_adapter("controller disconnected")
+            confirmed = await self._operator_stop("controller disconnected")
             await self._revoke_path_clearance(client_id)
-            await self.broadcast(EventMessage(event="owner_disconnected", detail="Rover stopped"))
+            await self.broadcast(EventMessage(event="owner_disconnected", detail=(
+                "Rover stopped" if confirmed else "Physical stop unconfirmed"
+            )))
             await self._broadcast_control()
         if self.log:
             self.log.record("connection", "client_disconnected", {"client_id": client_id})
@@ -332,14 +334,16 @@ class RoverRuntime:
         if not await self._require_owner(client_id):
             return
         await self._cancel_motion("control released")
-        await self._stop_adapter("control released")
+        confirmed = await self._operator_stop("control released")
         await self._revoke_path_clearance(client_id)
         async with self._lock:
             self.owner_client_id = None
             self.command_deadline = None
             self.last_command_at = None
         await self._broadcast_control()
-        await self.broadcast(EventMessage(event="control_released", detail="Rover stopped"))
+        await self.broadcast(EventMessage(event="control_released", detail=(
+            "Rover stopped" if confirmed else "Physical stop unconfirmed"
+        )))
 
     async def _set_path_clearance(self, client_id: str, confirmed: bool) -> None:
         if not await self._require_owner(client_id):
@@ -419,7 +423,7 @@ class RoverRuntime:
                     else "front_obstacle_unknown"
                 )
                 await self._cancel_motion(code)
-                await self._stop_adapter(code)
+                await self._operator_stop(code)
                 await self._clear_command_deadline()
                 await self._error(
                     client_id,
@@ -455,11 +459,12 @@ class RoverRuntime:
         if not await self._require_owner(client_id):
             return
         await self._cancel_motion(reason)
-        await self._stop_adapter(reason)
+        confirmed = await self._operator_stop(reason)
         async with self._lock:
             self.command_deadline = None
             self.last_command_at = None
-        await self.broadcast(EventMessage(event="stopped", detail=reason))
+        if confirmed:
+            await self.broadcast(EventMessage(event="stopped", detail=reason))
 
     async def _estop(self, reason: str) -> None:
         async with self._lock:
@@ -648,9 +653,10 @@ class RoverRuntime:
         async with self._lock:
             forward_commanded = self._commanded_vx > 0.0
         if forward_commanded:
-            await self._stop_adapter(reason)
+            confirmed = await self._operator_stop(reason)
             await self._clear_command_deadline()
-            await self.broadcast(EventMessage(event="forward_motion_stopped", detail=reason))
+            if confirmed:
+                await self.broadcast(EventMessage(event="forward_motion_stopped", detail=reason))
 
     async def _apply_velocity(self, vx: float, vy: float, wz: float, ttl_ms: int) -> None:
         await self.adapter.drive(vx, vy, wz, ttl_ms=ttl_ms)
@@ -1285,6 +1291,26 @@ class RoverRuntime:
                 "last_motion": last_motion,
             },
         }
+
+    async def _operator_stop(self, reason: str) -> bool:
+        try:
+            await self._stop_adapter(reason)
+            return True
+        except Exception as exc:
+            async with self._lock:
+                self.estop_latched = True
+                self.command_deadline = None
+                self.last_command_at = None
+            if self.log:
+                self.log.record("adapter_command", "stop_unconfirmed", {
+                    "reason": reason, "error": type(exc).__name__, "detail": str(exc),
+                })
+            await self._broadcast_control()
+            await self.broadcast(EventMessage(
+                event="stop_unconfirmed",
+                detail="Physical stop unconfirmed; emergency stop remains latched",
+            ))
+            return False
 
     async def _stop_adapter(self, reason: str) -> None:
         await self.adapter.stop()
