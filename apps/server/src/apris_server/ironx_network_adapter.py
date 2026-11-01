@@ -40,6 +40,8 @@ class IronXNetworkAdapter(IronXAdapter):
         self._retry_at = 0.0
         self.requires_rearm = False
         self.last_transport_error = None
+        self._next_drive = None
+        self._stop_unconfirmed = False
 
     async def start(self):
         self._closing = False
@@ -100,6 +102,8 @@ class IronXNetworkAdapter(IronXAdapter):
                                self.last_transport_error, (time.monotonic() - started) * 1000,
                                deadline_s * 1000)
                 self.requires_rearm |= self._owned or self._busy or self._estop
+                self._stop_unconfirmed |= self._owned or self._busy or self._estop
+                self._next_drive = None
                 self._epoch += 1
                 self._failed = True
                 self._owned = False
@@ -190,6 +194,7 @@ class IronXNetworkAdapter(IronXAdapter):
             or abs(vx) > 0.15
             or abs(wz) > 0.2
         ):
+            self._next_drive = None
             if self._owned:
                 await self._rpc("release", deadline_s=3)
                 self._owned = False
@@ -198,17 +203,25 @@ class IronXNetworkAdapter(IronXAdapter):
         if not self._owned:
             await self._rpc("acquire", deadline_s=3)
             self._owned = True
-        # Drain this read-only reply before propagating a motion cancellation.
-        # No drive is sent after cancellation; the existing RPC deadline still applies.
-        reading = asyncio.create_task(self._rpc("state"))
-        try:
-            result = await asyncio.shield(reading)
-        except asyncio.CancelledError:
-            await asyncio.gather(reading, return_exceptions=True)
-            raise
+        cached, self._next_drive = self._next_drive, None
+        if cached is not None and time.monotonic() - cached[1] < 0.1:
+            result, observed_at = cached
+        else:
+            # Drain read-only replies on cancellation; never send the next drive.
+            observed_at = time.monotonic()
+            reading = asyncio.create_task(self._rpc("state"))
+            try:
+                result = await asyncio.shield(reading)
+            except asyncio.CancelledError:
+                await asyncio.gather(reading, return_exceptions=True)
+                raise
         if epoch != self._epoch or self._stop_lock.locked():
             raise RuntimeError("iron-X drive superseded by stop")
         state = RoverState.model_validate(result["state"])
+        state.pose_quality.age_ms = (state.pose_quality.age_ms or 0) + (
+            time.monotonic() - observed_at
+        ) * 1000
+        state.connected = state.connected and state.pose_quality.age_ms < 300
         self._last_state = state.model_copy(deep=True)
         self._received_at = time.monotonic()
         if not state.connected:
@@ -220,7 +233,8 @@ class IronXNetworkAdapter(IronXAdapter):
             await self._rpc("release", deadline_s=3)
             self._owned = False
             raise RuntimeError("iron-X command expired during network preparation")
-        await self._rpc(
+        sent_at = time.monotonic()
+        reply = await self._rpc(
             "drive",
             {
                 "vx": vx,
@@ -233,9 +247,15 @@ class IronXNetworkAdapter(IronXAdapter):
             # expires this command within 200 ms and its ownership within 300 ms.
             deadline_s=1,
         )
+        # A fresh single-use challenge replaces the next telemetry round trip.
+        # Old gateways return null; keep their original state/drive sequence.
+        if isinstance(reply, dict) and "state" in reply and "nonce" in reply:
+            if epoch == self._epoch and not self._pending_stops:
+                self._next_drive = (reply, sent_at)
 
     async def stop(self):
         self._epoch += 1
+        self._next_drive = None
         self._pending_stops += 1
         stopping = asyncio.create_task(self._confirm_stop())
         cancelled = False
@@ -257,12 +277,20 @@ class IronXNetworkAdapter(IronXAdapter):
         async with self._stop_lock, self._command_lock:
             if self._failed:
                 raise RuntimeError("iron-X connection lost; physical stop not confirmed")
-            if self._owned:
+            if self._stop_unconfirmed:
+                self._estop = self.requires_rearm = True
+                await self._rpc("emergency_stop", {"reason": "confirm stop after transport loss"},
+                                deadline_s=3)
+                self._stop_unconfirmed = False
+                self._owned = False
+            elif self._owned:
                 await self._rpc("release", deadline_s=3)
                 self._owned = False
 
     async def emergency_stop(self, reason):
         self._epoch += 1
+        self._next_drive = None
+        self._stop_unconfirmed = True
         self._estop = True
         self.requires_rearm = True
         async with self._stop_lock, self._command_lock:
@@ -270,9 +298,11 @@ class IronXNetworkAdapter(IronXAdapter):
                 await self._recover()
             await self._rpc("emergency_stop", {"reason": reason}, deadline_s=3)
             self._owned = False
+            self._stop_unconfirmed = False
 
     async def clear_emergency_stop(self):
         self._epoch += 1
+        self._next_drive = None
         async with self._stop_lock, self._command_lock:
             if self._socket is None:
                 await self._recover()
@@ -280,6 +310,7 @@ class IronXNetworkAdapter(IronXAdapter):
             self._estop = False
             self.requires_rearm = False
             self._owned = False
+            self._stop_unconfirmed = False
 
     async def reset_pose(self):
         raise RuntimeError("iron-X shared odometry cannot be reset by a student client")

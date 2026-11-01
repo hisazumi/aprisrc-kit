@@ -52,3 +52,19 @@ logged with the method and elapsed time. Operator stop/release/disconnect failur
 keep E-stop latched and report `stop_unconfirmed`, without claiming the robot
 stopped or aborting client cleanup. Delayed-response and failure tests pass;
 physical revalidation is required. Use an SSH tunnel or TLS on shared networks.
+
+### Follow-up transport changes (hardware validation pending)
+
+Successful gateway drive replies now include telemetry and a new single-use nonce.
+The PC consumes that reply for the next drive only while its conservatively
+measured age is below 100 ms; otherwise it fetches state again. This removes one
+round trip per fresh consecutive command, without extending command/nonce expiry.
+Old gateways retain the original state/drive path. Stops and transport faults
+discard the cached reply.
+
+After ambiguous transport loss, reconnecting without ownership no longer counts
+as confirmation of a stop. A subsequent stop request must receive an explicit
+gateway emergency-stop acknowledgement; the rearm latch remains set. Failed TTL
+stopping is reported without crashing the safety loop or claiming a confirmed
+stop. The gateway supports `--start-estopped` for maintenance restarts. The same
+Wi-Fi and SSH tunnel are retained; network jitter itself has not been eliminated.

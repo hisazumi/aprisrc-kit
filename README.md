@@ -23,6 +23,7 @@ This README does not define challenge rules, judging criteria or official/mandat
 | Try and change greeting, following, and marker-guidance services | [Service playground](docs/demos/service-playground.md) |
 | Run an implemented demo | [Human interaction demo](docs/demos/human-interaction.md) |
 | Build a service for the first time | [Participant quickstart](docs/challenger-quickstart.md) |
+| Write service code with a web chat or coding assistant | [AI-assisted development](docs/ai-assisted-development.md) |
 | Understand the mission API and safety boundary | [Mission API](docs/mission-api.md) |
 | Test on the supported UGV02 | [UGV02 self-test](docs/hardware/ugv02-self-test.md) |
 | Try supervised iron-X following with a PC and iPhone | [iron-X person following](docs/hardware/ironx-follow.md) |

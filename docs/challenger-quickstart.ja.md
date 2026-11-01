@@ -2,6 +2,9 @@
 
 [English](challenger-quickstart.md)
 
+AIとコードを書く場合は[AIを使った開発手順](ai-assisted-development.ja.md)を参照してください。
+渡すファイル、変更範囲、ローカルでの確認方法をまとめています。
+
 APRISRCの参加者がAPRISRC Kitを使って独自サービスを作るためのガイドです。
 starterはAPIを示す例で、課題の指定解ではありません。サービスの目的と人との関わりは
 参加者が決めます。[目的と位置づけ](positioning.ja.md)を参照してください。

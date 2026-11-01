@@ -357,12 +357,13 @@ async def test_safety_loop_recovers_after_stop_transport_failure() -> None:
             while True:
                 status = await runtime.status()
                 safety = status["loops"]["safety"]
-                if safety["restart_count"] == 1 and safety["healthy"]:
+                if runtime.estop_latched and safety["healthy"]:
                     break
                 await asyncio.sleep(0.01)
 
-        assert adapter.stop_calls >= 2
-        assert status["ready"] is True
+        assert adapter.stop_calls >= 1
+        assert runtime.estop_latched
+        assert safety["restart_count"] == 0
         assert safety["running"] is True
         assert safety["error"] is None
     finally:

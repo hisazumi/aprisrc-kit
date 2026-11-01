@@ -1049,9 +1049,11 @@ class RoverRuntime:
                     expired = True
             if expired:
                 await self._cancel_motion("command TTL expired")
-                await self._stop_adapter("command TTL expired")
+                confirmed = await self._operator_stop("command TTL expired")
                 await self.broadcast(
-                    EventMessage(event="command_ttl_expired", detail="Rover stopped")
+                    EventMessage(event="command_ttl_expired", detail=(
+                        "Rover stopped" if confirmed else "Physical stop unconfirmed"
+                    ))
                 )
             await self._expire_path_clearance(now)
             obstacle = await self.front_obstacle_snapshot()

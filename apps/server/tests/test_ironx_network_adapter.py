@@ -146,7 +146,8 @@ async def test_real_gateway_expiry_rejects_same_client_resume():
 
 @asynccontextmanager
 async def endpoint(
-    *, delay_method=None, bad_id=False, deny_acquire=False, delay_s=0.4, delayed_request=None
+    *, delay_method=None, bad_id=False, deny_acquire=False, delay_s=0.4, delayed_request=None,
+    drive_snapshot=False
 ):
     requests = []
     headers = []
@@ -165,6 +166,8 @@ async def endpoint(
                 reply = {"id": "wrong" if bad_id else request["id"], "result": {}}
                 if method == "state":
                     reply["result"] = {"state": snapshot(), "nonce": "fresh"}
+                if method == "drive" and drive_snapshot:
+                    reply["result"] = {"state": snapshot(), "nonce": "next"}
                 if method == "acquire" and deny_acquire:
                     reply = {"id": request["id"], "error": "busy"}
                 await ws.send(json.dumps(reply))
@@ -371,6 +374,59 @@ async def test_delayed_drive_ack_does_not_extend_command_or_disconnect():
         assert not adapter.requires_rearm
         await adapter.stop()
         assert requests[-1]["method"] == "release"
+
+
+async def test_fresh_drive_reply_saves_one_round_trip_and_stop_discards_it():
+    async with endpoint(drive_snapshot=True) as (adapter, requests, _):
+        await adapter.drive(0.04, 0, 0)
+        await adapter.drive(0.04, 0, 0)
+        assert [r["method"] for r in requests] == ["acquire", "state", "drive", "drive"]
+        assert requests[-1]["params"]["nonce"] == "next"
+        assert requests[-1]["params"]["ttl_ms"] <= 200
+        await adapter.stop()
+        assert adapter._next_drive is None
+        await adapter.drive(0.04, 0, 0)
+        assert [r["method"] for r in requests[-3:]] == ["acquire", "state", "drive"]
+
+
+async def test_old_drive_reply_is_not_reused():
+    async with endpoint(drive_snapshot=True) as (adapter, requests, _):
+        await adapter.drive(0.04, 0, 0)
+        await asyncio.sleep(0.11)
+        await adapter.drive(0.04, 0, 0)
+        assert [r["method"] for r in requests[-2:]] == ["state", "drive"]
+
+
+async def test_reconnect_must_confirm_stop_even_without_ownership():
+    async with endpoint(delay_method="drive", delay_s=1.1) as (adapter, requests, _):
+        with pytest.raises(TimeoutError):
+            await adapter.drive(0.04, 0, 0)
+        assert adapter._stop_unconfirmed
+        adapter._retry_at = 0
+        await adapter.state()
+        assert not adapter._owned
+        await adapter.stop()
+        assert requests[-1]["method"] == "emergency_stop"
+        assert not adapter._stop_unconfirmed
+        assert adapter.requires_rearm
+        assert adapter._estop
+        with pytest.raises(RuntimeError):
+            await adapter.drive(0.04, 0, 0)
+
+
+async def test_recovery_stop_timeout_cannot_claim_confirmation():
+    async with endpoint(delay_method="emergency_stop", delay_s=0.1) as (adapter, _, _):
+        adapter._stop_unconfirmed = True
+        rpc = adapter._rpc
+
+        async def quick(method, params=None, **kwargs):
+            return await rpc(method, params, deadline_s=0.02)
+
+        adapter._rpc = quick
+        with pytest.raises(TimeoutError):
+            await adapter.stop()
+        assert adapter._stop_unconfirmed
+        assert adapter.requires_rearm
 
 
 async def test_emergency_stop_with_state_polling_keeps_connection():
