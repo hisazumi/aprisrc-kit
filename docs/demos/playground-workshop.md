@@ -14,15 +14,32 @@ development workspace, not the final visitor-facing app.
 
 Clone this public repository; no access invitation is required.
 Install Node.js/npm, Python 3.12 (pinned), and `uv`.
-On Windows, follow [PowerShell setup](../windows-setup.md).
-On macOS/Linux (Bash or zsh), run from the repository root:
+Use Windows PowerShell and Edge or Chrome. No WSL or Safari is required.
+See [setup and troubleshooting](../windows-setup.md). Run from the repository root:
+
+```powershell
+uv python install 3.12
+npm.cmd ci
+uv sync --directory apps/server --no-dev
+$env:APRIS_ADAPTER="simulator"
+$env:APRIS_DISABLE_HTTPS="1"
+$env:APRIS_SERVER_URL="http://127.0.0.1:8000"
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linux alternative (Bash or zsh)</summary>
 
 ```bash
-npm ci
 uv python install 3.12
+npm ci
 uv sync --directory apps/server --no-dev
-APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
+APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 APRIS_SERVER_URL=http://127.0.0.1:8000 npm run dev
 ```
+
+For checks below, replace `npm.cmd` with `npm`.
+
+</details>
 
 Keep that terminal running. Open
 [Person greeting](http://localhost:5173/playground?service=greeting).
@@ -191,10 +208,10 @@ ownership, command TTL, speed limits, front safety, or E-stop for these exercise
 
 After a source change, run from the repository root:
 
-```bash
-npm test
-npm run typecheck
-npm run build
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
 For a new service, continue with the [Challenger quickstart](../challenger-quickstart.md)

@@ -14,15 +14,32 @@
 
 この公開リポジトリを手元にcloneしてください。アクセス権の申請は不要です。
 Node.js/npm、Python 3.12（固定）、uvを用意します。
-Windowsでは[PowerShellの起動手順](../windows-setup.ja.md)を使ってください。
-以下はmacOS/Linux（Bash・zsh）向けで、リポジトリのルートで実行します。
+WindowsのPowerShellとEdgeまたはChromeを使います。WSLやSafariは不要です。
+[起動・トラブル対応](../windows-setup.ja.md)も参照してください。リポジトリのルートで実行します。
+
+```powershell
+uv python install 3.12
+npm.cmd ci
+uv sync --directory apps/server --no-dev
+$env:APRIS_ADAPTER="simulator"
+$env:APRIS_DISABLE_HTTPS="1"
+$env:APRIS_SERVER_URL="http://127.0.0.1:8000"
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linuxの場合（Bash・zsh）</summary>
 
 ```bash
-npm ci
 uv python install 3.12
+npm ci
 uv sync --directory apps/server --no-dev
-APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
+APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 APRIS_SERVER_URL=http://127.0.0.1:8000 npm run dev
 ```
+
+以降の確認コマンドは`npm.cmd`を`npm`に置き換えます。
+
+</details>
 
 ターミナルを起動したまま、[Person greeting](http://localhost:5173/playground?service=greeting)を開きます。
 この設定はSimulatorとHTTPを明示し、証明書があってもPCだけで試せます。
@@ -170,10 +187,10 @@ const ARRIVAL_DISTANCE_M = 0.65; // Previously 0.45
 前方安全・非常停止を回避したりする必要はありません。
 コード変更後、ルートで確認します。
 
-```bash
-npm test
-npm run typecheck
-npm run build
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
 新しいサービスを作る場合は[Challenger quickstart](../challenger-quickstart.ja.md)と

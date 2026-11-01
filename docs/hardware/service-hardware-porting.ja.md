@@ -16,7 +16,7 @@ Phone camera / PWA
   person and marker observations
             |
             v
-APRIS Server on Mac or PC
+APRIS Server on student PC (Windows by default)
   ownership, validation, safety, logs
             |
             v
@@ -29,7 +29,8 @@ PC serverは観測検証・移動許可・安全制御、UGV02はmotorに近い�
 通信断時停止を担当する。missionは`ServiceRover`だけを利用し、どの
 機種が接続されているかを判定しない。
 
-参照構成はUGV02一台、固定したスマホ、Mac/PC、private LANである。
+案内上の構成はUGV02一台、固定したスマホ、Windows PC、private LANである。
+macOS/Linuxも代替ホストとして使う。過去のMacでの試験はWindowsでの検証を意味しない。
 設定とセルフテストの入口は[引き継ぎガイド](../handoff.ja.md)を参照する。
 挨拶・追従には印刷マーカーは不要。実機Playgroundは車載スマホ自身のcameraを使うが、
 実機検証は未完了で、実機marker案内は有効にしていない。
@@ -39,7 +40,7 @@ PC serverは観測検証・移動許可・安全制御、UGV02はmotorに近い�
 | Replacement | Conditions |
 | --- | --- |
 | Smartphone model | HTTPS、`getUserMedia`、WebAssembly、十分なcamera性能をbrowserが提供する |
-| Mac with another PC | Node.js、Python、`uv`、LANからのHTTPS/WSS到達性を用意する |
+| 学生PC（標準はWindows） | Node.js、Python、`uv`、LANからのHTTPS/WSS到達性を用意する。macOS/Linuxの差分は起動ガイドの補足を参照 |
 | Wi-Fi router | phone、PC、rover間のclient isolationがなく、ESP32が接続できるLANを提供する |
 | Phone mount | cameraの正面、水平、画角を維持し、wheelや電源操作を妨げない |
 

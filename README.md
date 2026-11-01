@@ -68,44 +68,69 @@ docs/                    Guides, reference, operations, and design records
 
 ## Development
 
-Requirements: Node.js 22.x (22.12+) or 24+, npm, Python 3.12, and `uv`.
-The repository pins Python 3.12 for local development. For Windows PowerShell,
-use [Windows setup and troubleshooting](docs/windows-setup.md).
+The default development path is **Windows + PowerShell**, with Edge or Chrome on the PC.
+Install Git, Node.js 22.12+ or 24+ (including npm), and uv. The commands below install
+Python 3.12. WSL, macOS, and Safari are not required for a simulator trial.
+See [Windows setup and troubleshooting](docs/windows-setup.md) for details.
 
-```bash
+```powershell
 git clone https://github.com/hisazumi/aprisrc-kit.git
 cd aprisrc-kit
-npm ci
-uv python install 3.12
-uv sync --directory apps/server --no-dev
-npm run dev
 ```
 
-`npm run dev` starts the FastAPI server at `http://localhost:8000` and the Vite development server at `http://localhost:5173`. The PWA development server proxies `/ws` and `/api` to FastAPI. If development certificates are present in `.certs/`, Vite automatically switches to `https://localhost:5173` and the WebSocket connection also uses WSS.
+```powershell
+uv python install 3.12
+npm.cmd ci
+uv sync --directory apps/server --no-dev
+$env:APRIS_ADAPTER="simulator"
+$env:APRIS_DISABLE_HTTPS="1"
+$env:APRIS_SERVER_URL="http://127.0.0.1:8000"
+npm.cmd run dev
+```
 
-- `https://localhost:5173/service`: Service App for smartphones
-- `https://localhost:5173/console`: Operator Console for PCs
-- `https://localhost:5173/playground`: Integrated interface for Simulator development
-
-Visiting `/` also displays the Service App. See [PWA views](docs/pwa-views.md) for the role of each view.
-
-Cameras are available on the PC through `localhost`, but HTTPS is required when a smartphone connects to the PC's local IP address. See [Local HTTPS and smartphone setup](docs/local-https.md) for setup instructions. Video is not sent to the server; only structured observations recognized in the PWA are transmitted.
-
-After making changes, run the following standard checks:
+<details>
+<summary>macOS / Linux alternative (Bash or zsh)</summary>
 
 ```bash
+uv python install 3.12
+npm ci
+uv sync --directory apps/server --no-dev
+APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 APRIS_SERVER_URL=http://127.0.0.1:8000 npm run dev
+```
+
+For checks below, replace `npm.cmd` with `npm`.
+
+</details>
+
+This starts the backend on port 8000 and the UI on port 5173. It explicitly selects
+Simulator and desktop HTTP, even if certificates already exist. Use the startup output
+if the UI chooses another port.
+
+- [My service Playground](http://localhost:5173/playground?service=my-service): start here
+- [Service](http://localhost:5173/service?service=my-service): the selected service's user view
+- [Console](http://localhost:5173/console?service=my-service): operation and monitoring
+
+Check that `http://127.0.0.1:8000/api/status` returns JSON as well: a loaded page alone
+does not prove the Python server started. Stop with Ctrl+C. See [PWA views](docs/pwa-views.md).
+
+Only proceed to [HTTPS setup](docs/local-https.md) when using a phone camera.
+A Windows PC can be paired with an iPhone; Safari refers to the phone browser, not a
+requirement to use a Mac. The browser sends structured observations, not camera video.
+
+After changes, run these checks in PowerShell:
+
+```powershell
 uv sync --directory apps/server --dev
-npm run typecheck
-npm test
-npm run build
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
 uv run --directory apps/server ruff check src tests
 uv run --directory apps/server pytest
 ```
 
-Commit only after all checks pass. For browser-related changes, also open and verify `/service`, `/console`, and `/playground` as appropriate.
-
-Use the [documentation index](docs/README.md) for adapter configuration, factory-firmware
-diagnostics, protocols, and design records.
+For browser changes, also check the relevant Service, Playground and Console views.
+Windows is the default documentation path; this edit does not add Windows-machine
+test evidence. Use the [documentation index](docs/README.md) for configuration and maintenance.
 
 ## Coordinate convention
 

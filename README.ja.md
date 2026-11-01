@@ -67,51 +67,70 @@ docs/                   Guides, reference, operations, and design records
 
 ## Development
 
-必要なものはNode.js 22.x（22.12以降）または24以降、npm、Python 3.12、`uv`です。
-ローカル開発ではPython 3.12を使うよう固定しています。Windows PowerShellでは
-[Windowsの起動・トラブル対応](docs/windows-setup.ja.md)を参照してください。
+通常の開発環境は**Windows + PowerShell**です。PCではEdgeまたはChromeで開きます。
+Git、Node.js 22.12以降または24以降（npm含む）、uvを用意してください。
+Python 3.12は以下で導入します。WSL、macOS、Safariはシミュレータの開始に不要です。
+詳しくは[Windowsの起動・トラブル対応](docs/windows-setup.ja.md)。
 
-```bash
+```powershell
 git clone https://github.com/hisazumi/aprisrc-kit.git
 cd aprisrc-kit
-npm ci
+```
+
+```powershell
 uv python install 3.12
+npm.cmd ci
 uv sync --directory apps/server --no-dev
-npm run dev
+$env:APRIS_ADAPTER="simulator"
+$env:APRIS_DISABLE_HTTPS="1"
+$env:APRIS_SERVER_URL="http://127.0.0.1:8000"
+npm.cmd run dev
 ```
 
-`npm run dev` starts the FastAPI server at `http://localhost:8000` and the Vite development server at `http://localhost:5173`. The PWA development server proxies `/ws` and `/api` to FastAPI. 開発証明書が `.certs/` に存在する場合、Vite は自動的に `https://localhost:5173` へ切り替わり、WebSocket も WSS になる。
-
-稼働確認は`/api/livez`、走行可能性を含むreadinessは`/api/readyz`、詳細なruntime
-snapshotは`/api/status`で確認する。CLIでは次を実行する。
+<details>
+<summary>macOS / Linuxの場合（Bash・zsh）</summary>
 
 ```bash
-uv run --directory apps/server apris-doctor --json
+uv python install 3.12
+npm ci
+uv sync --directory apps/server --no-dev
+APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 APRIS_SERVER_URL=http://127.0.0.1:8000 npm run dev
 ```
 
-- `https://localhost:5173/service`: スマートフォン用Service App
-- `https://localhost:5173/console`: PC用Operator Console
-- `https://localhost:5173/playground`: Simulator開発用の統合画面
+以降の確認コマンドは`npm.cmd`を`npm`に置き換えます。
 
-`/`へアクセスした場合もService Appを表示する。各画面の役割は [PWA views](docs/pwa-views.ja.md) を参照する。
+</details>
 
-PC の `localhost` ではカメラを利用できるが、スマートフォンから PC のローカル IP アドレスへ接続する場合は HTTPS が必要になる。セットアップ方法は [Local HTTPS and smartphone setup](docs/local-https.ja.md) を参照する。映像はサーバへ送信せず、PWA内で認識した構造化観測だけを送る。
+開発サーバーはバックエンドを8000番、画面を5173番で起動します。
+この例はSimulatorとPC用HTTPを明示的に選び、既存の証明書があってもHTTPSには切り替えません。
+ポートが使用中の場合は起動表示を確認してください。
 
-変更後は次の標準チェックを実行する。
+- [My serviceのPlayground](http://localhost:5173/playground?service=my-service)：まずここで試す
+- [Service](http://localhost:5173/service?service=my-service)：選んだサービスの利用者画面
+- [Console](http://localhost:5173/console?service=my-service)：操作・監視
 
-```bash
+`http://127.0.0.1:8000/api/status`でJSONが返ることも確認します。
+画面が開くだけではPythonサーバーの起動確認にはなりません。
+終了はCtrl+Cです。画面の役割は[PWA views](docs/pwa-views.ja.md)を参照してください。
+
+スマホカメラを使うときだけ[HTTPSの準備](docs/local-https.ja.md)へ進みます。
+Windows PCにiPhoneを組み合わせられます。iPhoneのSafariはスマホ側のブラウザであり、
+Macを必要とする意味ではありません。カメラ映像ではなく、認識した構造化観測をサーバーへ送ります。
+
+変更後の確認（PowerShell）：
+
+```powershell
 uv sync --directory apps/server --dev
-npm run typecheck
-npm test
-npm run build
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
 uv run --directory apps/server ruff check src tests
 uv run --directory apps/server pytest
 ```
 
-すべて成功してからコミットする。ブラウザに関係する変更では、必要に応じて`/service`、`/console`、`/playground`も実際に開いて確認する。
-
-実機adapterの設定、factory firmware診断、実装詳細などの保守手順は
-[Documentation index](docs/README.ja.md)から辿る。
+ブラウザ変更はService・Playground・Consoleの該当画面も確認してください。
+Windows向けの案内を標準にしていますが、この文書変更でWindows実機試験を追加したわけではありません。
+接続設定・保守資料は[ドキュメント索引](docs/README.ja.md)から参照できます。
 
 ## Coordinate convention
 

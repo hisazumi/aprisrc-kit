@@ -8,16 +8,33 @@ challenge solution. Start with the Simulator, without a robot, camera, or LLM ke
 ## Start
 
 Requirements: Node.js 22.12+ or 24+, npm, Python 3.12 and uv.
-From the repository root on macOS/Linux:
+From the repository root in Windows PowerShell (Edge or Chrome on the PC):
 
-```bash
-npm ci
+```powershell
 uv python install 3.12
+npm.cmd ci
 uv sync --directory apps/server --no-dev
-APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
+$env:APRIS_ADAPTER="simulator"
+$env:APRIS_DISABLE_HTTPS="1"
+$env:APRIS_SERVER_URL="http://127.0.0.1:8000"
+npm.cmd run dev
 ```
 
-Windows users: follow [Windows setup](windows-setup.md).
+<details>
+<summary>macOS / Linux alternative (Bash or zsh)</summary>
+
+```bash
+uv python install 3.12
+npm ci
+uv sync --directory apps/server --no-dev
+APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 APRIS_SERVER_URL=http://127.0.0.1:8000 npm run dev
+```
+
+For checks below, replace `npm.cmd` with `npm`.
+
+</details>
+
+For setup errors, see [Windows troubleshooting](windows-setup.md).
 Open `http://localhost:5173/playground?service=my-service`, or the port printed at startup.
 
 ## Try the unchanged service
@@ -46,10 +63,10 @@ definitions and source to the selector. Registering a low-level mission does not
 
 ## Test and extend
 
-```bash
-npm test
-npm run typecheck
-npm run build
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
 Add tests for normal completion, refusal, target loss, cancellation and failed stopping.

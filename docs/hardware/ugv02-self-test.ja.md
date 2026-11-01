@@ -16,7 +16,7 @@ firmwareの書き込みとnetwork provisioningが済んだ1台を想定し、mis
 | --- | --- |
 | Rover | Waveshare UGV02、ESP32、wheel encoder、APRIS firmware `0.97-apris-ws-dev` |
 | Vision/UI | ローバー前面へ固定したsmartphone。画面側を進行方向へ向け、front cameraを使う |
-| Local Server | Node.js、Python、`uv`を導入したMacまたはPC |
+| Local Server | PowerShell、Node.js、Python、`uv`を導入したWindows PC（macOS/Linuxは下の補足） |
 | Network | PC、smartphone、UGV02が相互通信できるprivate LAN |
 | Recovery | UGV02の物理電源スイッチ。firmware更新時だけdata通信可能なUSB cable |
 
@@ -49,16 +49,35 @@ APRIS_ROVER_TOKEN=<same development token as the rover>
 3. UGV02の電源を入れ、OLEDに`APRIS UGV02`と`0.97-apris-ws-dev`が出ることを確認する。
 4. repository rootでAPRISをRover modeとして起動する。
 
-依存関係はroot READMEに従い先に導入する。8000/5173の既存Simulator serverを終了する。
-`.env`の編集だけでは稼働中serverは切り替わらず、このコマンドも自動読み込みしないため、
-以下でexportする。`APRIS_DISABLE_HTTPS`は未設定にする。
+依存関係はREADMEのWindows手順で先に導入します。既存のSimulatorを停止し、
+Windows PowerShellで以下を実行します。`.env`は自動読み込みされないので、
+保存した値と同じID・tokenを設定してください。tokenを公開画面や共有ログに出さないでください。
+既存サーバーは環境変数の変更だけでは切り替わりません。
+
+```powershell
+$env:APRIS_ADAPTER = "websocket_rover"
+$env:APRIS_ROVER_ID = "ugv02-demo-1"
+$env:APRIS_ROVER_TOKEN = Read-Host "Enter the private rover token"
+$env:APRIS_SERVER_URL = "http://127.0.0.1:8000"
+Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linuxの場合（Bash・zsh）</summary>
+
+自分で用意した非公開の`.env`を読み込みます。共有ファイルや出所不明のファイルをsourceしないでください。
 
 ```bash
 set -a
 source .env
 set +a
+unset APRIS_DISABLE_HTTPS
+export APRIS_SERVER_URL=http://127.0.0.1:8000
 npm run dev
 ```
+
+</details>
 
 5. PCで`uv run --directory apps/server apris-doctor --json`を実行し、次を確認する。
    - `status`が`ready`

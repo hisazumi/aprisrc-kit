@@ -100,9 +100,9 @@ edit `challengerStarter.ts` first instead of registering a competing greeting.
 
 Run from the repository root:
 
-```sh
-npm run test:starter
-npm run typecheck
+```powershell
+npm.cmd run test:starter
+npm.cmd run typecheck
 ```
 
 Existing starter tests do not test your new action. Add

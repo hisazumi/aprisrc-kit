@@ -7,6 +7,9 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 優先順位は[Development roadmap](roadmap.ja.md)、起動・復旧方法は
 [Operations runbook](operations/runbook.md)を正本とする。
 
+本文のPC操作は**Windows・PowerShell**を標準とします。macOS/Linuxの差分は各ガイドの折りたたみ補足を開いてください。
+iPhoneのSafariはスマホカメラ側の説明で、開発PCにMacは不要です。
+
 ## Start here
 
 まず[参加者quickstart](challenger-quickstart.ja.md)でMy serviceを試し、`missions/myService.ts`を編集する。低水準行動の追加は[行動追加ガイド](adding-actions.ja.md)を参照。

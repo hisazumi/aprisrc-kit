@@ -18,7 +18,7 @@ If provisioning is incomplete, start with [the handoff guide](../handoff.md), no
 | --- | --- |
 | Rover | Waveshare UGV02, ESP32, wheel encoders, APRIS firmware `0.97-apris-ws-dev` |
 | Vision/UI | Smartphone fixed to the rover front, screen facing forward, using the front camera |
-| Local server | Mac or PC with Node.js, Python, and `uv` |
+| Local server | Windows PC with PowerShell, Node.js, Python, and `uv` (macOS/Linux alternative below) |
 | Network | Private LAN allowing the PC, phone, and UGV02 to communicate |
 | Recovery | UGV02 physical power switch; data-capable USB cable only for firmware updates |
 
@@ -52,16 +52,35 @@ wheels.
 3. Power on the UGV02 and verify `APRIS UGV02` and `0.97-apris-ws-dev` on its OLED.
 4. Start APRIS in Rover mode from the repository root.
 
-Install dependencies using the root README first. Stop any existing Simulator server on
-ports 8000/5173; changing `.env` does not reconfigure a running server. `.env` is not loaded
-automatically by this command: export it as below. Ensure `APRIS_DISABLE_HTTPS` is unset.
+Install dependencies using the README's Windows steps first. Stop the existing Simulator.
+In Windows PowerShell, set the ID and token matching your private configuration below.
+The command does not automatically load `.env`. Keep the entered token out of shared
+screens/logs. Changing environment variables does not reconfigure a running server.
+
+```powershell
+$env:APRIS_ADAPTER = "websocket_rover"
+$env:APRIS_ROVER_ID = "ugv02-demo-1"
+$env:APRIS_ROVER_TOKEN = Read-Host "Enter the private rover token"
+$env:APRIS_SERVER_URL = "http://127.0.0.1:8000"
+Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linux alternative (Bash or zsh)</summary>
+
+Load only the private `.env` you prepared yourself, never an untrusted or shared shell file.
 
 ```bash
 set -a
 source .env
 set +a
+unset APRIS_DISABLE_HTTPS
+export APRIS_SERVER_URL=http://127.0.0.1:8000
 npm run dev
 ```
+
+</details>
 
 5. Run `uv run --directory apps/server apris-doctor --json` on the PC and verify:
    - `status` is `ready`

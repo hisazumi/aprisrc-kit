@@ -96,9 +96,9 @@ LLMは登録済みintentを`action: "introduce_robot"`として返し、アプ�
 
 リポジトリのルートで実行します。
 
-```sh
-npm run test:starter
-npm run typecheck
+```powershell
+npm.cmd run test:starter
+npm.cmd run typecheck
 ```
 
 既存のstarterテストは新しい行動を検証しません。

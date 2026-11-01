@@ -15,7 +15,7 @@ Phone camera / PWA
   person and marker observations
             |
             v
-APRIS Server on Mac or PC
+APRIS Server on student PC (Windows by default)
   ownership, validation, safety, logs
             |
             v
@@ -28,7 +28,8 @@ The PC server validates observations and owns motion authorization and safety; t
 motor-adjacent closed-loop control and disconnect stop. Missions use only
 `ServiceRover` and never branch on a hardware model.
 
-The reference setup is one UGV02, a securely mounted phone, a Mac/PC and a private LAN.
+The documented setup is one UGV02, a securely mounted phone, a Windows PC and a private LAN.
+macOS/Linux are alternative PC hosts; historical trials on a Mac are not Windows validation.
 Use [the handoff guide](../handoff.md) to select setup versus self-test. Printed markers are
 not needed for greeting/following. Live Playground supports the mounted phone's own camera;
 it still needs physical verification and does not enable physical marker guidance.
@@ -38,7 +39,7 @@ it still needs physical verification and does not enable physical marker guidanc
 | Replacement | Conditions |
 | --- | --- |
 | Smartphone | HTTPS, `getUserMedia`, WebAssembly, and adequate camera performance |
-| Mac or PC | Node.js, Python, `uv`, and LAN-reachable HTTPS/WSS |
+| Student PC (Windows by default) | Node.js, Python, `uv`, and LAN-reachable HTTPS/WSS; macOS/Linux alternatives are in the setup guides |
 | Wi-Fi router | No client isolation between phone, PC, and rover; ESP32-compatible network |
 | Phone mount | Stable forward-facing camera, level framing, no wheel or power obstruction |
 

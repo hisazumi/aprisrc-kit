@@ -83,10 +83,10 @@ APRISRC Kitでサービスを開発しています。
 
 リポジトリのルートで実行します。
 
-```sh
-npm run typecheck --workspace @apris/pwa
-npm run test --workspace @apris/pwa
-npm run build --workspace @apris/pwa
+```powershell
+npm.cmd run typecheck --workspace @apris/pwa
+npm.cmd run test --workspace @apris/pwa
+npm.cmd run build --workspace @apris/pwa
 ```
 
 狭い変更でも、どの既存・追加テストが変更内容を確かめるかを確認します。

@@ -8,16 +8,33 @@ APRISRC向けの自分のサービスを作る入口です。荷物運びは初�
 ## 起動
 
 Node.js 22.12+または24+、npm、Python 3.12、uvを用意します。
-macOS/Linuxではリポジトリ直下で実行します。
+WindowsのPowerShellで、リポジトリ直下から実行します。PCのブラウザはEdgeまたはChromeを使います。
 
-```bash
-npm ci
+```powershell
 uv python install 3.12
+npm.cmd ci
 uv sync --directory apps/server --no-dev
-APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
+$env:APRIS_ADAPTER="simulator"
+$env:APRIS_DISABLE_HTTPS="1"
+$env:APRIS_SERVER_URL="http://127.0.0.1:8000"
+npm.cmd run dev
 ```
 
-Windowsは[Windowsの起動手順](windows-setup.ja.md)を使います。
+<details>
+<summary>macOS / Linuxの場合（Bash・zsh）</summary>
+
+```bash
+uv python install 3.12
+npm ci
+uv sync --directory apps/server --no-dev
+APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 APRIS_SERVER_URL=http://127.0.0.1:8000 npm run dev
+```
+
+以降の確認コマンドは`npm.cmd`を`npm`に置き換えます。
+
+</details>
+
+起動時の問題は[Windowsのトラブル対応](windows-setup.ja.md)を参照してください。
 `http://localhost:5173/playground?service=my-service`を開きます。ポートは起動表示を優先してください。
 
 ## 変更せずに試す
@@ -47,10 +64,10 @@ API、選択肢、シーンJSONは[My serviceガイド](demos/student-service.ja
 
 ## テストと拡張
 
-```bash
-npm test
-npm run typecheck
-npm run build
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
 正常終了、拒否、対象喪失、中断、停止失敗をテストします。

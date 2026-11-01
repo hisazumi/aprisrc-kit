@@ -2,85 +2,111 @@
 
 [日本語](local-https.ja.md)
 
-Smartphone camera access requires a secure context. The development setup terminates HTTPS
-and WSS at Vite while proxying `/api` and `/ws` to local FastAPI.
+This guide assumes a **Windows PC with PowerShell** hosting Kit. macOS/Linux differences
+are collapsed below. A phone is only needed for camera trials; desktop Simulator work uses
+HTTP and needs no certificate. An iPhone uses Safari on the phone, not on the PC.
 
-```text
-Phone browser
-  https://PC-LAN-IP:5173/service
-  wss://PC-LAN-IP:5173/ws
-            |
-            v
-Vite development server
-            |
-            +-- ws://localhost:8000/ws
-            +-- http://localhost:8000/api
+The phone connects to Vite over HTTPS/WSS; Vite proxies to FastAPI over HTTP on port 8000.
+This does not encrypt the separate rover/gateway WebSocket connection.
+
+## 1. Generate certificates on Windows
+
+Start in the repository root. The certificate script requires OpenSSL in addition to the
+normal simulator tools. It uses `OPENSSL` if set, otherwise searches for `openssl`.
+
+```powershell
+openssl version
 ```
 
-FastAPI port 8000 uses HTTP. In Rover mode the UGV02 also needs LAN access to port 8000;
-restrict access to the trusted private LAN. Phone-facing Vite uses HTTPS/WSS, but this does
-not encrypt the firmware's separate plain WebSocket connection.
+If not found, use your institution-approved OpenSSL installation. If your Git for Windows
+installation includes OpenSSL, you can point to its actual executable; for example:
 
-## 1. Generate a development CA and certificate
-
-From the repository root:
-
-```bash
-npm run cert:generate
+```powershell
+$env:OPENSSL = "C:\Program Files\Git\usr\bin\openssl.exe"
+Test-Path $env:OPENSSL
+& $env:OPENSSL version
 ```
 
-The script writes the ignored `.certs/localhost.pem` and `.certs/localhost-key.pem` files and
-includes localhost plus current private LAN addresses. Regenerate after the PC LAN address
-changes.
+Continue only when the executable exists and the version check succeeds. The path is an
+example, not a promise about every Git installation. Generate certificates:
 
-The script requires OpenSSL and generates `.certs/apris-local-ca.pem` plus the private
-`.certs/apris-local-ca-key.pem`. It does not use mkcert or install trust automatically.
-An additional address can be included with `npm run cert:generate -- <PC-LAN-IP>`.
-
-## 2. Trust the CA on the development PC
-
-On macOS, manually import `.certs/apris-local-ca.pem` into Keychain Access and configure
-trust for this development CA. On other PCs use the operating system's certificate store.
-Only trust your own intended development CA. Never commit either private key or copy it into
-a diagnostic bundle. Remove the development CA trust after the project.
-
-## 3. Trust the CA on a phone
-
-Transfer only `.certs/apris-local-ca.pem` to the phone through a private channel, never either
-`*-key.pem` file. Do not continue through a certificate warning; fix trust/address mismatch first.
-
-### iPhone / iPad
-
-1. Install the downloaded profile in Settings.
-2. Open **Settings > General > About > Certificate Trust Settings**.
-3. Enable full trust for the development root CA.
-
-### Android
-
-Install the CA certificate as a VPN and apps certificate using the device's security settings.
-Browser and vendor behavior varies; verify the final URL without a certificate warning.
-
-## 4. Start and connect
-
-```bash
-npm run dev
+```powershell
+npm.cmd run cert:generate
 ```
 
-When both certificate files exist, Vite starts in HTTPS mode. Connect the PC and phone to the
-same LAN, then open `https://<PC-LAN-IP>:<HTTPS-port>/service` on the phone. The usual
-port is 5173; a separate HTTPS instance may use 5174. Use the actual startup URL,
-not an HTTP instance's port, and the exact IP included in
-the generated certificate.
+The script creates ignored files in `.certs/`: public CA `apris-local-ca.pem`, CA private key
+`apris-local-ca-key.pem`, and `localhost.pem` / `localhost-key.pem`. It includes localhost and
+current LAN addresses but does not install trust. Use `npm.cmd run cert:generate -- <PC-LAN-IP>`
+for another address; replace the placeholder. Regenerate after an address change.
 
-For PC-only Simulator work use `APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev`.
-Leave `APRIS_DISABLE_HTTPS` unset for smartphone trials. Do not use an insecure context for
-smartphone camera validation. Restart Vite after certificate regeneration; if the CA itself
-was replaced, trust the new public CA certificate on each test device.
+## 2. Trust your CA on Windows
 
-## Operational notes
+Only trust the CA you generated for this project. Do not import unknown certificates to
+bypass warnings. In PowerShell, convert your public CA to DER and import it for the current
+Windows user:
 
-- The browser sends only structured perception observations, not camera video.
-- A changed LAN address normally requires certificate regeneration.
-- Client-isolating guest Wi-Fi prevents the phone, PC, and rover from communicating.
-- Treat the development CA as a credential and remove it from devices after the project.
-- Production deployment requires a separately managed certificate and trust model.
+```powershell
+if (-not $env:OPENSSL) { $env:OPENSSL = "openssl" }
+& $env:OPENSSL x509 -in .certs/apris-local-ca.pem -outform DER -out .certs/apris-local-ca.cer
+Import-Certificate -FilePath .certs/apris-local-ca.cer -CertStoreLocation Cert:\CurrentUser\Root
+```
+
+Check successful conversion before importing. See Microsoft's
+[Import-Certificate reference](https://learn.microsoft.com/en-us/powershell/module/pki/import-certificate).
+If an institutional policy prevents this, ask the administrator; do not weaken policy.
+Use Edge or Chrome to verify the eventual URL without certificate warnings.
+Remove this project's CA trust after the project. Never share or commit private keys.
+
+<details>
+<summary>macOS / Linux: generation and PC trust</summary>
+
+Use an available OpenSSL executable (`OPENSSL` can specify its path), then
+`npm run cert:generate`. On macOS, import only `.certs/apris-local-ca.pem` in Keychain Access
+and explicitly trust your development CA. On Linux, use the certificate trust procedure
+for your distribution and browser, with administrator guidance where required.
+Verify the final URL without warnings; browser certificate stores may differ.
+
+For the startup commands below, use `unset APRIS_DISABLE_HTTPS` and `npm run dev`.
+To run only the simulator over HTTP:
+`APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev`.
+
+</details>
+
+## 3. Trust the public CA on the phone
+
+Transfer only `apris-local-ca.pem` or its public `.cer` copy through a private channel.
+Never transfer `*-key.pem`. PC trust does not automatically configure phone trust.
+
+- **iPhone/iPad:** install the downloaded profile in Settings, then enable this CA under
+  Settings > General > About > Certificate Trust Settings. Use Safari on the phone.
+- **Android:** install the public CA using the device's certificate settings. Device/browser
+  behavior differs; confirm the final URL and camera permission on that device.
+
+Do not proceed through certificate warnings. Resolve trust, expiry or address mismatches.
+
+## 4. Start on the PC and connect from the phone
+
+Stop an existing dev server before changing its settings. Keep the intended adapter settings
+from its hardware guide; these commands do not choose a robot or authorize movement.
+
+```powershell
+Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
+npm.cmd run dev
+```
+
+Both Vite certificate files must exist. Use the printed HTTPS port (normally 5173) and open
+`https://<PC-LAN-IP>:<HTTPS-port>/service?service=carry` on the phone.
+Use the PC's address covered by the certificate, not phone localhost or the robot address.
+The PC and phone need mutual LAN reachability. Restrict Windows Firewall access to the
+trusted trial network and required ports; do not disable the firewall. Guest/client-isolated
+Wi-Fi may prevent access regardless of certificate settings.
+
+For desktop-only Simulator work, use the PowerShell commands in [Windows setup](windows-setup.md).
+After regeneration restart Vite; if the CA changed, update trust on both PC and phone.
+Camera setup alone does not start motion; follow the hardware guide's permission steps.
+
+## Limits
+
+The browser sends structured observations, not video. This is development HTTPS, not a
+production deployment recipe. Windows is the primary documented path, but these commands
+have not been executed on a Windows machine as part of this edit.

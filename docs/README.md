@@ -7,6 +7,9 @@ need only **Start here**. [Platform status](platform-status.md) is authoritative
 capabilities, [Development roadmap](roadmap.md) for priorities, and
 [Operations runbook](operations/runbook.md) for startup and recovery.
 
+PC instructions default to **Windows and PowerShell**. Open the collapsed alternatives for macOS/Linux.
+Safari instructions refer to an iPhone camera client, not a requirement for a Mac development PC.
+
 ## Start here
 
 Start with the [participant quickstart](challenger-quickstart.md), then edit `missions/myService.ts`. For lower-level actions, see [adding actions](adding-actions.md).

@@ -4,7 +4,38 @@
 
 ## First start (PowerShell)
 
+Windows is the default participant setup. Use Edge or Chrome on the PC; WSL and
+Safari are not required. For macOS/Linux, open the collapsed alternative in the
+[participant quickstart](challenger-quickstart.md).
+
 Install Git, Node.js 22.12+ or 24+ (including npm), and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+### Install Node.js and npm
+
+For a new setup, use the official Windows installer for **Node.js 24.x**.
+npm is included; do not install it separately. See the
+[npm installation guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/).
+
+1. Open the [Node.js download page](https://nodejs.org/en/download) and select
+   version **24.x**, **Windows**, and **Windows Installer (.msi)** for your PC's architecture.
+2. Run the installer, keeping the npm and PATH options enabled. If your managed PC
+   requires administrator approval, ask its administrator rather than bypassing restrictions.
+3. Close and reopen PowerShell. If using the VS Code terminal, restart VS Code too.
+4. Check both commands:
+
+```powershell
+node --version
+npm.cmd --version
+```
+
+The first should report `v24.x.x`; the second should print an npm version number.
+If both already work with a supported Node.js version, no reinstall is needed.
+If either command is not found, first reopen the terminal, then check that the
+installation completed and PATH was enabled. Do not change PowerShell's execution policy;
+this guide uses `npm.cmd` to avoid the `npm.ps1` restriction.
+
+### Start the simulator
+
 Run these commands from the repository root, the folder containing `package.json`:
 
 ```powershell
@@ -34,9 +65,40 @@ PowerShell uses `$env:NAME="value"`, not Bash's `NAME=value command` syntax.
 `npm.cmd` avoids the `npm.ps1` execution-policy error without changing that policy.
 Environment variables apply to this PowerShell session; set them again in a new terminal.
 
-## Replace an existing Python 3.15 environment
+## Troubleshooting
 
-Stop all APRIS development terminals first. From the repository root:
+| Symptom | Next check |
+| --- | --- |
+| `npm.ps1` is blocked | Use `npm.cmd`; do not relax PowerShell execution policy. |
+| `[vite] ws proxy error ... ECONNREFUSED` | Read the first `[server]` error. Check `/api/status` on port 8000. The frontend may be running while Python dependency setup has failed. |
+| `watchfiles`, `maturin`, or Rust build failure | See **Python dependency builds fail** below to check the active Python version and first error. |
+| Package download timeout | Set `$env:UV_HTTP_TIMEOUT="300"`, then retry `uv sync --directory apps/server --no-dev`. Do not clear caches as the first step; that forces more downloads. |
+| Backend responds at `127.0.0.1` but Vite cannot connect | Set `$env:APRIS_SERVER_URL="http://127.0.0.1:8000"` and restart Vite. Check for an old override pointing at another server. |
+| Port 8000 is in use | Stop the previous APRIS server before starting another. Do not terminate unrelated processes. |
+
+To isolate backend startup, run `npm.cmd run dev:server`. Wait for
+`Application startup complete` and verify `/api/status`. **Stop it with Ctrl+C
+before running `npm.cmd run dev`**, which starts its own backend.
+
+### Python dependency builds fail
+
+**Symptom:** Startup reports a `watchfiles`, `maturin`, or Rust build error and
+the `[server]` process does not start. The page may still load while Vite reports
+`ECONNREFUSED`.
+
+**Check:** An existing virtual environment created with another Python version
+(for example, 3.15) may lack compatible prebuilt dependencies. From the repository
+root, check the existing interpreter directly:
+
+```powershell
+apps/server/.venv/Scripts/python.exe --version
+```
+
+If `.venv` does not exist, return to the first-start steps. If the version is not
+3.12, recreate only the project's environment below. Do not replace the system
+Python. Skip this procedure when startup already works.
+
+**Fix:** Stop all APRIS development terminals first. From the repository root:
 
 ```powershell
 uv python install 3.12
@@ -52,20 +114,10 @@ Check that the last command reports `Python 3.12.x`, then use the first-start
 environment settings and `npm.cmd run dev`. The renamed environment is only a
 backup, not a relocatable environment to run. Do not commit it or share it.
 
-## Troubleshooting
-
-| Symptom | Next check |
-| --- | --- |
-| `npm.ps1` is blocked | Use `npm.cmd`; do not relax PowerShell execution policy. |
-| `[vite] ws proxy error ... ECONNREFUSED` | Read the first `[server]` error. Check `/api/status` on port 8000. The frontend may be running while Python dependency setup has failed. |
-| `watchfiles`, `maturin`, or Rust build failure | Verify Python 3.12 is actually used; recreate the environment above. Installing 3.12 alone does not change an existing 3.15 environment. If it still builds from source, collect the full dependency error and package-index settings. |
-| Package download timeout | Set `$env:UV_HTTP_TIMEOUT="300"`, then retry `uv sync --directory apps/server --no-dev`. Do not clear caches as the first step; that forces more downloads. |
-| Backend responds at `127.0.0.1` but Vite cannot connect | Set `$env:APRIS_SERVER_URL="http://127.0.0.1:8000"` and restart Vite. Check for an old override pointing at another server. |
-| Port 8000 is in use | Stop the previous APRIS server before starting another. Do not terminate unrelated processes. |
-
-To isolate backend startup, run `npm.cmd run dev:server`. Wait for
-`Application startup complete` and verify `/api/status`. **Stop it with Ctrl+C
-before running `npm.cmd run dev`**, which starts its own backend.
+If builds still fail with 3.12, the Python version may not be the cause.
+Inspect the first full `[server]` error and package-index, mirror, and installation
+settings. Identify the failing dependency before installing Rust or repeatedly
+recreating the same environment.
 
 ## Tests and development tools
 

@@ -2,6 +2,9 @@
 
 [日本語](ironx-network.ja.md)
 
+The student PC instructions default to **Windows PowerShell**; macOS/Linux alternatives are collapsed.
+Robot-host commands run on iron-X Linux, not on the student's PC. ROS and WSL are not required on the student PC.
+
 For the operator's PC/iPhone start, stop and recovery sequence, use
 [person following](ironx-follow.md). This page is the network setup reference.
 
@@ -25,25 +28,39 @@ PC browser / rover-mounted phone -> student's Kit server
 Complete the [participant setup](../challenger-quickstart.md) first. From the
 repository root, the normal PC-only workflow is:
 
+```powershell
+$env:APRIS_ADAPTER = "simulator"
+$env:APRIS_DISABLE_HTTPS = "1"
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linux alternative (student PC)</summary>
+
 ```sh
 export APRIS_ADAPTER=simulator
 export APRIS_DISABLE_HTTPS=1
 npm run dev
 ```
 
-PowerShell:
-
-```powershell
-$env:APRIS_ADAPTER = "simulator"
-$env:APRIS_DISABLE_HTTPS = "1"
-npm run dev
-```
+</details>
 
 Before switching, stop any motion and confirm the robot is stationary, then stop
 the running Kit server/dev process. Set the new environment in the terminal that
 will restart it; changing a variable does not switch an already-running server.
 Only start the network configuration after the operator has prepared the gateway
 and assigned your turn:
+
+```powershell
+$env:APRIS_ADAPTER = "ironx_network"
+$env:APRIS_IRONX_URL = "ws://robot:8766"
+$env:APRIS_IRONX_TOKEN = "secret"
+Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linux alternative (student PC)</summary>
 
 ```sh
 export APRIS_ADAPTER=ironx_network
@@ -53,15 +70,7 @@ unset APRIS_DISABLE_HTTPS
 npm run dev
 ```
 
-PowerShell:
-
-```powershell
-$env:APRIS_ADAPTER = "ironx_network"
-$env:APRIS_IRONX_URL = "ws://robot:8766"
-$env:APRIS_IRONX_TOKEN = "secret"
-Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
-npm run dev
-```
+</details>
 
 `robot` is a placeholder for the operator-provided robot hostname/address.
 `secret` is an example only: use the private token supplied by the operator,

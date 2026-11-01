@@ -86,10 +86,10 @@ Do not switch a shared real-robot server just to run your development test.
 
 From the repository root:
 
-```sh
-npm run typecheck --workspace @apris/pwa
-npm run test --workspace @apris/pwa
-npm run build --workspace @apris/pwa
+```powershell
+npm.cmd run typecheck --workspace @apris/pwa
+npm.cmd run test --workspace @apris/pwa
+npm.cmd run build --workspace @apris/pwa
 ```
 
 For a narrow change, also identify which existing or new tests exercise the changed

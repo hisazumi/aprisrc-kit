@@ -2,6 +2,9 @@
 
 [English](ironx-network.md)
 
+学生PCは**Windows・PowerShell**を標準とし、macOS/Linuxは折りたたみ補足を参照します。
+ロボット上の準備コマンドはiron-XのLinuxで実行します。学生PCにROSやWSLは不要です。
+
 PC・iPhoneでの開始・停止・復旧は[人追従ガイド](ironx-follow.ja.md)を参照する。
 このページはネットワーク構築の参考資料である。
 
@@ -24,24 +27,38 @@ PCブラウザー / ローバー搭載スマートフォン -> 学生PCのKitサ
 まず[参加者向けセットアップ](../challenger-quickstart.ja.md)を済ませる。
 リポジトリのルートから、通常のPC単体での開発は次のように起動する。
 
+```powershell
+$env:APRIS_ADAPTER = "simulator"
+$env:APRIS_DISABLE_HTTPS = "1"
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linuxの場合（学生PC）</summary>
+
 ```sh
 export APRIS_ADAPTER=simulator
 export APRIS_DISABLE_HTTPS=1
 npm run dev
 ```
 
-PowerShellの場合：
-
-```powershell
-$env:APRIS_ADAPTER = "simulator"
-$env:APRIS_DISABLE_HTTPS = "1"
-npm run dev
-```
+</details>
 
 切り替える前に動作を止め、ロボットの静止を確認してから、起動中のKitサーバー・
 開発プロセスを終了する。再起動する端末で環境変数を設定する。
 変数の変更だけでは、起動済みサーバーの接続先は変わらない。
 運用担当者がgatewayを準備し、自分の利用順になってからネットワーク構成で起動する。
+
+```powershell
+$env:APRIS_ADAPTER = "ironx_network"
+$env:APRIS_IRONX_URL = "ws://robot:8766"
+$env:APRIS_IRONX_TOKEN = "secret"
+Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
+npm.cmd run dev
+```
+
+<details>
+<summary>macOS / Linuxの場合（学生PC）</summary>
 
 ```sh
 export APRIS_ADAPTER=ironx_network
@@ -51,15 +68,7 @@ unset APRIS_DISABLE_HTTPS
 npm run dev
 ```
 
-PowerShellの場合：
-
-```powershell
-$env:APRIS_ADAPTER = "ironx_network"
-$env:APRIS_IRONX_URL = "ws://robot:8766"
-$env:APRIS_IRONX_TOKEN = "secret"
-Remove-Item Env:APRIS_DISABLE_HTTPS -ErrorAction SilentlyContinue
-npm run dev
-```
+</details>
 
 `robot`は運用担当者が指定するロボットのホスト名・アドレスに置き換える。
 `secret`は例にすぎない。担当者から受け取った非公開tokenを使い、リポジトリや
