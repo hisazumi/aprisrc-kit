@@ -23,6 +23,10 @@ class OwnershipExpired(RuntimeError):
     """The gateway replied; control is unavailable but transport is intact."""
 
 
+class GatewayStopping(RuntimeError):
+    """An owned drive was rejected while the gateway was confirming a stop."""
+
+
 class IronXNetworkAdapter(IronXAdapter):
     """Only bounded-motion logic is inherited; no local file or ROS access is used."""
 
@@ -115,11 +119,18 @@ class IronXNetworkAdapter(IronXAdapter):
                             raise OwnershipExpired(
                                 f"iron-X gateway rejected {method}: {error}"
                             )
+                        if (self._owned and method == "drive" and isinstance(error, dict)
+                                and error.get("code") == "stopping"):
+                            raise GatewayStopping(
+                                f"iron-X gateway rejected {method}: {error}"
+                            )
                         raise RuntimeError(f"iron-X gateway rejected {method}: {reply['error']}")
                     diagnostic["outcome"] = "ok"
                     return reply["result"]
-            except OwnershipExpired:
-                diagnostic["outcome"] = "ownership_expired"
+            except (OwnershipExpired, GatewayStopping) as exc:
+                diagnostic["outcome"] = (
+                    "gateway_stopping" if isinstance(exc, GatewayStopping) else "ownership_expired"
+                )
                 self._next_drive = None
                 self._epoch += 1
                 self._owned = False
