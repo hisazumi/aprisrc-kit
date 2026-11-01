@@ -4,7 +4,7 @@ import type { ServiceConfig } from "../config";
 import { runStudentService, type StudentService, type ServiceQuestion, type ServicePrompt } from "../service/studentService";
 import { speakEnglish } from "../speech";
 import { ManualPathClearance } from "./ManualPathClearance";
-import { choiceOption, normalizedSpeech, spokenChoice } from "../service/simulatedSpeech";
+import { choiceOption, normalizedSpeech, matchingSpokenChoices } from "../service/simulatedSpeech";
 import { VoiceAnswerButton } from "./VoiceAnswerButton";
 import { assistantApi } from "../assistantApi";
 
@@ -27,6 +27,8 @@ interface Props {
 }
 export function StudentServicePanel({ service, rover, config, eligible, blockedReason, acquire, cancel, emergencyStop, clearance, simulator, resetToken, onRunningChange, execution, speech, voiceDefault = false }: Props) {
   const [voiceMode, setVoiceMode] = useState(voiceDefault);
+  const voiceModeNow = useRef(voiceMode);
+  voiceModeNow.current = voiceMode;
   const speechDone = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => { setVoiceMode(voiceDefault); }, [voiceDefault]);
   const [running, setRunning] = useState(false);
@@ -65,6 +67,12 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
     return () => { window.clearInterval(timer); actions.current.clearance(false); };
   }, [Boolean(simulator), running, eligible]);
   const stop = () => { answerRequest.current?.abort(); transition.current?.abort(); controller.current?.abort(); cancel(); clearance(false); };
+  const resumeConversation = (message?: string) => {
+    if (voiceModeNow.current) {
+      // A new readiness promise re-arms this question's microphone after speech.
+      speechDone.current = message ? Promise.resolve(speakEnglish(message)) : Promise.resolve();
+    }
+  };
   const answerSpeech = async (text: string) => {
     const question = input;
     if (!eligibleNow.current || !question || !controller.current || controller.current.signal.aborted) return;
@@ -72,8 +80,13 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
       stop(); setSpeechResult("Stop requested"); return;
     }
     answerRequest.current?.abort();
-    const answer = spokenChoice(text, question.options ?? question.choices);
-    if (answer) { question.reply(answer); setSpeechResult(`Heard: ${text}. Answer accepted.`); return; }
+    const matches = matchingSpokenChoices(text, question.options ?? question.choices);
+    if (matches.length > 1) {
+      const message = "That matches more than one answer. Please select an answer on screen.";
+      if (voiceModeNow.current) void speakEnglish(message);
+      setAnswerBusy(false); setSpeechResult(message); return;
+    }
+    if (matches.length === 1) { question.reply(matches[0].value); setSpeechResult(`Heard: ${text}. Answer accepted.`); return; }
     const request = new AbortController();
     answerRequest.current = request;
     setAnswerBusy(true); setSpeechResult(`Heard: ${text}. Interpreting answer...`);
@@ -85,7 +98,12 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
       if (result.value !== null && question.choices.includes(result.value)) {
         question.reply(result.value);
         setSpeechResult(`Heard: ${text}. Answer accepted (${result.source}).`);
-      } else setSpeechResult(`Heard: ${text}. No matching answer. ${result.response}`);
+      } else {
+        if (result.source !== "rules") {
+          resumeConversation(result.outcome === "acknowledgement" ? undefined : result.response);
+        }
+        setSpeechResult(`Heard: ${text}. ${result.outcome === "acknowledgement" ? "Acknowledged." : "No matching answer."} ${result.response}`);
+      }
     } catch {
       if (!request.signal.aborted) setSpeechResult("Could not interpret your answer. Please select an answer or try again.");
     } finally {

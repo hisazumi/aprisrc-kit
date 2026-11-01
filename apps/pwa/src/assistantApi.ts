@@ -31,6 +31,7 @@ export const assistantApi = {
   answer: (question: string, text: string,
     choices: readonly { value: string; label: string; phrases?: readonly string[] }[], signal: AbortSignal) => request<{
       value: string | null; source: "rules" | "openai" | "gemini"; response: string;
+      outcome?: "answer" | "acknowledgement" | "clarify";
     }>("/api/assistant/answer", { method: "POST", signal, body: JSON.stringify({ question, text, choices }) }),
   interpret: (text: string, intents: readonly AssistantIntentDefinition[]) => request<AssistantDecision>(
     "/api/assistant/interpret",

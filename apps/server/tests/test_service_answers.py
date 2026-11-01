@@ -27,7 +27,18 @@ async def test_answer_only_returns_supplied_choices(action, expected):
     assert result.source == "gemini"
     prompt, intents = interpreter.provider.interpret.call_args.args
     assert "not consent" in prompt
-    assert [i.id for i in intents] == ["answer_0", "answer_1"]
+    assert [i.id for i in intents] == ["answer_0", "answer_1", "acknowledge"]
+
+
+async def test_acknowledgement_keeps_question_pending():
+    interpreter = AssistantIntentInterpreter("test", mode="gemini")
+    interpreter.provider.interpret = AsyncMock(return_value=AssistantDecision(
+        action="acknowledge", destination=None, follow_distance="normal", response="OK"))
+    result = await interpreter.interpret_answer(question())
+    assert result.value is None
+    assert result.outcome == "acknowledgement"
+    prompt = interpreter.provider.interpret.call_args.args[0]
+    assert "does NOT mean arrived" in prompt
 
 
 async def test_rules_and_cloud_failure_do_not_authorize_answers():

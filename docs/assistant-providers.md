@@ -11,6 +11,15 @@ Rules mode, cloud failure, and ambiguous replies leave the question unanswered.
 Button answers remain available. Late results after answering or stopping are ignored.
 The question, choice labels/aliases, and reply text are sent to the selected provider.
 
+In Voice conversation mode, cloud replies distinguish an answer, acknowledgement,
+and clarification. "OK" can accept a Yes/No offer, but during arrival waiting it
+can simply acknowledge the instructions. Acknowledgements leave the question and
+motion behavior unchanged and re-arm the microphone. Clarifications are spoken,
+then listening resumes. This continuation is cloud-only; rules, API failures,
+silence and microphone errors require a manual retry. Overlapping local aliases
+never go to the cloud: select a button to resolve the ambiguity. Stopping or
+answering cancels pending listening, including after a clarification finishes.
+
 The browser transcribes speech; the server interprets the resulting text. Select
 the interpreter with `APRIS_ASSISTANT_PROVIDER=rules|openai|gemini` in the server
 environment, then restart the server while the rover is stopped.
