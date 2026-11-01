@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import WebSocketDisconnect
@@ -7,6 +8,39 @@ from apris_server.front_obstacle import FrontObstacleObservationInput
 from apris_server.models import DriveCommand, MoveCommand, TurnCommand
 from apris_server.runtime import RoverRuntime, RuntimeConfig
 from apris_server.simulator import DifferentialDriveSimulator, SimulatorConfig, SimulatorFaults
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["stop", "release", "disconnect", "clearance"])
+async def test_operator_stop_failure_latches_without_dropping_cleanup(action):
+    adapter = DifferentialDriveSimulator()
+    adapter.stop = AsyncMock(side_effect=RuntimeError("connection lost"))
+    runtime = RoverRuntime(adapter)
+    runtime.owner_client_id = "operator"
+    runtime.command_deadline = 123
+    runtime.last_command_at = 100
+    runtime.broadcast = AsyncMock()
+    runtime._broadcast_control = AsyncMock()
+    runtime._revoke_path_clearance = AsyncMock()
+    if action == "stop":
+        await runtime._stop("operator", "test")
+    elif action == "release":
+        await runtime._release_control("operator")
+    elif action == "disconnect":
+        await runtime.remove_client("operator")
+    else:
+        runtime._commanded_vx = 0.1
+        await runtime._enforce_front_obstacle(await runtime.front_obstacle_snapshot())
+    assert runtime.estop_latched
+    assert runtime.command_deadline is None
+    assert runtime.last_command_at is None
+    events = [call.args[0] for call in runtime.broadcast.call_args_list]
+    assert any(event.event == "stop_unconfirmed" for event in events)
+    assert not any(event.event in ("stopped", "forward_motion_stopped")
+                   or event.detail == "Rover stopped" for event in events)
+    if action in ("release", "disconnect"):
+        assert runtime.owner_client_id is None
+        runtime._revoke_path_clearance.assert_awaited_once()
 
 
 class DisconnectingClientSocket:
@@ -323,12 +357,13 @@ async def test_safety_loop_recovers_after_stop_transport_failure() -> None:
             while True:
                 status = await runtime.status()
                 safety = status["loops"]["safety"]
-                if safety["restart_count"] == 1 and safety["healthy"]:
+                if runtime.estop_latched and safety["healthy"]:
                     break
                 await asyncio.sleep(0.01)
 
-        assert adapter.stop_calls >= 2
-        assert status["ready"] is True
+        assert adapter.stop_calls >= 1
+        assert runtime.estop_latched
+        assert safety["restart_count"] == 0
         assert safety["running"] is True
         assert safety["error"] is None
     finally:

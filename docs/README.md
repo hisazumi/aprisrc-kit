@@ -11,6 +11,9 @@ capabilities, [Development roadmap](roadmap.md) for priorities, and
 
 To extend a service, follow [Add a voice-triggered action](adding-actions.md).
 
+Using a web chat or coding assistant? Start with [AI-assisted development](ai-assisted-development.md),
+then attach the [AI context memo](ai-service-context.md) with current source files.
+
 For text/voice intent interpretation settings, see [Assistant providers](assistant-providers.md).
 
 Read [Purpose and scope](positioning.md) for the distinction between the APRIS conference,

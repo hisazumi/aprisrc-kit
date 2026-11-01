@@ -1,4 +1,5 @@
 import type { PersonEvent } from "../protocol";
+import { ContinuousFollowController, defaultFollowTuning } from "./continuousFollow";
 import {
   defineMission,
   type InteractionPhase,
@@ -190,6 +191,7 @@ export async function runFollowMe(
   signal: AbortSignal,
   options: FollowMeOptions = {}
 ): Promise<"lost"> {
+  if (rover.setVelocity) return runContinuousFollow(rover, signal, options);
   const observationTimeoutMs = options.observationTimeoutMs ?? 1800;
   const update = options.onUpdate ?? (() => undefined);
   const observations = new PersonObservationFeed(rover, observationTimeoutMs);
@@ -268,6 +270,57 @@ export async function runFollowMe(
     throw error;
   } finally {
     observations.close();
+  }
+}
+
+async function runContinuousFollow(rover: ServiceRover, signal: AbortSignal, options: FollowMeOptions): Promise<"lost"> {
+  let person: Readonly<PersonEvent> | null = null;
+  let receivedAt = performance.now() / 1000;
+  let identity: string | undefined;
+  let lost = false;
+  let controller: ContinuousFollowController | null = null;
+  const timeout = (options.observationTimeoutMs ?? 1800) / 1000;
+  const unsubscribe = rover.onPerson(event => {
+    if (event.status === "lost" || (identity && event.personId !== identity)) {
+      lost = true;
+      return;
+    }
+    identity ??= event.personId;
+    person = event;
+    receivedAt = performance.now() / 1000;
+    if (!controller) controller = new ContinuousFollowController({
+      ...defaultFollowTuning,
+      maxSpeed: rover.continuousFollowMaxSpeed ?? defaultFollowTuning.maxSpeed,
+      distanceGain: rover.continuousFollowDistanceGain ?? defaultFollowTuning.distanceGain,
+      targetWidth: options.holdWidth ?? followWidths(event, options.followDistance ?? "normal").hold,
+      staleAfter: timeout
+    });
+  });
+  let previous = performance.now() / 1000;
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const now = performance.now() / 1000;
+      if (lost || now - receivedAt > timeout) {
+        options.onUpdate?.({ phase: "lost", detail: "I lost sight of you" });
+        return "lost";
+      }
+      const current = person as Readonly<PersonEvent> | null;
+      const clear = forwardPathIsClear(rover);
+      if (current && controller) {
+        const velocity = (controller as ContinuousFollowController).step(
+          current.width !== undefined && current.bearingDeg !== undefined
+            ? { width: current.width, bearing: current.bearingDeg * Math.PI / 180, observedAt: receivedAt } : null,
+          now, Math.max(0.001, now - previous), clear);
+        await rover.setVelocity!(velocity.vx, velocity.wz);
+        options.onUpdate?.({ phase: "following", detail: clear ? "Following you continuously" : "Waiting for movement permission", person: current });
+      }
+      previous = now;
+      await new Promise<void>(resolve => window.setTimeout(resolve, 50));
+    }
+  } finally {
+    unsubscribe();
+    await rover.stop("continuous follow stopped");
   }
 }
 

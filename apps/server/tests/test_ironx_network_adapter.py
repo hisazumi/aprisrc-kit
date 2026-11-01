@@ -39,6 +39,9 @@ class FakeRobot:
     async def stop(self):
         self.stops += 1
 
+    async def emergency_stop(self, reason):
+        await self.stop()
+
 
 async def test_local_validation_cannot_extend_network_command_ttl(tmp_path, monkeypatch):
     adapter = IronXAdapter(tmp_path / "state", tmp_path / "command", tmp_path / "bridge")
@@ -139,14 +142,58 @@ async def test_real_gateway_expiry_rejects_same_client_resume():
             with pytest.raises(RuntimeError):
                 await adapter.drive(0.04, 0, 0)
             assert len(robot.drives) == 1
+            assert adapter._socket is not None
+            assert not adapter._failed
+            assert adapter.requires_rearm
+            await adapter.stop()
+            assert gateway.estopped
+            assert not adapter._stop_unconfirmed
             assert not (await adapter.state()).connected
+        finally:
+            await adapter.close()
+
+
+@pytest.mark.parametrize("fail_confirmation", [False, True])
+async def test_release_after_lease_expiry_confirms_stop_on_same_connection(fail_confirmation):
+    robot = FakeRobot()
+    gateway = IronXGateway(robot, "test-token")
+    await gateway.initialize()
+    async with serve(gateway.handler, "127.0.0.1", 0,
+                     process_request=gateway.authenticate) as server:
+        adapter = IronXNetworkAdapter(
+            f"ws://127.0.0.1:{server.sockets[0].getsockname()[1]}", "test-token")
+        await adapter.start()
+        try:
+            await adapter.drive(0.04, 0, 0)
+            connection = adapter._socket
+            await asyncio.sleep(0.31)
+            await gateway.expire()
+            if fail_confirmation:
+                async def fail_stop(reason):
+                    raise TimeoutError("physical stop not confirmed")
+                robot.emergency_stop = fail_stop
+                with pytest.raises(RuntimeError, match="stop_unconfirmed"):
+                    await adapter.stop()
+                assert adapter._stop_unconfirmed
+                assert adapter.requires_rearm
+                return
+            await adapter.stop()
+            assert adapter._socket is connection
+            assert not adapter._failed
+            assert not adapter._stop_unconfirmed
+            assert adapter.requires_rearm
+            assert gateway.estopped
+            with pytest.raises(RuntimeError):
+                await adapter.drive(0.04, 0, 0)
+            assert len(robot.drives) == 1
         finally:
             await adapter.close()
 
 
 @asynccontextmanager
 async def endpoint(
-    *, delay_method=None, bad_id=False, deny_acquire=False, delay_s=0.4, delayed_request=None
+    *, delay_method=None, bad_id=False, deny_acquire=False, delay_s=0.4, delayed_request=None,
+    drive_snapshot=False
 ):
     requests = []
     headers = []
@@ -165,6 +212,8 @@ async def endpoint(
                 reply = {"id": "wrong" if bad_id else request["id"], "result": {}}
                 if method == "state":
                     reply["result"] = {"state": snapshot(), "nonce": "fresh"}
+                if method == "drive" and drive_snapshot:
+                    reply["result"] = {"state": snapshot(), "nonce": "next"}
                 if method == "acquire" and deny_acquire:
                     reply = {"id": request["id"], "error": "busy"}
                 await ws.send(json.dumps(reply))
@@ -281,7 +330,7 @@ async def test_client_lock_wait_consumes_drive_ttl():
 
 
 async def test_timeout_latches_and_never_replays_drive():
-    async with endpoint(delay_method="drive") as (adapter, requests, _):
+    async with endpoint(delay_method="drive", delay_s=1.1) as (adapter, requests, _):
         with pytest.raises(TimeoutError):
             await adapter.drive(0.04, 0, 0)
         assert not (await adapter.state()).connected
@@ -303,6 +352,65 @@ async def test_busy_robot_never_receives_drive():
         with pytest.raises(RuntimeError, match="busy"):
             await adapter.drive(0.04, 0, 0)
         assert not any(r["method"] == "drive" for r in requests)
+        trace = adapter.last_drive_diagnostics
+        assert trace["outcome"] == "RuntimeError"
+        assert trace["rpcs"][0]["gateway_error"] == {"message": "busy"}
+        assert trace["rpcs"][0]["request_id"] == requests[0]["id"]
+        assert "test-token" not in json.dumps(trace)
+
+
+async def test_diagnostics_separate_rpc_wait_and_round_trip():
+    async with endpoint() as (adapter, _, _):
+        await adapter._rpc_lock.acquire()
+        task = asyncio.create_task(adapter.drive(0.04, 0, 0))
+        await asyncio.sleep(0.04)
+        adapter._rpc_lock.release()
+        await task
+        trace = adapter.last_drive_diagnostics
+        assert trace["rpcs"][0]["rpc_wait_ms"] >= 30
+        assert trace["total_ms"] >= trace["rpcs"][0]["rpc_wait_ms"]
+        assert trace["remaining_ttl_ms"] < 170
+        assert trace["used_cached_reply"] is False
+        assert all(r["outcome"] == "ok" for r in trace["rpcs"])
+        assert "nonce" not in json.dumps(trace)
+
+
+async def test_background_rpc_delay_exposes_expired_lease_in_diagnostics():
+    robot = FakeRobot()
+    gateway = IronXGateway(robot, "test-token")
+    await gateway.initialize()
+    async with serve(gateway.handler, "127.0.0.1", 0,
+                     process_request=gateway.authenticate) as server:
+        adapter = IronXNetworkAdapter(
+            f"ws://127.0.0.1:{server.sockets[0].getsockname()[1]}", "test-token")
+        await adapter.start()
+        try:
+            await adapter.drive(0.04, 0, 0)
+            entered = asyncio.Event()
+            original_state = robot.state
+
+            async def slow_state():
+                entered.set()
+                await asyncio.sleep(0.32)
+                return await original_state()
+
+            robot.state = slow_state
+            background = asyncio.create_task(adapter._rpc("state", deadline_s=1))
+            await entered.wait()
+            with pytest.raises(RuntimeError, match="lease_expired"):
+                await adapter.drive(0.04, 0, 0)
+            await background
+            trace = adapter.last_drive_diagnostics
+            drive_rpc = trace["rpcs"][-1]
+            assert drive_rpc["method"] == "drive"
+            assert drive_rpc["rpc_wait_ms"] >= 250
+            assert drive_rpc["gateway_error"]["code"] == "lease_expired"
+            assert drive_rpc["outcome"] == "ownership_expired"
+            assert adapter._socket is not None
+            assert not adapter._failed
+            assert len(robot.drives) == 1
+        finally:
+            await adapter.close()
 
 
 async def test_cancelled_status_consumer_does_not_close_connection():
@@ -348,7 +456,7 @@ async def test_idle_reconnect_restores_only_telemetry():
 
 
 async def test_drive_fault_reconnect_requires_explicit_rearm():
-    async with endpoint(delay_method="drive") as (adapter, requests, _):
+    async with endpoint(delay_method="drive", delay_s=1.1) as (adapter, requests, _):
         with pytest.raises(TimeoutError):
             await adapter.drive(0.04, 0, 0)
         adapter._retry_at = 0
@@ -359,6 +467,71 @@ async def test_drive_fault_reconnect_requires_explicit_rearm():
         assert len([r for r in requests if r["method"] == "drive"]) == 1
         await adapter.clear_emergency_stop()
         assert not adapter.requires_rearm
+
+
+async def test_delayed_drive_ack_does_not_extend_command_or_disconnect():
+    async with endpoint(delay_method="drive", delay_s=0.3) as (adapter, requests, _):
+        await adapter.drive(0.04, 0, 0)
+        drives = [r for r in requests if r["method"] == "drive"]
+        assert len(drives) == 1
+        assert 0 < drives[0]["params"]["ttl_ms"] <= 200
+        assert not adapter._failed
+        assert not adapter.requires_rearm
+        await adapter.stop()
+        assert requests[-1]["method"] == "release"
+
+
+async def test_fresh_drive_reply_saves_one_round_trip_and_stop_discards_it():
+    async with endpoint(drive_snapshot=True) as (adapter, requests, _):
+        await adapter.drive(0.04, 0, 0)
+        await adapter.drive(0.04, 0, 0)
+        assert [r["method"] for r in requests] == ["acquire", "state", "drive", "drive"]
+        assert requests[-1]["params"]["nonce"] == "next"
+        assert requests[-1]["params"]["ttl_ms"] <= 200
+        await adapter.stop()
+        assert adapter._next_drive is None
+        await adapter.drive(0.04, 0, 0)
+        assert [r["method"] for r in requests[-3:]] == ["acquire", "state", "drive"]
+
+
+async def test_old_drive_reply_is_not_reused():
+    async with endpoint(drive_snapshot=True) as (adapter, requests, _):
+        await adapter.drive(0.04, 0, 0)
+        await asyncio.sleep(0.11)
+        await adapter.drive(0.04, 0, 0)
+        assert [r["method"] for r in requests[-2:]] == ["state", "drive"]
+
+
+async def test_reconnect_must_confirm_stop_even_without_ownership():
+    async with endpoint(delay_method="drive", delay_s=1.1) as (adapter, requests, _):
+        with pytest.raises(TimeoutError):
+            await adapter.drive(0.04, 0, 0)
+        assert adapter._stop_unconfirmed
+        adapter._retry_at = 0
+        await adapter.state()
+        assert not adapter._owned
+        await adapter.stop()
+        assert requests[-1]["method"] == "emergency_stop"
+        assert not adapter._stop_unconfirmed
+        assert adapter.requires_rearm
+        assert adapter._estop
+        with pytest.raises(RuntimeError):
+            await adapter.drive(0.04, 0, 0)
+
+
+async def test_recovery_stop_timeout_cannot_claim_confirmation():
+    async with endpoint(delay_method="emergency_stop", delay_s=0.1) as (adapter, _, _):
+        adapter._stop_unconfirmed = True
+        rpc = adapter._rpc
+
+        async def quick(method, params=None, **kwargs):
+            return await rpc(method, params, deadline_s=0.02)
+
+        adapter._rpc = quick
+        with pytest.raises(TimeoutError):
+            await adapter.stop()
+        assert adapter._stop_unconfirmed
+        assert adapter.requires_rearm
 
 
 async def test_emergency_stop_with_state_polling_keeps_connection():

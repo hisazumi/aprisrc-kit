@@ -11,6 +11,9 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 
 サービスの拡張は[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照。
 
+WebのチャットやAIを使う場合は[AIを使った開発手順](ai-assisted-development.ja.md)から。
+[AI向け技術メモ](ai-service-context.ja.md)を現在のソースファイルと一緒に渡す。
+
 音声認識後の文章の解釈設定は[Assistant providers](assistant-providers.ja.md)を参照。
 
 実験的なiron-X接続は[PC・iPhoneでの人追従と復旧](hardware/ironx-follow.ja.md)から。

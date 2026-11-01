@@ -22,6 +22,7 @@ Simulatorから始め、対応する高水準missionを実機で検証する。
 | 挨拶・人追従・マーカー案内の操作を確認する | [Service playground](docs/demos/service-playground.ja.md) |
 | できているデモを動かす | [Human interaction demo](docs/demos/human-interaction.ja.md) |
 | 自分のサービスを作る | [参加者向けquickstart](docs/challenger-quickstart.ja.md) |
+| WebのチャットやAIとサービスのコードを書く | [AIを使った開発手順](docs/ai-assisted-development.ja.md) |
 | mission APIと安全境界を知る | [Mission API](docs/mission-api.ja.md) |
 | 対応UGV02で試す | [UGV02 self-test](docs/hardware/ugv02-self-test.ja.md) |
 | PC・iPhoneでiron-Xの監視付き人追従を試す | [iron-X人追従](docs/hardware/ironx-follow.ja.md) |

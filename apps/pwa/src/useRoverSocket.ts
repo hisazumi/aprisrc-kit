@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { followProfileTuning, type FollowProfile } from "./missions/followProfile";
 
 import type {
   MarkerListener,
@@ -67,7 +68,7 @@ function clientKind(): ClientKind {
   return "service_app";
 }
 
-export function useRoverSocket() {
+export function useRoverSocket(continuousFollowing: FollowProfile = false) {
   const socketRef = useRef<WebSocket | null>(null);
   const sequenceRef = useRef(0);
   const motionSequenceRef = useRef(0);
@@ -397,6 +398,13 @@ export function useRoverSocket() {
   }), [send]);
 
   const serviceRover = useMemo<ServiceRover>(() => ({
+    continuousFollowMaxSpeed: followProfileTuning(continuousFollowing)?.maxSpeed,
+    continuousFollowDistanceGain: followProfileTuning(continuousFollowing)?.distanceGain,
+    setVelocity: continuousFollowing ? async (vx, wz) => {
+      if (!Number.isFinite(vx) || !Number.isFinite(wz) || !drive(vx, wz)) {
+        throw new Error("Continuous command could not be sent");
+      }
+    } : undefined,
     move,
     turn,
     stop: missionStop,
@@ -405,7 +413,7 @@ export function useRoverSocket() {
     onPerson,
     onMarker,
     getFrontObstacle: () => frontObstacleRef.current
-  }), [getPose, missionStop, move, onMarker, onPerson, onPose, turn]);
+  }), [continuousFollowing, drive, getPose, missionStop, move, onMarker, onPerson, onPose, turn]);
 
   return {
     status,

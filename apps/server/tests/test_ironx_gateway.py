@@ -95,6 +95,19 @@ async def test_multiple_nonces_single_use_and_ttl(setup):
     assert g.owner is None
 
 
+async def test_drive_reply_challenge_is_single_use_and_expires(setup):
+    g, a, now, owner, _ = setup
+    first = await acquire(g, owner)
+    reply = (await rpc(g, owner, "drive", **drive_params(first)))["result"]
+    assert reply["state"]["connected"]
+    assert reply["nonce"] != first
+    now[0] += 0.05
+    next_reply = await rpc(g, owner, "drive", **drive_params(reply["nonce"]))
+    assert "result" in next_reply
+    assert a.drives[-1][3] <= 250
+    assert "error" in await rpc(g, owner, "drive", **drive_params(reply["nonce"]))
+
+
 async def test_short_ttl_expires_even_while_nonce_is_fresh(setup):
     g, a, now, owner, _ = setup
     nonce = await acquire(g, owner)
