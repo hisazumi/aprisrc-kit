@@ -2,7 +2,7 @@
 
 [English](simulator-scenarios.md)
 
-Simulatorは、実機がない場合の画面確認だけでなく、同じ入力と異常を繰り返して安全制御とサービスを検証するための標準コンポーネントである。開発用の操作はDevelopment Lab (`/lab`) の`Simulator Tools`に集約する。Service App (`/app`) とOperator Console (`/console`) には表示しない。
+Simulatorは、実機がない場合の画面確認だけでなく、同じ入力と異常を繰り返して安全制御とサービスを検証するための標準コンポーネントである。開発用の操作はDevelopment Lab (`/playground`) の`Simulator Tools`に集約する。Service App (`/service`) とOperator Console (`/console`) には表示しない。
 
 ## Scenario files
 

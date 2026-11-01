@@ -2,6 +2,10 @@
 
 [English (canonical)](assistant-providers.md)
 
+共通サービスを停止し、Playgroundの**Advanced controls**内の**Human interaction**を使います。
+共通サービスの質問と**Person says**の回答はこの解釈APIを呼びません。
+providerを設定しても、共通Serviceパネルに音声・LLM操作は追加されません。
+
 音声の文字起こしはブラウザが担当し、その後の文章をサーバーで解釈する。
 サーバー環境の`APRIS_ASSISTANT_PROVIDER`で`rules / openai / gemini`を選ぶ。
 変更後はロボットを停止した状態でサーバーを再起動する。

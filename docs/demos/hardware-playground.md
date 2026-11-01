@@ -2,71 +2,51 @@
 
 [日本語](hardware-playground.ja.md)
 
-Status: software prototype tested with mocked live inputs and a disconnected WebSocket
-adapter. No physical trial of this Playground UI has been performed. Existing rover and
-person-following qualifications do not qualify this new UI.
+The shared UI is simulator-tested; it still needs physical qualification. Earlier hardware
+following results used a different UI and do not validate this version.
 
-The server's adapter selects the mode; the browser does not change the adapter or connect
-directly to rover motors. A Simulator server retains its scene controls. A `websocket_rover`
-server shows live camera observations and telemetry instead. `factory_http` is not supported
-for live Playground trials. Marker guidance cannot start on a physical rover in this MVP;
-marker observations can still be inspected.
+## Prepare and start
 
-## Later, with the rover
+1. Provision the robot using [UGV02 self-test](../hardware/ugv02-self-test.md) or
+   [iron-X network setup](../hardware/ironx-network.md). Keep competing motion publishers stopped.
+2. Start the Kit server with the appropriate physical adapter. The browser does not choose
+   the adapter. Use [HTTPS](../local-https.md) on the mounted phone.
+3. Open `/playground?service=greeting`. Press **Start vision**, allow camera access,
+   choose the forward-facing camera, and check accepted person observations and fresh telemetry.
+4. Have the operator clear the entire swept area and approve the test. Begin with raised wheels.
+   Press **Acquire control**, **Confirm clear path · 30 s**, then **Start service**.
+   The last button can start movement; camera setup alone does not.
+5. Observe the bounded greeting turn and stopping. **Cancel and stop** interrupts a trial;
+   **Emergency stop** latches the stop. Have physical stop/power accessible.
+6. After qualification, choose `/playground?service=carry` for a short supervised trial:
+   **Yes**, **Items are loaded**, then **We have arrived** to finish.
 
-1. Follow [UGV02 self-test](../hardware/ugv02-self-test.md) and the
-   [WebSocket firmware connection guide](../hardware/ugv02-websocket-firmware.md) first.
-   Use matching rover ID/token and a private LAN; do not put tokens in URLs or Git.
-2. Start the server with the existing `APRIS_ADAPTER=websocket_rover` configuration.
-   Open `/lab?sample=follow` on the rover-mounted phone. Use HTTPS for a phone connecting
-   by LAN address; see [Local HTTPS](../local-https.md).
-3. Start **vision** with the appropriate camera. Allow camera access yourself. Confirm
-   that the actual person is detected and an **accepted camera event** appears.
-4. With rover connection and fresh telemetry, **Acquire control**. In a clear supervised
-   test area, press **Confirm clear path · 30 s**. This is an operator confirmation, not
-   automatic obstacle detection. The authoritative front state must become CLEAR.
-5. Begin with `/lab?sample=greeting`: explicitly press **Start greeting** and verify a
-   bounded turn and stop with wheels raised. Stop before selecting Follow helper, then
-   confirm inputs/path again and explicitly press **Follow me**. Only after raised-wheel
-   checks pass, perform a short floor trial with an operator able to stop it.
-6. **Stop** cancels the current service. **Disable motion** revokes clearance.
-   **Emergency stop** latches a server stop. Use these during qualification.
+## Current permission limitation
 
-No service starts automatically when a camera, person, or rover reconnects. Clearance lasts
-30 seconds and can be explicitly renewed. Camera stop/failure, a lost or stale person
-observation, stale rover telemetry, disconnect, ownership loss, E-stop, non-CLEAR front
-safety, or permission expiry removes readiness and cancels an active service.
-After lost inputs, confirm the path again before starting a new trial. Browser heartbeat
-refresh uses the existing server-owned clearance lease; browser suspension cannot keep it alive.
-Do not use this as an unattended service or for general obstacle avoidance.
+Both physical Service and Playground use the separate **30-second manual clearance** control.
+Starting a service does not grant or extend it. The interval begins when clearance is confirmed,
+including time spent answering questions. It expires even while following. Expiry revokes
+clearance; forward motion is gated and the service may fail or stop. This is not a guarantee
+of an exact 30-second stop time for every direction or command.
 
-## What is visible
+If clearance expires, cancel, confirm actual stopping and the surrounding area, then grant
+clearance and explicitly start again. Reconnection is not authorization to resume.
+The older dedicated Carry UI's automatic consent renewal is not present in the shared UI.
+This is a known workflow regression, not a new safety requirement or a firmware change.
 
-- Live camera image and existing upper-body detection box.
-- Accepted camera person status, confidence, observation age, bearing and normalized image width.
-- Accepted camera marker ID/status, observation age and relative x/y when supplied. This MVP
-  displays marker values, not a QR overlay box on the video.
-- Authoritative front safety and rover pose estimate.
-- A rolling 12-second graph of rover-reported linear/angular velocity estimates. It is not
-  externally measured motion; missing telemetry must not be interpreted as zero movement.
-- The same real mission code and reported decision highlighting as the Simulator.
-- Timestamped high-level move/turn requests, completion/failure, and stop reasons. These
-  are not a plotted motor-command waveform or instruction-level debugger.
-- Recent server observations, including rejection reasons, in a details disclosure.
+Page hiding, focus loss, control loss, disconnect, and E-stop can revoke clearance earlier.
+Clearance is an operator observation, not obstacle sensing; it does not protect the sides/rear.
+Only **Simulator Playground** automatically prepares and renews simulated clearance.
+Even Service connected to a simulator uses the separate manual control.
 
-Physical missions accept only server-published `camera` events. Recorded video, manual,
-scenario and replay events do not trigger this mode's missions. Live camera input is still
-validated by the server. No Simulator pose reset, synthetic obstacle CLEAR, synthetic person,
-marker injection, or scene-editor operation is used in this mode. Runtime/firmware safety
-remains authoritative.
+## What is available
 
-## Without hardware
+Playground shows the common service panel, actual service definition under **Implementation**,
+camera observations, map/telemetry and **Advanced controls**. It does not provide the old
+specialized source-line highlighting or preview sliders. Synthetic person/marker controls
+are simulator-only. Physical marker guidance is disabled in Service and Playground;
+the old `/app?service=receptionist` URL is an alias, not an alternate live path.
 
-Continue using the [Simulator workshop](playground-workshop.md). Software tests mock camera
-readiness, accepted observations, telemetry and motion responses to check arming, source
-filtering, cancellation and permission expiry. They do not establish camera accuracy, Wi-Fi
-latency, actual wheel direction, smoothness, or real stopping distance. Those require the
-physical qualification above. A disconnected WebSocket server exposes the live UI with
-service-start and motion-clearance controls disabled; it is not a fake connected rover.
-
-Run `npm test`, `npm run typecheck`, and `npm run build` for the frontend checks.
+Use [PWA views](../pwa-views.md) for navigation and [iron-X following](../hardware/ironx-follow.md)
+for the PC/phone setup and E-stop recovery. Never treat simulator tests, telemetry alone,
+or old hardware trials as proof of this UI's physical stopping behavior.

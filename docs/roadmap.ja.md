@@ -68,9 +68,11 @@ Deliverables:
 - 正常完了、別marker、marker喪失、cancel、前方blockのtest
 - service固有コードとplatform所有の安全機能を区別する短い実行ガイド
 
-実装済み: 登録Mission、設定可能な三つの目的地、person/intent/markerを含む決定的scenario、
-scenario自動起動またはphone camera引き継ぎを行う共通`/app?service=receptionist` flow、
-監督付き実機clearance、正常・安全test、日英デモガイド。
+実装済み: 登録Mission、目的地設定、決定的scenarioの基盤、正常・安全test、日英ガイド。
+現行の`/playground?service=receptionist`は人物・マーカーの手動入力またはシナリオ実行を使い、
+UIの行き先はEntranceとDesk。Markers visibleの既定はオフ。
+旧専用画面のscenario自動起動・カメラ自動切替は現在の操作手順ではない。
+実機マーカー案内はService・Playgroundとも無効で、実機の完了条件は未達である。
 
 Exit criteria:
 

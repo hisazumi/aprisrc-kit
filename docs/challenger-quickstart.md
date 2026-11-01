@@ -2,21 +2,13 @@
 
 [日本語](challenger-quickstart.ja.md)
 
-Using an AI assistant to write code? See [AI-assisted development](ai-assisted-development.md)
-for the files to provide, change boundaries, and local verification workflow.
+Build your own service for APRISRC; the carry example is a starting point, not a prescribed
+challenge solution. Start with the Simulator, without a robot, camera, or LLM key.
 
-This guide helps an APRISRC participant create their own service using APRISRC Kit.
-The starter demonstrates the API; it is not a prescribed challenge solution. Participants
-choose the service purpose and interaction. See [Purpose and scope](positioning.md).
+## Start
 
-This is the shortest path to creating a small person-responsive rover service without
-changing APRIS platform code or firmware. Start in the Simulator. Allow 30-45 minutes.
-
-## 1. Start the development environment
-
-Requirements: Node.js 22.12+ or 24+, npm, Python 3.12 (pinned), and `uv`.
-Windows: use [PowerShell startup and troubleshooting](windows-setup.md).
-The commands below are for macOS/Linux (Bash or zsh), from the repository root.
+Requirements: Node.js 22.12+ or 24+, npm, Python 3.12 and uv.
+From the repository root on macOS/Linux:
 
 ```bash
 npm ci
@@ -25,95 +17,56 @@ uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 
-Open `http://localhost:5173/lab`. These settings explicitly select the Simulator and
-desktop HTTP even if certificates exist. No UGV02 is required. Stop an existing server
-before changing adapters. For a guided change/compare trial use the
-[Playground workshop](demos/playground-workshop.md); this guide uses the generic Mission Panel.
+Windows users: follow [Windows setup](windows-setup.md).
+Open `http://localhost:5173/playground?service=my-service`, or the port printed at startup.
 
-## 2. Run the starter unchanged
+## Try the unchanged service
 
-1. Press **Acquire control**.
-2. In **Virtual person**, choose `Left` or `Right`, then press **Start scene**.
-3. Select `Person greeting starter` under **Service missions**.
-4. Press **Run selected mission**.
-5. Confirm that the rover turns at most 15 degrees toward the person and reports
-   `Greeting complete`.
+1. Keep **Manual test** selected. Press **Start service**, then **Enter view**.
+2. Answer **Yes**, then **Items are loaded**.
+3. Press **Move away**, then **Stand still**. Observe following and holding distance.
+4. Press **We have arrived** and check **Service complete (stop confirmed)**.
+5. Repeat with **No**, **Leave view**, or **Cancel and stop**.
 
-If nothing moves, check connection status, control ownership, E-stop, and the Virtual person
-`visible` state, in that order.
+If unavailable, check connection, Simulator adapter, E-stop and another tab owning control.
+Simulator Playground prepares and renews synthetic clearance; this is not obstacle sensing.
+Markers are optional for this service and **Markers visible** defaults off.
 
-## 3. Change one service
+## Change your service
 
-Edit only this file first:
+Edit `apps/pwa/src/missions/myService.ts`, shown in **Implementation**.
+Change its title, offer text, or the sequence of awaited API calls. For example, add
+`await service.confirm("Ready to follow?", "Ready");` immediately before
+`await service.followPerson(...)`. A new confirmation should appear before following.
 
-```text
-apps/pwa/src/missions/challengerStarter.ts
-```
+Stop before editing, reload, and repeat the same manual inputs. The code panel is read-only.
+For API details, choices and scene JSON, see [My service guide](demos/student-service.md).
+Built-in examples are separate files in `service/examples/`; `service/catalog.ts` connects
+definitions and source to the selector. Registering a low-level mission does not add a service.
 
-Start by changing `greeting`, `maxTurnDeg`, or `minTurnDeg` in
-`apps/pwa/src/config/greetingStarter.ts`. You can preview greeting and maximum-turn changes
-in the [Service playground](demos/service-playground.md). The browser reloads after a
-save. You can then combine public API calls inside `run()`:
-
-```ts
-say("I found someone.")
-await rover.turn(10)
-await rover.move(-0.10, 0.05)
-await rover.stop("service completed")
-```
-
-Forward motion is allowed only while front safety is `CLEAR`. For a first experiment, prefer
-turning, reversing, speech, and conditions based on `person.bearingDeg`. Mission code must not
-change speed limits, communication TTL, control ownership, or E-stop behavior.
-
-## 4. Add a voice or text trigger
-
-For a complete new-action example, registration, and a change-and-try exercise, see
-[Add a voice-triggered action](adding-actions.md).
-
-Define the intent, representative utterances, local-rule keywords, and acknowledgement in the
-same mission's optional `trigger`. Entering a matching phrase in the `/lab` **Human
-interaction** panel starts the mission without an API key.
-
-```ts
-trigger: {
-  intent: "greet_person",
-  description: "Find and greet a visible person.",
-  examples: ["人に挨拶して", "Greet the person"],
-  keywords: ["挨拶", "greet"],
-  response: "Okay. I will look for someone."
-}
-```
-
-Speech recognition or an LLM may select a registered mission, but cannot generate distance,
-speed, motor, or rover-protocol commands.
-
-## 5. Check the work
+## Test and extend
 
 ```bash
-npm run test:starter
+npm test
 npm run typecheck
+npm run build
 ```
 
-Update `apps/pwa/src/missions/challengerStarter.test.ts` when starter behavior changes. For a
-new mission, create a new file and register it in `apps/pwa/src/missions/index.ts`.
+Add tests for normal completion, refusal, target loss, cancellation and failed stopping.
+Do not change ownership, command TTL, speed limits or E-stop to make a service pass.
 
-## 6. Optional hardware handoff
+For a lower-level movement action, see [Mission API](mission-api.md) and
+[Add a voice-triggered action](adding-actions.md). Registered missions and the text/voice
+interpreter are under Playground **Advanced controls**. Stop the shared service first.
+A mission trigger does not automatically become an answer or action in the shared panel.
 
-After the starter works in the Simulator, run the same mission on the supported UGV02. The
-one-person connection, raised-wheel, floor, stop, and diagnosis procedure is in
-[UGV02 self-test](hardware/ugv02-self-test.md). For another rover or perception device, read
-[Hardware assumptions and porting](hardware/service-hardware-porting.md).
+For AI-assisted changes, provide [the development guide](ai-assisted-development.md),
+[context memo](ai-service-context.md), and current source, not screenshots alone.
 
-## Editable boundary
+## Hardware later
 
-A Challenger normally edits only:
-
-- `apps/pwa/src/missions/<service>.ts`
-- the corresponding `<service>.test.ts`
-- `apps/pwa/src/missions/index.ts`
-- `apps/pwa/src/config/`
-
-`useRoverSocket.ts`, server runtime, adapters, firmware, and protocol schemas belong to the
-platform. When the public API lacks a required capability, record an API request instead of
-bypassing the platform boundary.
+Use [UGV02 self-test](hardware/ugv02-self-test.md) or [iron-X following](hardware/ironx-follow.md).
+The shared hardware UI requires separate control acquisition, **Confirm clear path · 30 s**,
+and **Start service**; it does not inherit automatic consent renewal from the old Carry UI.
+See [Live Playground](demos/hardware-playground.md) before any motion.
+Physical marker guidance is disabled; simulator success does not qualify hardware.

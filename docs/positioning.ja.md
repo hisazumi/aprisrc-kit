@@ -47,7 +47,7 @@ contractと個別検証が必要です。[機材と移植条件](hardware/servic
 ## 資料と変更範囲
 
 まず[APRISRC Kitを試す・変更する・引き継ぐ](handoff.ja.md)から実習や参加者向けquickstartへ進みます。
-`/app`はサービス用、`/lab`はコード・観測を見る開発用、`/console`は操作・監視用です。
+`/service`はサービス用、`/playground`はコード・観測を見る開発用、`/console`は操作・監視用です。
 サービスによって利用者UIも設計する必要があります。[ロードマップ](roadmap.ja.md)はKit開発の計画で、
 イベントの締切や競技課題ではありません。
 

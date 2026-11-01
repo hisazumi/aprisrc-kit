@@ -1,23 +1,14 @@
-# APRISRC Kitの参加者向けquickstart
+# APRISRC Kit 参加者向けquickstart
 
 [English](challenger-quickstart.md)
 
-AIとコードを書く場合は[AIを使った開発手順](ai-assisted-development.ja.md)を参照してください。
-渡すファイル、変更範囲、ローカルでの確認方法をまとめています。
+APRISRC向けの自分のサービスを作る入口です。荷物運びは初期例で、指定課題ではありません。
+まずロボット・カメラ・LLMキー不要のSimulatorで始めます。
 
-APRISRCの参加者がAPRISRC Kitを使って独自サービスを作るためのガイドです。
-starterはAPIを示す例で、課題の指定解ではありません。サービスの目的と人との関わりは
-参加者が決めます。[目的と位置づけ](positioning.ja.md)を参照してください。
+## 起動
 
-この手順は、APRISの基盤コードやfirmwareを変更せず、人物に反応する小さな
-ローバーサービスを作るための最短経路である。最初は実機を使わずSimulatorで
-確認する。所要時間の目安は30〜45分。
-
-## 1. Start the development environment
-
-必要なものはNode.js 22.12以降または24以降、npm、Python 3.12（固定）、`uv`です。
-Windowsでは[PowerShellの起動・トラブル対応](windows-setup.ja.md)を使ってください。
-以下はmacOS/LinuxのBash・zsh向けです。リポジトリのルートで実行します。
+Node.js 22.12+または24+、npm、Python 3.12、uvを用意します。
+macOS/Linuxではリポジトリ直下で実行します。
 
 ```bash
 npm ci
@@ -26,92 +17,57 @@ uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 
-`http://localhost:5173/lab`を開く。上の設定は証明書があってもPC用HTTPとSimulatorを
-明示的に選ぶ。UGV02は不要。adapter変更前に既存serverを停止する。
-変更と比較を案内に沿って試すなら[Playground実習](demos/playground-workshop.ja.md)を使う。
-このガイドは汎用Mission Panelを使う。
+Windowsは[Windowsの起動手順](windows-setup.ja.md)を使います。
+`http://localhost:5173/playground?service=my-service`を開きます。ポートは起動表示を優先してください。
 
-## 2. Run the starter unchanged
+## 変更せずに試す
 
-1. **Acquire control**を押す。
-2. **Virtual person**で配置を`Left`または`Right`にして**Start scene**を押す。
-3. **Service missions**で`Person greeting starter`を選ぶ。
-4. **Run selected mission**を押す。
-5. ローバーが人物の方向へ最大15度旋回し、`Greeting complete`になることを確認する。
+1. **Manual test**のまま**Start service → Enter view**を押します。
+2. **Yes → Items are loaded**と回答します。
+3. **Move away → Stand still**で人物を動かし、追従・距離を保った停止を観察します。
+4. **We have arrived**を押し、**Service complete (stop confirmed)**を確認します。
+5. **No**、**Leave view**、**Cancel and stop**でも試します。
 
-動かない場合は、接続表示、操作権、E-stop、Virtual personの`visible`表示を順に確認する。
+開始できない場合は接続、Simulator設定、非常停止、他タブの操作権を確認します。
+SimulatorのPlaygroundでは仮想の前方確認を自動準備・更新します。障害物認識ではありません。
+このサービスにマーカーは不要で、**Markers visible**の既定はオフです。
 
-## 3. Change one service
+## 自分のサービスを変更する
 
-編集するファイルは次の1つだけである。
+**Implementation**に表示される`apps/pwa/src/missions/myService.ts`を編集します。
+表示名、質問文、awaitで呼ぶ処理の順序を変えます。例えば
+`await service.followPerson(...)`の直前に
+`await service.confirm("Ready to follow?", "Ready");`を追加すると、
+追従前に確認が一つ増えます。
 
-```text
-apps/pwa/src/missions/challengerStarter.ts
-```
+停止してから編集・再読み込みし、同じ手動入力で比較します。コード欄は読み取り専用です。
+API、選択肢、シーンJSONは[My serviceガイド](demos/student-service.ja.md)を参照。
+組み込み例は`service/examples/`に分離され、`service/catalog.ts`が定義とソースを
+選択欄につなぎます。低水準missionを登録しただけではサービスは増えません。
 
-まず`apps/pwa/src/config/greetingStarter.ts`の`greeting`、`maxTurnDeg`、`minTurnDeg`を変更する。
-[Service playground](demos/service-playground.ja.md)では挨拶と旋回角度を一時変更して試せる。保存するとブラウザへ
-自動反映される。次に`run()`内で公開APIを組み合わせる。
-
-```ts
-say("I found someone.")
-await rover.turn(10)
-await rover.move(-0.10, 0.05)
-await rover.stop("service completed")
-```
-
-前進は前方安全状態が`CLEAR`の場合だけ許可される。最初の改造では、旋回、後退、
-発話、人物の`bearingDeg`による条件分岐を推奨する。速度制限、通信TTL、操作権、
-E-stopをミッションから変更してはいけない。
-
-## 4. Add a voice or text trigger
-
-新しい行動のコード、登録、変更して試す手順は
-[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照してください。
-
-同じファイルの`trigger`に、サービスを表すintent、発話例、ローカル判定用keywordを
-記述する。`/lab`の**Human interaction**欄へkeywordを含む文を入力すると、API keyが
-なくても登録したミッションを開始できる。
-
-```ts
-trigger: {
-  intent: "greet_person",
-  description: "Find and greet a visible person.",
-  examples: ["人に挨拶して", "Greet the person"],
-  keywords: ["挨拶", "greet"],
-  response: "Okay. I will look for someone."
-}
-```
-
-LLMや音声認識はミッションを選ぶだけで、距離、速度、モーター指令を生成しない。
-
-## 5. Check the work
+## テストと拡張
 
 ```bash
-npm run test:starter
+npm test
 npm run typecheck
+npm run build
 ```
 
-スターターの振る舞いを変更した場合は
-`apps/pwa/src/missions/challengerStarter.test.ts`の期待値も変更する。ほかのmissionを
-追加する場合は新しいファイルを作り、`apps/pwa/src/missions/index.ts`へ登録する。
+正常終了、拒否、対象喪失、中断、停止失敗をテストします。
+通すために操作権、TTL、速度上限、非常停止を変更しないでください。
 
-## 6. Optional hardware handoff
+低水準の移動行動を追加する場合は[Mission API](mission-api.ja.md)と
+[音声・テキストで呼べる行動](adding-actions.ja.md)を参照します。
+登録ミッションと文章・音声の解釈はPlaygroundの**Advanced controls**にあります。
+共通サービスを止めてから使ってください。triggerを登録しても共通パネルの回答や行動には自動追加されません。
 
-Simulatorでstarterを確認できた後、同じmissionを対応UGV02へ移せる。一人で行う接続、
-raised-wheel確認、床上試験、停止、診断は[UGV02 self-test](hardware/ugv02-self-test.ja.md)に
-分離している。別機種を使う場合は
-[Hardware assumptions and porting](hardware/service-hardware-porting.md)を参照する。
+AIには[開発ガイド](ai-assisted-development.ja.md)、[技術メモ](ai-service-context.ja.md)と
+現在のソースを渡してください。画面写真だけで判断させないでください。
 
-## Editable boundary
+## 実機へ進むとき
 
-通常のチャレンジャーが編集する範囲は次だけである。
-
-- `apps/pwa/src/missions/<service>.ts`
-- 対応する`<service>.test.ts`
-- `apps/pwa/src/missions/index.ts`
-- `apps/pwa/src/config/`
-
-`useRoverSocket.ts`、server runtime、adapter、firmware、protocol schemaはプラットフォーム
-側の所有物である。必要な機能が公開APIにない場合は、内部実装を迂回せず運営者へ
-API要求として記録する。
+[UGV02自己試験](hardware/ugv02-self-test.ja.md)または[iron-X人追従](hardware/ironx-follow.ja.md)へ進みます。
+共通実機UIは操作権取得、**Confirm clear path · 30 s**、**Start service**が別です。
+旧Carry専用UIの許可自動更新は引き継いでいません。
+動かす前に[実機Playground](demos/hardware-playground.ja.md)を確認してください。
+実機マーカー案内は無効で、シミュレータ成功は実機の保証ではありません。

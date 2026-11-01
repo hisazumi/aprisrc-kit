@@ -8,7 +8,7 @@
 
 ```text
 Smartphone browser
-  https://PC-LAN-IP:5173/app
+  https://PC-LAN-IP:5173/service
   wss://PC-LAN-IP:5173/ws
            │
            ▼
@@ -66,7 +66,7 @@ macOS の「キーチェーンアクセス」で `.certs/apris-local-ca.pem` を
 npm run dev
 ```
 
-`.certs/localhost.pem` と `.certs/localhost-key.pem` が揃っている場合、Vite は自動的に HTTPS で起動する。PC とスマートフォンを同じネットワークへ接続し、`https://<PCのIPアドレス>:<HTTPSポート>/app` を開く。通常は5173だが、別のHTTPSインスタンスを5174で動かす場合もある。HTTP側のポートと混同せず、実際の起動ログのURLと証明書に含まれるIPを使う。
+`.certs/localhost.pem` と `.certs/localhost-key.pem` が揃っている場合、Vite は自動的に HTTPS で起動する。PC とスマートフォンを同じネットワークへ接続し、`https://<PCのIPアドレス>:<HTTPSポート>/service` を開く。通常は5173だが、別のHTTPSインスタンスを5174で動かす場合もある。HTTP側のポートと混同せず、実際の起動ログのURLと証明書に含まれるIPを使う。
 
 HTTP に一時的に戻す場合は、PWA の起動時に `APRIS_DISABLE_HTTPS=1` を指定する。
 

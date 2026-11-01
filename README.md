@@ -131,4 +131,4 @@ Original Kit code/docs use [MIT](LICENSE); vendored firmware retains its GPL ter
 
 ### Student service template
 
-Edit the service flow in `apps/pwa/src/missions/studentCarry.ts`, then run `/playground?service=my-service` with the Simulator or `/service?service=my-service` with camera observations. See [the quick start](docs/demos/student-service.md) ([日本語](docs/demos/student-service.ja.md)) for setup, UI input, safety boundaries, and limitations.
+Edit the service flow in `apps/pwa/src/missions/myService.ts`, then run `/playground?service=my-service` with the Simulator or `/service?service=my-service` with camera observations. See [the quick start](docs/demos/student-service.md) ([日本語](docs/demos/student-service.ja.md)) for setup, UI input, safety boundaries, and limitations.

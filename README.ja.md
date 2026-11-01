@@ -136,4 +136,4 @@ iPhoneによる人追従の成功報告があるが、最新の停止確認修�
 
 ### 受講生用サービステンプレート
 
-`apps/pwa/src/missions/studentCarry.ts` でサービスの流れを編集し、Simulatorでは `/playground?service=my-service`、カメラを使う画面では `/service?service=my-service` を開きます。設定、入力ボタン、安全上の境界、確認範囲は[開始手順](docs/demos/student-service.ja.md)（[English](docs/demos/student-service.md)）を参照してください。
+`apps/pwa/src/missions/myService.ts` でサービスの流れを編集し、Simulatorでは `/playground?service=my-service`、カメラを使う画面では `/service?service=my-service` を開きます。設定、入力ボタン、安全上の境界、確認範囲は[開始手順](docs/demos/student-service.ja.md)（[English](docs/demos/student-service.md)）を参照してください。

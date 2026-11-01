@@ -69,10 +69,10 @@ npm run dev
    - `ugv02-demo-1` is connected
    - heartbeat and telemetry are healthy and fresh
    - linear/angular velocity are zero and no motion is active
-6. Open `https://<PC-LAN-IP>:5173/app` on the phone and press **Start vision** only.
-   **Start service** belongs to Carry assistant and is not used for this starter test.
+6. Open `https://<PC-LAN-IP>:5173/service?service=my-service` on the phone and press **Start vision** only.
+   Do not press **Start service**: this test runs a generic mission on the PC instead.
 7. Confirm a person detection box and an online connection state.
-8. Open `https://localhost:5173/lab` on the PC and press **Acquire control**.
+8. Open `https://localhost:5173/playground?service=greeting` on the PC, expand **Advanced controls**, and press **Acquire control** in the manual controls. Do not start the shared service.
 9. Select `Person greeting starter` under **Service missions**.
 10. Move outside the camera frame and press **Run selected mission**.
 11. Step slightly left or right of the rover within 30 seconds.

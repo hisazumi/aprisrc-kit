@@ -29,20 +29,20 @@ Simulatorの成功は実機の安全性・精度の証明ではありません�
 
 | 対象 | 現状 |
 | --- | --- |
-| Simulator Playground | 挨拶・追従・マーカーシーン、コード強調、実習を実装。仮想観測はカメラ認識ではない |
+| Simulator Playground | 共通サービス、人物手動操作、シナリオ、読み取り専用の定義ソース。実行行強調はなく、仮想観測はカメラ認識ではない |
 | UGV02 firmwareと従来のサービス画面 | 試験機でbounded旋回・後退、lease/切断停止、監督付きスマホ追従を確認 |
 | 実機Playground | 模擬入力テストと未接続PC/スマホ画面を確認。実カメラ・実機試験はこれから |
-| 実機マーカー案内 | 未実証。実機Playgroundでは無効。`/app?service=receptionist`は別の実験経路で、検証済み代替手順ではない |
+| 実機マーカー案内 | 未実証。実機Playgroundでは無効。旧URLも共通画面への別名で、実機向けの迂回経路ではない |
 
 現在の機能は[Platform status](platform-status.ja.md)、実測履歴はfirmwareガイドを参照します。
 無人自律走行・一般的な障害物回避・停止距離の保証はありません。監督許可は人による通路確認で、sensorではありません。
 
 ## サービスを変更する
 
-Playgroundのソース表示で挙動の場所を確認し、リポジトリのファイルを編集します。
-画面設定やシーンSave/Loadはbrowser-localプレビューで、ソースを書き換えません。
-既定値は`apps/pwa/src/config/`、振る舞いとテストは`apps/pwa/src/missions/`、登録は
-`apps/pwa/src/missions/index.ts`です。登録とpublic APIはquickstartに従います。
+Implementationで場所を確認し、`apps/pwa/src/missions/myService.ts`を編集します。
+共通サービスは`service/catalog.ts`、低水準missionは`missions/index.ts`で登録します。
+シーン設定はソースを書き換えません。保存・共有にはJSONの書き出し・読み込みを使います。
+quickstartとpublic APIに従ってください。
 
 missionは操作権を持つbrowser tabで実行します。serverは観測検証と移動許可、firmwareはmotor制御と
 watchdogを担当します。監督試験ではbrowserを前面に保ち、端末をsleepさせません。
@@ -71,3 +71,11 @@ LAN変更時はfirmwareのserver host設定と証明書の再生成が必要な�
 予想外の動きではE-stopと必要に応じて物理電源を使います。原因不明のまま床上試験を繰り返しません。
 telemetryがない、または0というだけでは車輪停止の証明になりません。
 process復旧は[Operations runbook](operations/runbook.md)を使用します。過去の実験記録は参照資料で、設定手順ではありません。
+
+## 現行の編集・許可方式
+
+入口は[My service](demos/student-service.ja.md)。`missions/myService.ts`を編集し、
+選択欄との対応は`service/catalog.ts`で管理する。汎用missionのregistryとは別である。
+Implementationは読み取り専用で実行行強調はない。シーンはJSON保存・読み込みを使う。
+実機は別途30秒の手動確認が必要。開始だけでは延長しない。
+[実機操作](demos/hardware-playground.ja.md)の現行手順を使う。

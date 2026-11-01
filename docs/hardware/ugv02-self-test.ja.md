@@ -66,10 +66,10 @@ npm run dev
    - `ugv02-demo-1`がconnected
    - heartbeatとtelemetryがhealthy/fresh
    - linear/angular velocityが0、active motionがない
-6. smartphoneで`https://<PC-LAN-IP>:5173/app`を開き、**Start vision**だけを押す。
-   **Start service**はCarry assistant用なので、このstarter試験では押さない。
+6. smartphoneで`https://<PC-LAN-IP>:5173/service?service=my-service`を開き、**Start vision**だけを押す。
+   この試験はPCから汎用missionを動かすので、**Start service**は押さない。
 7. camera枠が人物を認識し、接続表示がonlineであることを確認する。
-8. PCで`https://localhost:5173/lab`を開き、**Acquire control**を押す。
+8. PCで`https://localhost:5173/playground?service=greeting`を開き、**Advanced controls**を展開して手動操作欄の**Acquire control**を押す。共通サービスは開始しない。
 9. **Service missions**から`Person greeting starter`を選ぶ。
 10. 自分がcameraの外にいる状態で**Run selected mission**を押す。
 11. 30秒以内にrover正面の少し左または右へ移動する。

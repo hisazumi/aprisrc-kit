@@ -29,10 +29,10 @@ stop running services before source edits. Simulator success does not qualify ha
 
 | Surface | Status |
 | --- | --- |
-| Simulator Playground | Greeting, following, marker scenes, code highlighting and exercises implemented; virtual observations are not camera recognition |
+| Simulator Playground | Shared greeting, carry and marker services, manual inputs, scenarios and read-only definition source; no source-line highlighting; virtual observations are not camera recognition |
 | UGV02 firmware and older service flow | Bounded turn/reverse, lease/disconnect stop and supervised phone following observed on the reference unit |
 | Live Playground | Mocked-input tests and disconnected desktop/mobile UI checks; actual camera/rover trial still required |
-| Physical marker guidance | Not demonstrated; disabled in Live Playground. `/app?service=receptionist` is a separate experimental path, not a qualified fallback |
+| Physical marker guidance | Not demonstrated; disabled in Live Playground. The legacy URL is also an alias, not an alternate hardware path |
 
 [Platform status](platform-status.md) defines current capabilities; the firmware guide records
 measured hardware history. No path promises unattended autonomy, general obstacle avoidance,
@@ -40,10 +40,10 @@ or a qualified stopping distance. Supervised permission is a person's path check
 
 ## Change a service
 
-Find behavior in the Playground source panel, then edit the repository files. Screen settings
-and scene Save/Load are browser-local previews; they do not write source. Defaults live in
-`apps/pwa/src/config/`, behaviors/tests in `apps/pwa/src/missions/`, and registration in
-`apps/pwa/src/missions/index.ts`. Follow the quickstart for registration and the public API.
+Find behavior in Implementation, then edit `apps/pwa/src/missions/myService.ts`.
+Shared services use `service/catalog.ts`; lower-level missions use `missions/index.ts`.
+Scene settings do not write source; export/import JSON to retain and share environments.
+Follow the quickstart and the public API.
 
 Missions execute in the owning browser tab. The server validates observations and authorizes
 motion; firmware controls motors and its watchdog. Keep the browser foreground and awake
@@ -75,3 +75,12 @@ For unexpected motion, use E-stop and physical power removal if necessary. Do no
 failed floor trial until the cause is understood. Missing or zero telemetry alone is not proof
 that wheels stopped. Use the [Operations runbook](operations/runbook.md) for process recovery;
 historical experiments are references, not setup instructions.
+
+## Current editing and permission model
+
+Start with [My service](demos/student-service.md): edit `missions/myService.ts`.
+The selector uses `service/catalog.ts`, separately from the generic mission registry.
+Implementation is read-only with no execution highlighting. Scenes use JSON import/export,
+not the old browser-local Save scene/Load scene controls.
+Physical use requires separate 30-second manual clearance; starting does not extend it.
+Follow the [current hardware controls](demos/hardware-playground.md).

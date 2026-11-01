@@ -2,6 +2,17 @@
 
 [日本語](ai-assisted-development.ja.md)
 
+## Shared services versus generic missions
+
+Start ordinary service edits in `apps/pwa/src/missions/myService.ts`.
+Give the AI that file, `service/studentService.ts`, `service/catalog.ts`, and relevant tests.
+The instructions below concern lower-level missions and triggers, available under Playground
+**Advanced controls**. Stop the shared service before running a generic mission.
+The shared selector is managed by `service/catalog.ts`; mission registration alone does not
+add an entry. Shared-panel answers and generic voice/LLM intent execution are separate paths.
+See the [quickstart](challenger-quickstart.md) for current operation.
+
+
 For APRISRC Kit participants using a web chat or a coding assistant. This guide
 contains a development workflow, not a workshop assignment. You choose the service.
 Start with the [participant setup](challenger-quickstart.md). You still need a
@@ -21,8 +32,8 @@ Choose the surface you are changing:
   and its tests, and explicitly agree on that broader scope.
 - A hardware connection: separate platform/Adapter work, not a mission change.
 
-Registering a mission exposes it in `/lab`; it does not automatically add it to
-the `/app` service flow or create a Playground sample.
+Registering a mission exposes it in `/playground`; it does not automatically add it to
+the `/service` service flow or create a Playground sample.
 
 ## 2. Give the assistant a small, current context bundle
 
@@ -50,7 +61,7 @@ Revision: <commit ID>; relevant uncommitted changes: <describe or none>.
 Goal and interaction: <what the user experiences>.
 Observation -> condition/state -> action -> feedback: <describe>.
 Completion, cancellation, and lost-target behavior: <describe>.
-Allowed files: <paths>; target screen: </lab or explicitly named component>.
+Allowed files: <paths>; target screen: </playground or explicitly named component>.
 Validation environment: Simulator only.
 
 Read the attached AI context memo and source files first.
@@ -82,8 +93,8 @@ npm run build --workspace @apris/pwa
 ```
 
 For a narrow change, also identify which existing or new tests exercise the changed
-behavior. Then run the mission in `/lab` and check normal completion, cancellation,
-lost/stale observations, and repeated execution. Verify the relevant `/app` flow
+behavior. Then run the mission in `/playground` and check normal completion, cancellation,
+lost/stale observations, and repeated execution. Verify the relevant `/service` flow
 separately if you changed it. Passing type checks does not prove service behavior;
 Simulator success does not validate real camera noise, Wi-Fi, braking, or hardware.
 Hardware tests require the operator's setup and explicit permission before motion.

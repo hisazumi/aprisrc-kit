@@ -2,81 +2,41 @@
 
 [English](platform-status.md)
 
-iron-X関連の更新・実機試験: 2026-10-31。UGV02の試験根拠は引き続き2026-09-25時点。
+共通画面の文書確認：2026-11-01。実機試験の追加はありません。
+APRISRC Kitは参加者がサービスを作る基盤であり、サンプルは指定課題や競技規則ではありません。
 
-APRISRC Kitは、APRISRCで参加者がサービスを作るための開発キットである。
-Simulator開発と同じ高水準missionの対応UGV02への移行経路を提供し、既定adapterはSimulatorである。
-この文書はKitの実装状況で、競技規則や参加者のサービスの認証ではない。
-[目的と位置づけ](positioning.ja.md)を参照する。
+## 現在使えるもの
 
-## Available now
+- Service / Playground / Consoleの共通ヘッダーとサービスを保持するURL。
+- My service、Carry helper、Person greeting、Mobile receptionistの共通実行・質問回答パネル。
+- Simulator Playgroundの人物手動操作、発話模擬、シナリオJSON、マーカー入力。
+- 読み取り専用のImplementation。`missions/myService.ts`を編集して試せる。
+- 全サービス共通のマーカー入力。Markers visibleの既定はオフ。
+- Advanced controls内の汎用missionと文章・音声intent処理。rules / OpenAI / Geminiは別の解釈経路。
+- サーバーの操作権、速度上限、指令TTL、切断停止、latched E-stop。
+- Simulator、UGV02 WebSocket、診断用factory HTTP、実験的iron-X local/network Adapter。
 
-- 挨拶・追従・マーカー案内のSimulator Playground。実コード、判断箇所の強調、再現可能な
-  markerシーン、変更と比較の実習を用意
-- camera観測、telemetry、高水準要求logを表示する実験的な実機Playground。
-  明示的な監督許可で挨拶・追従を開始できるが、実機marker案内は無効
-- `move`、`turn`、`stop`、pose、人物、markerを扱うservice mission API
-- 操作権、速度上限、command TTL、通信断時停止、latched E-stop
-- `/app`のCarry assistantとMobile Receptionist、`/console`の手動操作・監視、`/lab`の
-  統合開発画面
-- 仮想人物を使う人物反応、接近、追従、対象喪失のSimulator demo
-- 三つの設定済み目的地と決定的なperson/intent/marker scenarioを持ち、activeなserver adapterから
-  SimulatorまたはUGV02の動作を選ぶ共通Service Appのmarker-based Mobile Receptionist mission
-- smartphone browser内の人物・上半身・APRIS marker認識
-- 登録済みmissionだけを選ぶlocal keyword rulesと任意のLLM structured intent
-- JSON scenario、fault injection、三値の前方障害状態、structured log、replay
-- Simulator、UGV02 WebSocket、純正firmware診断用Factory HTTP、実験的iron-X local/network adapterの選択
+## 現在の制約
 
-## Physical rover status
+- 共通Service・実機Playgroundは別途30秒の手動走行確認が必要。サービス開始では延長しない。
+  旧Carry専用画面の自動更新が引き継がれていない既知の制約である。
+  自動更新はSimulatorのPlaygroundだけ。詳しくは[実機操作](demos/hardware-playground.ja.md)。
+- 共通UIの実機検証は未完了。過去のUGV02・iron-X追従試験は旧構成での記録である。
+- 実機マーカー案内はService・Playgroundとも無効。旧URLから別経路には入れない。
+- 専用プレビュースライダー、実行行強調、旧Carry画面の専用音声・LLM操作は共通UIにない。
+- シミュレータ観測は幾何学的な模擬入力で、実カメラの精度を検証しない。
+- 前方手動確認はセンサーによる空間確認ではない。後方・側方保護、一般的障害物回避、
+  LiDAR安全統合、SLAM、経路計画、同行監視、実停止距離の保証はない。
+- サービス状態はブラウザ側にあり、再接続だけでは再開しない。無人運用向けではない。
 
-Waveshare UGV02の試験機にはAPRIS development firmware `0.97-apris-ws-dev`を導入済みで
-ある。接続、heartbeat/telemetry、E-stop、lease/watchdog、server切断時停止、bounded
-15度旋回、bounded 0.05 m後退を確認した。車載smartphoneの人物認識と30秒の監督付き
-走行許可を使う人物追従も床上で動作を確認した。
+## 検証と次の作業
 
-これは一般環境での自律走行認証ではない。実機試験は
-[UGV02 self-test](hardware/ugv02-self-test.md)の範囲で行う。
+共通化のブラウザ試験で4サービスのシミュレータフロー、マーカー初期値、デスクトップ・
+スマホ幅を確認した。myServiceへの改名後はPWA 183テスト・ビルドが成功した。
+これは実機やWindows起動の検証ではない。
 
-## Current limitations
-
-iron-Xでは2026-10-31にPC上のKitと車載iPhoneによる人追従の成功報告があった。
-その後キャンセルと停止応答の競合が判明した。最新の停止確認修正と0.15 m/s設定は
-実機再試験待ち。[現在の手順・確認範囲](hardware/ironx-follow.ja.md)を参照する。
-
-- 実機Playgroundはソフトウェアテストと未接続画面のみ確認済み。実カメラ・実機の確認は未完了。
-  従来のスマホ追従試験は別のサービス画面で行ったもの。
-- 実機marker案内は、別経路のService Appも含め未検証。
-- 前方のfree-spaceを常時保証する車載sensorはまだない。`UNKNOWN`は前進可能と扱わない。
-- Carry helperは **Start service and allow movement** で監視付き走行を許可し、接近・追従中に
-  短期限heartbeatを更新する。Consoleの30秒確認は残る。
-- firmwareはprivate development LAN向けのplain WebSocketと共有tokenを使用する。
-- production WSS、roverごとのcredential、永続idempotencyは未実装である。
-- IMUとbattery telemetry、p95距離・角度誤差、停止距離の実機qualificationは未完了である。
-- mission状態はbrowser-localであり、serverの`/api/status`は正本を持たない。
-- browser音声認識・読み上げは端末依存で、production speech stackではない。
-- iron-Xの状態表示、動作・停止・キャンセル、床上の前進・旋回、コンソール操作は1台で確認済み。
-  サービスの試行は全面的な評価完了ではなく、Live Playgroundと実機マーカー案内は別途未検証である。
-- LiDARの安全制御への統合、SLAM、経路計画は未実装。
-
-## Current priority
-
-1. Simulator実習と変更可能なサンプルを引き継ぎ、他の人が独立して試用・開発できるようにする。
-   入口は[引き継ぎガイド](handoff.ja.md)。
-2. 初見の教員によるChallenger pilotを調整・実施し、そこで観測した導線、API、UI、
-   error recoveryの摩擦を減らす。
-3. offline配布、同一origin配信、端末セットアップなどevent-ready運用を仕上げる。
-4. 実機が使えるときに新しい実機Playground、Mobile Receptionistのmarker接近、
-   UGV02の停止・精度、前方安全sensorを検証する。
-
-長期順序は[Development roadmap](roadmap.md)、起動・復旧は
-[Operations runbook](operations/runbook.md)を参照する。
-詳細な個別試験記録と外部integration bundleはこの公開版に含まない。現在の制約と試験順序はハードガイドで確認する。
-
-## Verification baseline
-
-最新のローカルソフトウェア検証（2026-10-31）: 停止確認修正と0.15 m/s変更後に
-server 265 tests、PWA 130 tests、PWA型チェックが成功。この実行で新たな実機走行や
-production buildを確認したとは扱わない。以下は過去の基準である。
-
-実機Playground実装はPWA 122 testsとproduction build、未接続PC/スマホ画面の確認が成功した。
-これはソフトウェアの根拠で、実機試験ではない。
+次は[参加者quickstart](challenger-quickstart.ja.md)と
+[引き継ぎ](handoff.ja.md)で他の人が試せることを確認する。
+実機利用前には走行許可方式の見直しと共通UIの再検証が必要。
+長期計画は[ロードマップ](roadmap.ja.md)、起動・復旧は[運用](operations/runbook.md)。
+過去のハードウェア試験は各機体ガイドを参照し、新UIの保証と混同しない。

@@ -2,6 +2,15 @@
 
 [English](autonomous-carry-service.md)
 
+現行の共通画面の操作は[Playgroundガイド](service-playground.ja.md)、
+実機は[実機Playground](hardware-playground.ja.md)を参照してください。
+サービス定義は `service/catalog.ts` と `service/examples/` にあります。
+旧専用画面のボタン・許可自動更新・カメラ自動切替は現行画面の手順ではありません。
+実機マーカー案内はService・Playgroundとも無効です。
+
+<details>
+<summary>旧専用画面の設計と試験記録（現行の操作手順ではありません）</summary>
+
 Status: **Implemented reference service**。文書見直し: 2026-10-31。
 実機操作と確認範囲は[iron-X人追従](../hardware/ironx-follow.ja.md)を参照する。
 
@@ -86,3 +95,5 @@ PAUSED
 - ブラウザのカメラと音声認識にはHTTPSと利用者の権限許可が必要である。人物認識はMediaPipe Pose Landmarker Liteで左右の肩を追跡し、足元や腰がフレーム外でも上半身観測を生成する。
 - 初回認識時はversion固定した配布元からPoseモデルとWASMを取得するため、オフライン運用前に自己ホスト化またはキャッシュ方針を決める。
 - 実機ではカメラ画角、観測周期、検知信頼度、停止距離を再調整する。
+
+</details>

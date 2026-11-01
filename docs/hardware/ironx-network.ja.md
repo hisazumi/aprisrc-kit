@@ -132,7 +132,7 @@ TLS reverse proxyと`wss://`、信頼された有効な証明書を使い、Auth
 
 カメラ観測にはiPhoneをローバーに搭載し、**旧ロボット上Kitではなく、学生PCの
 Kitサーバー**へ接続する。開発構成のURLは
-`https://<student-PC-LAN-IP>:5173/app`。
+`https://<student-PC-LAN-IP>:5173/service`。
 [ローカルHTTPSとスマートフォン設定](../local-https.ja.md)に従い、証明書に学生PCの
 アドレスを含め、そのCAをiPhoneで信頼する。`APRIS_DISABLE_HTTPS`は未設定にし、
 カメラを許可して、証明書警告を解消してから試す。スマートフォン・PC・gatewayが

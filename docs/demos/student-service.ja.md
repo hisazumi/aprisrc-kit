@@ -1,12 +1,12 @@
-# 受講生用：荷物運びサービス
+# My service
 
 [English](student-service.md)
 
-編集するのは **`apps/pwa/src/missions/studentCarry.ts` の1ファイル**です。
-`studentCarry.run(service)` の順序・if条件・文言を変えます。Reactの編集は不要です。
+編集するのは **`apps/pwa/src/missions/myService.ts` の1ファイル**です。
+`myService.run(service)` の順序・if条件・文言を変えます。Reactの編集は不要です。
 このファイルは `App.tsx` → `StudentServicePanel` から読み込まれており、登録済みです。
 共通画面は `service` 引数でサービスを受け取り、荷物運びテンプレートを直接読み込みません。
-一般のmissionRegistryには登録しません（このサービスには入力待ちの専用画面が必要です）。
+共通の質問回答パネルと`service/catalog.ts`を使い、一般のmissionRegistryには登録しません。
 既存のCarry helperはそのまま比較できます。
 
 ## 開始（Windows PowerShell）
@@ -44,13 +44,13 @@ npm.cmd run dev
 
 サービスを止めてから**Scenario runner**へ切り替えます。プリセット・定義編集・JSON保存／読み込み・実行状態の表示は残っています。選んでStart selected scenarioを押し、サービスへの回答後にNext stepで環境を進めます。シナリオ試験中もプリセットの選択変更は定義だけに反映されます。
 
-シミュレータの走行許可は実行中だけ更新し、キャンセル・操作権喪失・ページ非表示で取り消します。この簡易開始はシミュレータのLab限定で、実機の開始手順は変更しません。非常停止や障害物ラッチも自動解除しません。解除・手動走行・障害注入は「Advanced controls」で行います。他のタブが操作権を持つ場合は先に解放してください。
+シミュレータの走行許可は実行中だけ更新し、キャンセル・操作権喪失・ページ非表示で取り消します。この簡易開始はシミュレータのLab限定で、実機は別の手動確認を使います。[実機Playground](hardware-playground.ja.md)を参照してください。非常停止や障害物ラッチも自動解除しません。解除・手動走行・障害注入は「Advanced controls」で行います。他のタブが操作権を持つ場合は先に解放してください。
 
 「No」「Cancel and stop」「Lose the person」プリセット（対象喪失）も試せます。コード変更後は実行を止め、再読み込みして「Start selected scenario」を押します。
 
 ## テストシーンを定義する
 
-シーンは環境、`studentCarry.ts` はロボットのサービスを定義します。サービスコードを変えずに異なる状況を試せます。
+シーンは環境、`myService.ts` はロボットのサービスを定義します。サービスコードを変えずに異なる状況を試せます。
 
 - **Wait in front**：人が正面で待つ。Yes/Noの分岐や荷積み確認を試す。
 - **Enter from outside view**：視野外から2秒後に歩き始め、視野に入る。2回目の歩行はNext stepを待つ。
@@ -74,7 +74,7 @@ Simulatorの仮想人物・障害操作は `/playground` にあります。複�
 
 4サービスともServiceとPlaygroundでこの共通パネルを使います。上部の共通ヘッダーで選択します。
 Playgroundの **Implementation** は表示されたパスの実ファイルを読み込みます。
-My serviceは `missions/studentCarry.ts`、組み込み例は `service/examples/` にあり、
+My serviceは `missions/myService.ts`、組み込み例は `service/examples/` にあり、
 `service/catalog.ts` に定義とソースを登録します。質問・中断・終了時の停止は共通実行処理が担当します。
 `greetPerson()` は既存の挨拶ミッション、`guideTo("desk" | "entrance")` は既存のマーカー案内を使います。
 案内で障害物・見失いが起きた場合は、到着扱いにせずエラーで終了します。
@@ -112,7 +112,7 @@ service.say(`You selected ${destination}.`);
 
 この例は行き先の選択・表示だけで、目的地までの移動は行いません。移動には対応する行動を明示的に組み合わせます。画面には質問を一つずつ表示するので、各操作は `await` で順に呼びます。キャンセルは回答を選択せず、入力待ちを中断します。
 
-別のサービス定義を使う場合は、`App.tsx` の `StudentServicePanel` に `service={yourService}` を渡します。同じ位置の画面で定義を切り替える場合はReactの `key` も変え、旧サービスをキャンセルしてください。操作権・前方確認・キャンセル・非常停止は共通です。汎用的な画面作成フレームワークではなく、小さなサービス実行画面です。
+自分のサービスは`myService.ts`を編集し、パネルを変更する必要はありません。選択欄は`service/catalog.ts`から定義と実ソースを取得します。新しい選択肢を追加する場合は、`navigation.ts`の識別子・URL処理とテストも追加します。質問の変更だけのために共通パネルを置き換えないでください。操作権・前方確認・キャンセル・非常停止は共通です。
 
 基盤側が入力ボタン、操作権喪失・切断・緊急停止・ページ非表示・画面終了時のキャンセル、対象喪失、最終停止を扱います。再実行は前の処理の終了後に限ります。停止確認の失敗は完了扱いにしません。
 高水準ServiceRover経由で動かし、TTL、速度上限、操作権、前方判定、latched E-stopを変更・迂回しません。接近・追従の人物選択と観測鮮度は既存部品の契約を引き継ぎ、人物の本人認証や荷物検知は行いません。「Items are loaded」は利用者の確認です。

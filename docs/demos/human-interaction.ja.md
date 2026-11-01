@@ -2,6 +2,15 @@
 
 # 人とのインタラクション Simulatorデモ
 
+現行の共通画面の操作は[Playgroundガイド](service-playground.ja.md)、
+実機は[実機Playground](hardware-playground.ja.md)を参照してください。
+サービス定義は `service/catalog.ts` と `service/examples/` にあります。
+旧専用画面のボタン・許可自動更新・カメラ自動切替は現行画面の手順ではありません。
+実機マーカー案内はService・Playgroundとも無効です。
+
+<details>
+<summary>旧専用画面の設計と試験記録（現行の操作手順ではありません）</summary>
+
 Status: **実装済みの参照デモ**（2026-09-25確認）
 
 この文書は当初の計画を兼ねる実行ガイドです。将来の優先順位は
@@ -78,3 +87,5 @@ Consoleの30秒確認は手動運転用として残ります。いずれも車�
 最初の実機契約試験では、motion命令なしでWebSocket Rover Adapterを使用しました。operator確認で`CLEAR/manual/healthy`となり、解放すると`UNKNOWN/manual/unavailable`へ戻りました。接続したUGV02の並進・角速度は全期間ゼロでした。
 
 その後の床上試験では、車載スマートフォンの上半身観測と時間制限付きの**Allow movement**を使用しました。屋内向け追従閾値の調整後、UGV02は人物へ向きを変え、監視付きデモとして十分滑らかに追従しました。応答がやや遅いという定性的な観測は残っています。これは障害物sensorや停止距離の測定による認定を置き換えるものではありません。
+
+</details>

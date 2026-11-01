@@ -132,10 +132,10 @@ LLMは登録済み`intent`と`destination`、`follow_distance`だけを返す。
 
 ## Registering a mission
 
-作成した定義を`missions/index.ts`へ追加すると、Development Labの**Service missions**と
-**Human interaction**から利用できる。`/app`はCarry assistant専用の利用者画面であり、
-registryへ追加しただけでは汎用mission選択肢を表示しない。`/app`へ組み込む場合は、その
-service UIが利用するmissionを明示的に選ぶ。
+定義を`missions/index.ts`へ追加すると、Playgroundの**Advanced controls**内の
+**Service missions**と**Human interaction**から利用できる。共通サービスは自動追加されない。
+Service・Playgroundの共通サービス定義と表示ソースは`service/catalog.ts`で登録し、
+My serviceは`missions/myService.ts`にある。
 
 ```ts
 import { demoScenarioMission } from "./demoScenario"
@@ -157,10 +157,11 @@ IDは空文字列にできず、重複したIDは起動時に拒否される。�
 
 ## Running and cancelling
 
-汎用missionはDevelopment Lab (`/lab`) で操作権を取得し、missionを選択して
-`Run selected mission`を押す。Service App (`/app`) はCarry assistantの状態遷移から
-専用missionを開始する。Operator Console (`/console`)を別tabで開くと、poseと軌跡を
-監視できる。
+共通サービスを先に停止する。`/playground`の**Advanced controls**で操作権を取得し、
+必要な観測・前方確認を準備してmissionを選び、**Run selected mission**を押す。
+汎用missionには共通サービスのシミュレータ自動準備は適用されない。
+共通サービスはService・Playgroundの**Start service**で開始する。
+`/console`を別タブで開き、操作権を取得せずに監視できる。
 
 同時に実行できる高水準モーションは1件だけである。`Cancel mission`、通常停止、非常停止、操作権解放、WebSocket切断はモーションを停止する。手動ジョイスティック入力は実行中のミッションを中断して優先される。
 

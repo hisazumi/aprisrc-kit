@@ -9,7 +9,7 @@ capabilities, [Development roadmap](roadmap.md) for priorities, and
 
 ## Start here
 
-To extend a service, follow [Add a voice-triggered action](adding-actions.md).
+Start with the [participant quickstart](challenger-quickstart.md), then edit `missions/myService.ts`. For lower-level actions, see [adding actions](adding-actions.md).
 
 Using a web chat or coding assistant? Start with [AI-assisted development](ai-assisted-development.md),
 then attach the [AI context memo](ai-service-context.md) with current source files.
@@ -26,7 +26,7 @@ points; these guides do not define event rules or judging criteria.
 | Choose a trial, service-development, or hardware handoff path | [Try, change, and hand over APRISRC Kit](handoff.md) |
 | Run the MVP and compare a small service change | [Playground hands-on](demos/playground-workshop.md) |
 | Try a service and connect its behavior to code | [Service playground](demos/service-playground.md) |
-| Run the person-following and interaction demo | [Human interaction demo](demos/human-interaction.md) |
+
 | Build a small person-responsive service | [Participant quickstart](challenger-quickstart.md) |
 | Understand the mission API and safety boundary | [Mission API and service templates](mission-api.md) |
 | Run the same starter on a supported UGV02 | [UGV02 self-test](hardware/ugv02-self-test.md) |
@@ -41,14 +41,14 @@ See [Initial public release](release-scope.md) for distribution scope and [Contr
 
 | Goal | Document |
 | --- | --- |
-| Understand `/app`, `/console`, and `/lab` | [PWA views](pwa-views.md) |
+| Understand `/service`, `/console`, and `/playground` | [PWA views](pwa-views.md) |
 | Understand the shared safety and responsibility boundaries | [Architecture](architecture.md) |
 | Inspect experimental live Playground inputs and safety gates | [Live rover playground](demos/hardware-playground.md) |
 | Connect a smartphone over HTTPS | [Local HTTPS and smartphone setup](local-https.md) |
 | Test with reproducible inputs and faults | [Simulator scenarios, fault injection, and logs](simulator-scenarios.md) |
 | Understand person/marker perception and pose | [Perception and pose estimation](perception-and-pose.md) |
-| Run the marker-based reception and guidance service | [Mobile Receptionist demo](demos/mobile-receptionist.md) |
-| Understand the Carry assistant state machine | [Autonomous carry service](demos/autonomous-carry-service.md) |
+| Read the historical reception design | [Mobile Receptionist demo](demos/mobile-receptionist.md) |
+| Read the historical dedicated Carry state machine | [Autonomous carry service](demos/autonomous-carry-service.md) |
 | Replace the reference phone or rover | [Service hardware assumptions and porting](hardware/service-hardware-porting.md) |
 
 ## Maintainer and operations

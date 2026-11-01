@@ -2,7 +2,7 @@ import type { StudentService } from "../service/studentService";
 
 // Edit this template, then rerun at /playground?service=my-service.
 // Its initial behavior is a carry-assistant example: approach, ask, then follow.
-export const studentCarry: StudentService = {
+export const myService: StudentService = {
   title: "My service",
   async run(service) {
     await service.waitForPerson();

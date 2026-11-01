@@ -55,8 +55,9 @@ ROS側の前提は[読み取り専用表示](ironx-readonly.md)を参照。
 `front_obstacle_unknown`は新しく正常な前方安全情報がないという意味。
 確認ボタンは既存APIに期限付きの`manual`観測を送り、Adapterが`CLEAR`を偽装するものではない。
 現在のチェックは前進のみで、後方・側方の衝突防止は未実装。全方向を人が監視する必要がある。
-Carry helperは **Start service and allow movement** に許可を統合した。
-[サービス操作・非常停止の復旧](ironx-follow.ja.md)を参照する。他サービス・Playgroundは各自の許可手順を維持する。
+共通Carry helperも別の30秒確認を使い、開始では延長しない。
+旧Carry専用画面の許可自動更新は共通UIにない。
+[サービス操作・非常停止の復旧](ironx-follow.ja.md)を参照する。
 
 ## 終了と制約
 

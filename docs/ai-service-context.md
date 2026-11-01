@@ -2,6 +2,17 @@
 
 [日本語](ai-service-context.ja.md)
 
+## Shared services versus generic missions
+
+Start ordinary service edits in `apps/pwa/src/missions/myService.ts`.
+Give the AI that file, `service/studentService.ts`, `service/catalog.ts`, and relevant tests.
+The instructions below concern lower-level missions and triggers, available under Playground
+**Advanced controls**. Stop the shared service before running a generic mission.
+The shared selector is managed by `service/catalog.ts`; mission registration alone does not
+add an entry. Shared-panel answers and generic voice/LLM intent execution are separate paths.
+See the [quickstart](challenger-quickstart.md) for current operation.
+
+
 Attach this memo **together with current source files**. It is not a complete API
 specification, nor evidence that the assistant has read the repository. Human
 workflow: [AI-assisted development](ai-assisted-development.md).
@@ -74,7 +85,7 @@ substring matching; LLM providers select registered intents, not arbitrary execu
 code. A development chat assistant and the application's runtime LLM are separate.
 Editing missions does not itself require a runtime LLM key. Keys belong on the server.
 
-Registration supports `/lab` missions and the intent catalog. Dedicated `/app` flows
+Registration supports `/playground` missions and the intent catalog. Dedicated `/service` flows
 and Playground samples require their own integration; do not claim they appear
 automatically. Do not add dependencies, change public contracts or weaken safety
 checks without an explicit scope decision.

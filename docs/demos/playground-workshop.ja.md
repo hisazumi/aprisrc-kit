@@ -55,7 +55,7 @@ Service側はカメラ入力を使い、挨拶サービスにもカメラの入�
 ## コードを変える
 
 停止してから **Implementation** に表示されたファイルを編集・保存し、再実行します。
-My serviceなら `apps/pwa/src/missions/studentCarry.ts` の質問文を変更したり、追従前に
+My serviceなら `apps/pwa/src/missions/myService.ts` の質問文を変更したり、追従前に
 `await service.confirm("Are you ready?", "Ready")` を追加してみます。
 画面を編集せず、次の実行で確認の質問が増えます。
 挨拶・荷物運び・受付の定義は `apps/pwa/src/service/examples/` にあります。

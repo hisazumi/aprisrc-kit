@@ -2,6 +2,15 @@
 
 # Mobile Receptionistデモ
 
+現行の共通画面の操作は[Playgroundガイド](service-playground.ja.md)、
+実機は[実機Playground](hardware-playground.ja.md)を参照してください。
+サービス定義は `service/catalog.ts` と `service/examples/` にあります。
+旧専用画面のボタン・許可自動更新・カメラ自動切替は現行画面の手順ではありません。
+実機マーカー案内はService・Playgroundとも無効です。
+
+<details>
+<summary>旧専用画面の設計と試験記録（現行の操作手順ではありません）</summary>
+
 Status: **共通Service Appへ実装済み、監督付きUGV02 walkthrough待ち**
 
 初めてのPC体験は[Playground実習](playground-workshop.ja.md)を使う。
@@ -82,3 +91,5 @@ Local Serverを`APRIS_ADAPTER=websocket_rover`で起動し、車載smartphoneで
 Simulator scenarioは決定的な入力harnessであり、物理navigationそのものではない。床上試験の前に、
 車輪を浮かせてmarker 1を確認し、その後に短い監督付きapproachを行う。印刷marker size、camera
 range、停止距離、course layoutは実機で確認する変数として残る。
+
+</details>

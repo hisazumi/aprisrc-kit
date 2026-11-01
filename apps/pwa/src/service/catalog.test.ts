@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { serviceCatalog } from "./catalog";
+import { myService } from "../missions/myService";
 import type { StudentServiceApi } from "./studentService";
 
 function api(): StudentServiceApi {
@@ -14,6 +15,12 @@ it("provides actual source and a single runnable definition for every service", 
     expect(entry.source).toContain(entry.definition.title);
     expect(entry.file).toMatch(/\.ts$/);
   }
+});
+it("uses the editable My service file independently of the built-in carry example", () => {
+  expect(serviceCatalog.student.definition).toBe(myService);
+  expect(serviceCatalog.student.file).toBe("missions/myService.ts");
+  expect(serviceCatalog.student.source).toContain("export const myService");
+  expect(serviceCatalog.carry.definition).not.toBe(myService);
 });
 it.each(["student", "carry"] as const)("%s asks consent and waits for loading before following", async id => {
   const service = api();

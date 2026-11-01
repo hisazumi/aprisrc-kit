@@ -140,7 +140,7 @@ PC-to-gateway connection.
 
 For camera observations, mount the iPhone on the rover and connect it to the
 **student's Kit server**, not the robot's old Kit server:
-`https://<student-PC-LAN-IP>:5173/app` for the development setup. Follow
+`https://<student-PC-LAN-IP>:5173/service` for the development setup. Follow
 [local HTTPS and smartphone setup](../local-https.md): the certificate must cover
 the student's PC address and its CA must be trusted on the iPhone. Leave
 `APRIS_DISABLE_HTTPS` unset, allow camera access, and resolve certificate warnings

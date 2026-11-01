@@ -2,102 +2,63 @@
 
 [日本語](ironx-follow.ja.md)
 
-For the opt-in P-controlled implementation, see [continuous following trial](continuous-follow-trial.md).
-It is software-prepared only; the default hardware flow below remains bounded motion.
-
-This is the operator entry point for supervised Carry helper trials. It is not
-an unattended navigation system or a fresh ROS installation guide.
-
-## What runs where
-
-| Device | Role |
-| --- | --- |
-| iron-X | ROS driver, telemetry bridge, command watchdog bridge, authenticated network gateway |
-| Student PC | Kit server with `APRIS_ADAPTER=ironx_network`, PWA development server |
-| Mounted iPhone | Safari camera perception and service UI; observations go to the PC |
-
-The PC and phone must reach the appropriate hosts on the same trusted LAN.
-Use the **PC's HTTPS address**, not the robot address or `localhost`, on the phone.
-The gateway's plain `ws://` connection is separate from phone-facing HTTPS.
+Experimental, supervised operation only. The shared UI still requires physical
+revalidation; earlier phone-following trials do not qualify this UI.
 
 ## Prepare without moving
 
-1. Have the robot operator prepare [network integration](ironx-network.md).
-   Do not start duplicate drivers, bridges, or Node-RED motion publishers.
-2. On the PC, select `ironx_network` and set the gateway URL and private token as
-   described there. Keep Simulator as the default when hardware is not in use.
-3. Prepare [HTTPS and phone certificate trust](../local-https.md). Use the port
-   printed by the PWA server: normally 5173, or a separately selected port such
-   as 5174 when running HTTP and HTTPS side by side. Certificate trust is required.
-4. Open `https://<PC-LAN-IP>:<HTTPS-port>/app` in Safari, select **Carry helper**,
-   and press **Start camera**. Allow camera access and select the camera facing
-   forward. Fix the phone securely and confirm that the person's upper body is detected.
-5. Stop other service/console sessions and release their control. Clear the
-   complete swept area, including the sides and rear. Keep physical stop/power
-   accessible and obtain the operator's approval before starting movement.
+1. Follow [iron-X network setup](ironx-network.md). ROS, telemetry, watchdog bridge and
+   gateway run on iron-X; Kit server (`APRIS_ADAPTER=ironx_network`) and PWA run on the PC.
+   Do not start duplicate drivers or Node-RED motion publishers.
+2. Prepare [HTTPS and certificate trust](../local-https.md). On the fixed iPhone, open
+   `https://<PC-LAN-IP>:<HTTPS-port>/service?service=carry`, using the actual server port,
+   not the robot's address or phone localhost.
+3. Press **Start vision**, allow camera access, choose the forward-facing camera, and
+   confirm upper-body observations. Keep Safari visible and the phone awake.
+4. Release control in other tabs. Check sides, rear and front, keep physical stop/power
+   accessible, and obtain the operator's approval before movement.
 
-Camera setup alone does not start the service. No LLM API key is needed for
-button-based following. Optional text/voice interpretation uses
-[rules, OpenAI, or Gemini](../assistant-providers.md).
+No LLM key is needed. Dedicated voice/LLM controls are not exposed in the shared panel.
+The advanced mission interpreter remains a separate workflow.
 
 ## Start and stop
 
-1. After checking the area, press **Start service and allow movement**. This is
-   permission for supervised movement, including approaching the detected person.
-2. After stable detection, the rover approaches, stops, and offers help.
-3. Press **Yes, help me**, then **Items are loaded** when ready. Actual cargo is
-   optional for a demo. The rover follows the detected person.
-4. Walk slowly and keep your upper body in the camera view. Keep Safari visible
-   and the phone unlocked. Do not leave the robot unattended.
-5. Use **Stop** or **We have arrived** to stop following, and **End service** to
-   stop and release control. Use **Emergency stop** if necessary; if software
-   stopping fails, use physical stop/power.
+1. Press **Acquire control**, then **Confirm clear path · 30 s**, then **Start service**.
+   Starting may approach the detected person.
+2. Answer **Yes**, then **Items are loaded**. Walk slowly within the camera view.
+3. **We have arrived** finishes following and confirms stopping.
+   **Cancel and stop** interrupts; **Emergency stop** latches a stop.
+4. Confirm physical stopping before another trial or handing control to another client.
 
-Carry helper no longer needs **Allow movement for 30 s**. Its start action grants
-supervised consent; short-lived clearance heartbeats run only in approach/follow
-phases. Loss of connection/control, E-stop, or hiding the page revokes permission.
-After interruption, explicitly restart; reconnection alone must not resume motion.
-If **Look for the next person** is shown, press it to return to the start screen,
-then check the area again before **Start service and allow movement**.
-The Console's **Confirm clear path · 30 s** is still a separate manual-driving
-control. Mobile Receptionist and Live Playground keep their own permission flows.
-Manual clearance is not obstacle sensing; there is no general collision avoidance.
+**Current limitation:** the 30 seconds start at clearance confirmation, not at service
+start or loading. Starting does not renew permission; the shared UI does not inherit the
+old Carry UI's automatic renewal. Expiry removes clearance and gates forward motion;
+it can interrupt the service. It does not guarantee an exact stop time for every command.
+Cancel, check actual stopping and the area, then grant permission and explicitly restart.
+Do not disable safety gates to extend a trial. See [shared hardware controls](../demos/hardware-playground.md).
 
-## If it stops
+## Recovery
 
-| Observation | Meaning and next step |
-| --- | --- |
-| Target distance reached | Normal hold. Moving farther away may resume following while the service remains active. |
-| `person observation stale` / target lost | Fresh person observations stopped. Check camera view, lighting, phone lock/background state and connection; these are possible causes, not a diagnosis. Restart explicitly if the service ended. |
-| `front_obstacle_unknown` | A fresh clearance heartbeat is missing. Check service consent, control and connectivity; do not disable the gate. |
-| `ironx_rearm_required` / E-stop | Stop is latched. Confirm physical stopping and inspect the fault before explicitly clearing it. |
-| Gateway/bridge stop-confirmation fault | Operator recovery is required. Do not repeatedly clear or use server restart as an E-stop reset. |
+- A target-distance hold can be normal; moving farther away may resume an active follow.
+- Lost/stale observations: check camera view, lighting, phone foreground state and network.
+- `front_obstacle_unknown`: check the separate clearance and connectivity, not only camera detection.
+- E-stop or `ironx_rearm_required`: verify physical stopping and investigate the fault.
+- Stop-confirmation failures: use operator recovery; do not repeatedly clear or restart
+  the server as a substitute for confirming stopping.
 
-To clear E-stop after checking the robot: open `/console` on the same PC server,
-press **Acquire control**, then **Clear E-stop**. Confirm the banner disappears,
-press **Release control**, and return to `/app`. Clearing E-stop does not itself
-start a service. A failed clear must leave it latched. Never force ownership
-away from an active operator.
-
-Transport failures now log the RPC name and exception type. Ordinary motion
-cancellation must not interrupt a pending stop acknowledgement. Confirmation
-timeouts still fail closed. See [operations and logs](../operations/runbook.md).
+For E-stop recovery, stop the service, release its control (or leave the owning page),
+then use `/console?service=carry`: **Acquire control**, **Clear E-stop**, verify the banner,
+and **Release control**. Return to Service and explicitly repeat clearance/start.
+Never force ownership away from another active operator. Reconnection does not restart a service.
 
 ## Settings and evidence
 
-Current iron-X forward/reverse limit: **0.15 m/s**; angular limit: **0.2 rad/s**;
-PC network command TTL cap: **200 ms**. Follow requests 0.10 m steps at 0.15 m/s;
-approach requests 0.08 m at 0.05 m/s. Short moves decelerate, so these are requested
-limits, not guaranteed measured speeds. Stopping distance remains unqualified.
+Adapter limits, follow profile and network recovery are separate from UI permission.
+See [continuous following trial](continuous-follow-trial.md), [Adapter](ironx-adapter.md),
+and [operations](../operations/runbook.md). Do not interpret old probe speeds or bounded-step
+descriptions as the selected follow profile. Inspect the active configuration before a trial.
 
-On 2026-10-31, an operator reported successful phone-based following using the
-PC/network/iron-X service path. Later trials exposed a cancellation/stop-response
-race. The latest stop-confirmation fix and 0.15 m/s configuration passed software
-tests but **still require supervised physical revalidation**. Do not interpret
-the earlier success as validation of this final configuration. Marker guidance,
-Windows operation, and unattended autonomy are not established by these trials.
-
-For maintainers: [network setup](ironx-network.md),
-[same-host console setup](ironx-quickstart.md), [Adapter](ironx-adapter.md), and
-[command bridge](ironx-command-bridge.md). Historical probe speeds are trial
-records, not the current service limit.
+Past operator reports of phone following are evidence for those configurations only.
+The shared panel's physical flow, stopping distance, Windows operation, and physical marker
+guidance are not qualified by the current simulator checks. Marker guidance is disabled
+in both Service and Playground.

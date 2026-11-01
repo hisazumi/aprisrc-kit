@@ -59,7 +59,7 @@ Marker coordinates are separate from the person-scene JSON and are not persisted
 ## Change the Code
 
 Stop first. Edit the file named in **Implementation**, save, then restart the trial.
-For My service, edit `apps/pwa/src/missions/studentCarry.ts`: change the offer text or
+For My service, edit `apps/pwa/src/missions/myService.ts`: change the offer text or
 insert `await service.confirm("Are you ready?", "Ready")` before following.
 The next run displays that question without any UI changes.
 Greeting, carry, and receptionist definitions are in `apps/pwa/src/service/examples/`.

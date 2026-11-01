@@ -7,7 +7,7 @@ and WSS at Vite while proxying `/api` and `/ws` to local FastAPI.
 
 ```text
 Phone browser
-  https://PC-LAN-IP:5173/app
+  https://PC-LAN-IP:5173/service
   wss://PC-LAN-IP:5173/ws
             |
             v
@@ -67,7 +67,7 @@ npm run dev
 ```
 
 When both certificate files exist, Vite starts in HTTPS mode. Connect the PC and phone to the
-same LAN, then open `https://<PC-LAN-IP>:<HTTPS-port>/app` on the phone. The usual
+same LAN, then open `https://<PC-LAN-IP>:<HTTPS-port>/service` on the phone. The usual
 port is 5173; a separate HTTPS instance may use 5174. Use the actual startup URL,
 not an HTTP instance's port, and the exact IP included in
 the generated certificate.

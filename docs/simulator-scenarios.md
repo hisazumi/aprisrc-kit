@@ -3,8 +3,8 @@
 [日本語](simulator-scenarios.ja.md)
 
 The Simulator is the standard repeatable test component, not only a visual substitute for
-hardware. Development controls live under `/lab` **Simulator Tools** and are intentionally
-absent from `/app` and `/console`.
+hardware. Development controls live under `/playground` **Simulator Tools** and are intentionally
+absent from `/service` and `/console`.
 
 ## Scenario files
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { serviceConfig } from "../config";
 import type { MissionContext, ServiceRover } from "../missions/api";
-import { studentCarry } from "../missions/studentCarry";
+import { myService } from "../missions/myService";
 import { runStudentService, type ServicePrompt } from "./studentService";
 
 // Use actual approach/follow helpers: observations arrive at a safe holding distance.
@@ -113,7 +113,7 @@ describe("student service with existing motion helpers", () => {
         signal.addEventListener("abort", () => reject(signal.reason), { once: true });
       });
     };
-    const run = runStudentService(studentCarry, s.context, prompt);
+    const run = runStudentService(myService, s.context, prompt);
     await reachOffer(s);
     expect(kinds).toEqual(["Yes", "Items are loaded", "We have arrived"]);
     s.emit(); await flush();
@@ -123,14 +123,14 @@ describe("student service with existing motion helpers", () => {
   });
   it("declines without loading or following", async () => {
     const s = setup(); const prompt = vi.fn(async () => "No");
-    const run = runStudentService(studentCarry, s.context, prompt);
+    const run = runStudentService(myService, s.context, prompt);
     await reachOffer(s); await run;
     expect(prompt).toHaveBeenCalledTimes(1);
     expect(s.listeners.size).toBe(0);
   });
   it("cancels a pending input and stops before returning", async () => {
     const s = setup();
-    const run = runStudentService(studentCarry, s.context, (_question, signal) => new Promise((_resolve, reject) => {
+    const run = runStudentService(myService, s.context, (_question, signal) => new Promise((_resolve, reject) => {
       signal.addEventListener("abort", () => reject(signal.reason), { once: true });
     }));
     const rejected = expect(run).rejects.toThrow();
@@ -140,7 +140,7 @@ describe("student service with existing motion helpers", () => {
   });
   it("fails on target loss during follow and cancels the arrival input", async () => {
     const s = setup(); let inputCancelled = false;
-    const run = runStudentService(studentCarry, s.context, async (question, signal) => {
+    const run = runStudentService(myService, s.context, async (question, signal) => {
       if (question.choices[0] !== "We have arrived") return question.choices[0];
       return new Promise((_resolve, reject) => signal.addEventListener("abort", () => {
         inputCancelled = true; reject(signal.reason);

@@ -2,8 +2,19 @@
 
 [English](adding-actions.md)
 
+## 共通サービスと汎用missionの区別
+
+通常のサービス変更は`apps/pwa/src/missions/myService.ts`から始めます。
+AIにはこのファイル、`service/studentService.ts`、`service/catalog.ts`と関連テストを渡してください。
+以下は低水準mission・triggerの追加手順です。汎用missionはPlaygroundの
+**Advanced controls**内で使い、共通サービスを止めてから実行します。
+共通のサービス選択欄は`service/catalog.ts`で管理し、mission登録だけでは増えません。
+共通パネルの質問回答と汎用の音声・LLM intent実行は別の経路です。
+現行操作は[quickstart](challenger-quickstart.ja.md)を参照してください。
+
+
 [参加者向けquickstart](challenger-quickstart.ja.md)の次に行う実習です。
-サーバー・ファームウェア・LLMのプロンプトを変更せず、`/lab`へ行動を追加します。
+サーバー・ファームウェア・LLMのプロンプトを変更せず、`/playground`へ行動を追加します。
 まずSimulatorを使います。この例は移動せず自己紹介するので、行動の選択と走行を
 分けて確認できます。
 
@@ -52,12 +63,12 @@ import { introduceRobotMission } from "./introduceRobot";
 intent名は小文字の英字で始め、英小文字・数字・アンダースコアを使います。
 予約名`stop`、`wait_here`、`report_status`、`clarify`は使えません。
 
-登録すると、`/lab`の**Service missions**と**Human interaction**の行動一覧に入ります。
-専用の`/app`サービス画面やPlaygroundのサンプルが自動的に増えるわけではありません。
+登録すると、`/playground`の**Service missions**と**Human interaction**の行動一覧に入ります。
+専用の`/service`サービス画面やPlaygroundのサンプルが自動的に増えるわけではありません。
 
 ## 3. 試して変更する
 
-1. quickstartの手順でSimulatorを起動し、`/lab`を開きます。
+1. quickstartの手順でSimulatorを起動し、`/playground`を開きます。
 2. 操作権を取得し、**Introduce the robot**を選んで手動実行します。
 3. **Human interaction**に`Introduce yourself`を入力します。`rules`では登録した
    キーワードに一致します。マイクもAPIキーも不要です。

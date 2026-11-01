@@ -2,8 +2,19 @@
 
 [日本語](adding-actions.ja.md)
 
+## Shared services versus generic missions
+
+Start ordinary service edits in `apps/pwa/src/missions/myService.ts`.
+Give the AI that file, `service/studentService.ts`, `service/catalog.ts`, and relevant tests.
+The instructions below concern lower-level missions and triggers, available under Playground
+**Advanced controls**. Stop the shared service before running a generic mission.
+The shared selector is managed by `service/catalog.ts`; mission registration alone does not
+add an entry. Shared-panel answers and generic voice/LLM intent execution are separate paths.
+See the [quickstart](challenger-quickstart.md) for current operation.
+
+
 Start with the [participant quickstart](challenger-quickstart.md). This exercise adds
-an action in `/lab` without changing the server, firmware, or LLM prompt.
+an action in `/playground` without changing the server, firmware, or LLM prompt.
 Use the Simulator first. The example introduces the robot without moving it, so
 you can check intent selection separately from motion.
 
@@ -53,13 +64,13 @@ Both `id` and `trigger.intent` must be unique. Intent names use lowercase letter
 digits and underscores and start with a letter. Do not use reserved intents
 `stop`, `wait_here`, `report_status`, or `clarify`.
 
-Registration adds the mission to `/lab` **Service missions** and the **Human
+Registration adds the mission to `/playground` **Service missions** and the **Human
 interaction** intent catalog. It does not automatically add it to a dedicated
-`/app` service flow or create a Playground sample.
+`/service` service flow or create a Playground sample.
 
 ## 3. Try and change it
 
-1. Start the Simulator as described in the quickstart and open `/lab`.
+1. Start the Simulator as described in the quickstart and open `/playground`.
 2. Acquire control, select **Introduce the robot**, and run it manually.
 3. In **Human interaction**, enter `Introduce yourself`. With `rules`, this
    matches the registered keyword; no microphone or API key is required.

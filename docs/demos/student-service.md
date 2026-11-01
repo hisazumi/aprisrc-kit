@@ -1,11 +1,11 @@
-# Student carry service
+# My service
 
 [日本語](student-service.ja.md)
 
-Edit **one file: `apps/pwa/src/missions/studentCarry.ts`**.
-Change the order, conditions, and messages inside `studentCarry.run(service)`; no React changes are needed.
+Edit **one file: `apps/pwa/src/missions/myService.ts`**.
+Change the order, conditions, and messages inside `myService.run(service)`; no React changes are needed.
 The template is already registered through `App.tsx` → `StudentServicePanel`. The panel receives a `service` prop; it does not import the carry template itself.
-It is not added to the general missionRegistry because this service requires a dedicated screen for user input.
+It uses the shared question panel and `service/catalog.ts`, not the generic missionRegistry.
 The existing Carry helper remains available for comparison.
 
 ## Quick start (Windows PowerShell)
@@ -43,13 +43,13 @@ Manual controls move one virtual person in the environment; the existing geometr
 
 Stop the current service before switching to **Scenario runner**. The versioned scene editor, presets, import/export, and running-trial controls remain available there. Choose a preset and press **Start selected scenario**; after answering the service's questions, use **Next step** to advance the environment. Switching presets during a scenario trial still edits only the selected definition.
 
-Simulator movement permission renews only while the service is running. Cancellation, control loss, or hiding the page revokes it. This shortcut is available only in the simulator lab; physical-robot startup is unchanged. It does not clear E-stop or an obstacle latch automatically. Use **Advanced controls** for explicit recovery, manual driving, or fault injection. Another controlling tab must release control first.
+Simulator movement permission renews only while the service is running. Cancellation, control loss, or hiding the page revokes it. This shortcut is available only in the simulator lab; physical startup uses separate manual clearance; see [Live Playground](hardware-playground.md). It does not clear E-stop or an obstacle latch automatically. Use **Advanced controls** for explicit recovery, manual driving, or fault injection. Another controlling tab must release control first.
 
 Also try **No**, **Cancel and stop**, and the **Lose the person** preset (target loss). After editing the template, stop the active run, reload, and press **Start selected scenario** again.
 
 ## Define a test scene
 
-The scene describes the environment; `studentCarry.ts` describes the robot service. No service code changes are needed to try a different scene.
+The scene describes the environment; `myService.ts` describes the robot service. No service code changes are needed to try a different scene.
 
 - **Wait in front**: a stationary person, useful for Yes/No and loading confirmation.
 - **Enter from outside view**: the person starts outside the camera field, begins walking after 2 seconds, and enters view. The second walk waits for Next step.
@@ -73,7 +73,7 @@ Simulator person and obstacle controls stay in `/playground`. Do not acquire con
 
 All four services now use this panel in both Service and Playground. Choose the service
 in the shared header. Playground also shows **Implementation**, loading the actual source
-file listed above the code; My service shows `missions/studentCarry.ts`.
+file listed above the code; My service shows `missions/myService.ts`.
 The examples live in `service/examples/` and are registered with their sources in
 `service/catalog.ts`. The common runner owns questions, cancellation and final stopping.
 `greetPerson()` reuses the existing greeting mission; `guideTo("desk" | "entrance")`
@@ -112,7 +112,7 @@ service.say(`You selected ${destination}.`);
 
 This example selects and displays a destination; it does not navigate there. Connect a supported movement behavior explicitly. Call these operations sequentially with `await`; the panel shows one question at a time. Cancellation rejects the pending question rather than choosing an answer.
 
-To use a different service definition, pass it as `service={yourService}` to `StudentServicePanel` in `App.tsx`; use a different React `key` if switching definitions in the same panel position so the previous run is cancelled. Acquisition, clearance, cancellation, and emergency-stop controls remain shared. This is a small service runner, not a general UI builder.
+To change your own service, edit `myService.ts`; no panel changes are required. The existing selector resolves definitions and their raw source through `service/catalog.ts`. Adding a new selector entry also requires a stable identifier and URL handling in `navigation.ts`, plus tests. Do not replace the common panel just to change questions. Acquisition, clearance, cancellation, and emergency-stop controls remain shared.
 
 The runtime handles input buttons, cancellation on control loss, disconnect, emergency stop, page hiding or unmounting, target loss, and final stop confirmation. A new run cannot start until the previous run finishes. A failed stop confirmation is not reported as completion.
 

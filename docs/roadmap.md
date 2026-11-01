@@ -74,10 +74,12 @@ Deliverables:
 - tests for success, wrong marker, marker loss, cancellation, and blocked forward motion
 - a short runnable demo guide describing service code versus platform-owned safety
 
-Implemented now: the registered mission, three configured destinations, a deterministic
-person/intent/marker scenario, a shared `/app?service=receptionist` flow with automatic
-scenario launch or phone-camera handoff, supervised physical clearance, success and safety
-tests, and the bilingual demo guide.
+Implemented now: the registered mission and configured destinations, deterministic scenario
+support, success/safety tests, and bilingual guides. The shared Playground at
+`/playground?service=receptionist` uses manual person/marker inputs or the scenario runner;
+the UI offers Entrance and Desk. Markers visible defaults off. The old dedicated screen's
+automatic scenario launch and camera handoff are not the current workflow. Physical marker
+guidance is disabled in Service and Playground; the hardware exit criterion remains open.
 
 Exit criteria:
 

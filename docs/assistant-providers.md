@@ -2,6 +2,10 @@
 
 [日本語](assistant-providers.ja.md)
 
+Use **Human interaction** under Playground **Advanced controls**, with the shared service
+stopped. Shared service questions and **Person says** answers do not call this interpreter.
+Selecting a provider does not add voice/LLM controls to the shared Service panel.
+
 The browser transcribes speech; the server interprets the resulting text. Select
 the interpreter with `APRIS_ASSISTANT_PROVIDER=rules|openai|gemini` in the server
 environment, then restart the server while the rover is stopped.

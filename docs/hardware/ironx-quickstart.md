@@ -99,9 +99,9 @@ address at port 8000 to open `/console`. Do not share a fixed robot IP in source
 The console confirmation supplies a short-lived `manual` observation using the
 existing server API; no Adapter fabricates `CLEAR`. The current gate covers forward
 motion only. Rear/side collision avoidance is NOT implemented; manual supervision
-must cover every direction. Carry helper instead uses **Start service and allow movement**;
-see [service operation and E-stop recovery](ironx-follow.md). Other service/Playground
-flows retain their own permission controls.
+must cover every direction. Shared Carry helper also uses separate 30-second clearance;
+starting does not extend it. See [service operation and E-stop recovery](ironx-follow.md).
+The old dedicated Carry consent renewal is not present in the shared UI.
 
 ## Stop and recover
 

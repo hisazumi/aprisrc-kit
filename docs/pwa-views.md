@@ -11,7 +11,7 @@ or **Console**. Every URL includes `?service=my-service`, `carry`, `receptionist
 Reload, Back, and shared links restore both selections. Running services must be stopped
 before using either navigation control. Navigation never selects a different hardware adapter.
 
-**My service** is the editable template in `missions/studentCarry.ts`. Its initial flow is
+**My service** is the editable template in `missions/myService.ts`. Its initial flow is
 a carry-assistant example, not a restriction on what participants can build. Its `title`
 controls the displayed name; its stable URL identifier is `my-service`.
 
@@ -34,7 +34,7 @@ The installed PWA starts at `/service?service=my-service`; its existing app iden
 - Front-camera upper-body perception
 - Carry assistant start, consent, loading, following, and cancellation
 - Time-limited supervised movement permission
-- Service phase, person direction, battery, and connection state
+- Service progress, questions, camera input, and connection state
 - Normal stop and emergency stop
 
 It intentionally omits the generic Mission Panel, Simulator detail, event log, and manual
@@ -57,12 +57,12 @@ owner. It sends the existing time-limited manual clearance observation, not a
 motion command. Permission expires or is revoked on disconnect, ownership loss,
 E-stop, blocked state, tab hiding, window blur, explicit revoke or component exit.
 This is not sensor-derived clearance, and rear/side obstacle protection is not
-implemented. Check the whole swept area. Other views keep their existing controls.
+implemented. Check the whole swept area. The shared Service and physical Playground also use a separate 30-second confirmation.
 The iron-X console workflow is described in [iron-X operation](hardware/ironx-quickstart.md).
 
 ## `/playground`: Playground
 
-For first-time trials, use `/playground?service=greeting`, `follow`, or `receptionist` via the
+For first-time trials, use `/playground?service=greeting`, `carry`, or `receptionist` via the
 [Playground workshop](demos/playground-workshop.md). These show behavior beside real source.
 The Simulator provides virtual inputs and marker scene editing. With `websocket_rover`,
 [Live Playground](demos/hardware-playground.md) replaces them with camera observations and
@@ -85,3 +85,17 @@ control.
 Navigation uses the same tab. To observe a running service, open its Console URL in a
 separate tab without acquiring control. View separation never moves safety authority
 into the browser. Switching views does not preserve an active run or unsaved scene edits.
+
+## Current movement permission
+
+Shared Service and physical Playground use **Acquire control → Confirm clear path · 30 s → Start service**.
+The interval starts at clearance confirmation, including time spent answering questions.
+Starting does not extend it. Expiry removes clearance and gates forward motion; it does not
+guarantee an exact stop time in every direction. Cancel, confirm physical stopping and the
+area, then explicitly reauthorize and restart.
+Only Simulator Playground renews permission automatically; Service connected to a simulator
+also uses manual clearance. Losing the old Carry UI's automatic renewal is a known shared-UI
+limitation, not a resolved change. See [hardware operation](demos/hardware-playground.md).
+
+Marker controls are shared by all services; **Markers visible** defaults off.
+**Implementation** spans the width below the service/map row.

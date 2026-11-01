@@ -9,7 +9,7 @@ APRISRC Kitの資料を、読む人と目的で四層に分ける。初めて使
 
 ## Start here
 
-サービスの拡張は[音声・テキストで呼べる行動を追加する](adding-actions.ja.md)を参照。
+まず[参加者quickstart](challenger-quickstart.ja.md)でMy serviceを試し、`missions/myService.ts`を編集する。低水準行動の追加は[行動追加ガイド](adding-actions.ja.md)を参照。
 
 WebのチャットやAIを使う場合は[AIを使った開発手順](ai-assisted-development.ja.md)から。
 [AI向け技術メモ](ai-service-context.ja.md)を現在のソースファイルと一緒に渡す。
@@ -30,7 +30,7 @@ WebのチャットやAIを使う場合は[AIを使った開発手順](ai-assiste
 | 体験・開発・実機引き継ぎの入口を選ぶ | [試す・変更する・引き継ぐ](handoff.ja.md) |
 | MVPを動かし、小さな変更の効果を比較する | [Playground実習ガイド](demos/playground-workshop.ja.md) |
 | サービスの体験とコードの関係を試す | [Service playground](demos/service-playground.ja.md) |
-| 既存の人物追従・対話demoを動かす | [Human interaction demo](demos/human-interaction.ja.md) |
+
 | 独自の人物反応serviceを作る | [参加者向けquickstart](challenger-quickstart.ja.md) |
 | 利用できるmission APIと安全境界を知る | [Mission API and service templates](mission-api.ja.md) |
 | 対応UGV02で同じstarterを試す | [UGV02 self-test](hardware/ugv02-self-test.ja.md) |
@@ -47,14 +47,14 @@ WebのチャットやAIを使う場合は[AIを使った開発手順](ai-assiste
 
 | 目的 | ドキュメント |
 | --- | --- |
-| `/app`、`/console`、`/lab`の役割を知る | [PWA views](pwa-views.ja.md) |
+| `/service`、`/console`、`/playground`の役割を知る | [PWA views](pwa-views.ja.md) |
 | 共通の安全境界と責務を確認する | [アーキテクチャ](architecture.ja.md) |
 | 実験的な実機Playgroundの観測と安全条件を確認する | [Live rover playground](demos/hardware-playground.ja.md) |
 | smartphoneからHTTPSで接続する | [Local HTTPS and smartphone setup](local-https.ja.md) |
 | 再現可能な入力や故障を使って試験する | [Simulator scenarios, fault injection, and logs](simulator-scenarios.ja.md) |
 | 人物・marker認識、odometry、pose補正を理解する | [Perception and pose estimation](perception-and-pose.ja.md) |
-| markerを使う受付・案内serviceを動かす | [Mobile Receptionist demo](demos/mobile-receptionist.ja.md) |
-| Carry assistantの状態遷移を理解する | [Autonomous carry service](demos/autonomous-carry-service.ja.md) |
+| undefined | [Mobile Receptionist demo](demos/mobile-receptionist.ja.md) |
+| 旧Carry専用画面の状態遷移を読む | [Autonomous carry service](demos/autonomous-carry-service.ja.md) |
 | 想定機材と別機材へ交換する条件を知る | [Service hardware assumptions and porting](hardware/service-hardware-porting.ja.md) |
 
 ## Maintainer and operations

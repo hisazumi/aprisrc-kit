@@ -2,6 +2,15 @@
 
 [日本語](autonomous-carry-service.ja.md)
 
+For current shared-screen operation, use [Playground controls](service-playground.md)
+and [Live Playground](hardware-playground.md). Definitions are in `service/catalog.ts`
+and `service/examples/`. Old dedicated buttons, automatic consent renewal, and camera
+handoff below are not current UI instructions. Physical marker guidance is disabled in
+both Service and Playground.
+
+<details>
+<summary>Historical dedicated UI design and trial notes (not current operating instructions)</summary>
+
 Status: **Implemented reference service**, documentation reviewed 2026-10-31.
 For physical operation and evidence boundaries, see [iron-X person following](../hardware/ironx-follow.md).
 
@@ -83,3 +92,5 @@ Reducer, component, and reproducible Lab tests cover these transitions.
 - First use downloads a pinned pose model and WASM; offline events need self-hosting or a
   deliberate cache policy.
 - Physical use requires camera, observation, confidence, and stopping-distance calibration.
+
+</details>

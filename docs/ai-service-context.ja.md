@@ -2,6 +2,17 @@
 
 [English](ai-service-context.md)
 
+## 共通サービスと汎用missionの区別
+
+通常のサービス変更は`apps/pwa/src/missions/myService.ts`から始めます。
+AIにはこのファイル、`service/studentService.ts`、`service/catalog.ts`と関連テストを渡してください。
+以下は低水準mission・triggerの追加手順です。汎用missionはPlaygroundの
+**Advanced controls**内で使い、共通サービスを止めてから実行します。
+共通のサービス選択欄は`service/catalog.ts`で管理し、mission登録だけでは増えません。
+共通パネルの質問回答と汎用の音声・LLM intent実行は別の経路です。
+現行操作は[quickstart](challenger-quickstart.ja.md)を参照してください。
+
+
 このメモは**現在のソースファイルと一緒に**添付してください。
 完全なAPI仕様でも、AIがリポジトリを読んだ証拠でもありません。
 人向けの作業手順は[AIと一緒にサービスのコードを書く](ai-assisted-development.ja.md)にあります。
@@ -70,7 +81,7 @@ LLMは登録済みintentの選択を担当し、任意の実行コードを生�
 開発相談のチャットAIと、実行時にアプリが呼ぶLLMは別です。
 missionの編集だけなら実行時LLMのキーは不要です。キーを使う場合はサーバー側で管理します。
 
-登録は`/lab`のmissionとintent一覧に反映されます。専用の`/app`フローやPlaygroundの
+登録は`/playground`のmissionとintent一覧に反映されます。専用の`/service`フローやPlaygroundの
 サンプルは別途統合が必要で、自動追加されると説明してはいけません。
 変更範囲への明示的な合意なく、依存関係追加、公開仕様変更、安全条件の緩和を行いません。
 

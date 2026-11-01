@@ -2,6 +2,15 @@
 
 # Human interaction Simulator demo
 
+For current shared-screen operation, use [Playground controls](service-playground.md)
+and [Live Playground](hardware-playground.md). Definitions are in `service/catalog.ts`
+and `service/examples/`. Old dedicated buttons, automatic consent renewal, and camera
+handoff below are not current UI instructions. Physical marker guidance is disabled in
+both Service and Playground.
+
+<details>
+<summary>Historical dedicated UI design and trial notes (not current operating instructions)</summary>
+
 Status: **Implemented reference demo** (verified 2026-09-25)
 
 This is both the original plan and the current runnable guide. Use
@@ -127,3 +136,5 @@ time-limited **Allow movement** permission. After the indoor follow threshold wa
 UGV02 turned toward the person and followed them smoothly enough for the supervised demo.
 The user noted that response was still somewhat slow. This qualitative result does not
 replace measured obstacle-sensor or stopping-distance qualification.
+
+</details>

@@ -146,10 +146,10 @@ Local Server.
 
 ## Registering a mission
 
-Adding a definition to `missions/index.ts` exposes it in `/lab` **Service missions** and
-**Human interaction**. `/app` is the dedicated Carry assistant experience and does not gain a
-generic selector merely because a mission is registered. A service-specific `/app` flow must
-explicitly choose the missions it uses.
+Adding a definition to `missions/index.ts` exposes it under Playground **Advanced controls**,
+in **Service missions** and **Human interaction**. This does not add a shared service.
+Shared Service/Playground definitions and displayed sources are registered in
+`service/catalog.ts`; My service is `missions/myService.ts`.
 
 ```ts
 import { demoScenarioMission } from "./demoScenario"
@@ -173,9 +173,11 @@ values.
 
 ## Running and cancelling
 
-For a generic mission, acquire control in `/lab`, select it, and press
-**Run selected mission**. `/app` starts dedicated missions through the Carry assistant state
-machine. Open `/console` in another tab to monitor pose and trajectory.
+Stop any shared service first. In `/playground`, expand **Advanced controls**, acquire
+control, prepare appropriate observations/clearance, select a mission and press
+**Run selected mission**. Generic missions do not inherit the shared simulator start preparation.
+Shared services use **Start service** in Service or Playground. Open `/console`
+in another tab without acquiring control to monitor the trial.
 
 Only one high-level motion may run at a time. Cancel, normal stop, E-stop, control release,
 and WebSocket disconnect stop motion. Manual joystick input preempts a running mission.

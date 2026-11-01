@@ -1,94 +1,51 @@
-# サービスのPlayground
+# Service playground
 
 [English](service-playground.md)
 
-PlaygroundはAPRISRC Kitのサンプル開発画面です。挨拶・追従・マーカー案内は共通APIを示す例で、
-チャレンジで必須のサービスではありません。サービスの方針と利用体験は参加者が作ります。
-[目的と位置づけ](../positioning.ja.md)を参照してください。
+[実習ガイド](playground-workshop.ja.md)でSimulatorを起動し、
+`/playground?service=my-service`を開きます。共通ヘッダーでMy service、Carry helper、
+Person greeting、Mobile receptionistを選びます。画面を移動してもサービスの選択は維持します。
 
-Simulator MVPと、試作段階の[実機モード](hardware-playground.ja.md)があります。
-実機モードはソフトウェア試験済みですが、このUIでの実機走行は未検証です。
+## 手動で試す
 
-初めての場合は[20〜30分の実習ガイド](playground-workshop.ja.md)へ。
-起動、同じ試験条件の再実行、2つの改善課題をまとめています。このページは操作の参照用です。
+1. **Manual test**のまま**Start service**を押します。操作権とシミュレータの前方確認を自動で準備します。
+2. **Enter view**で人物を出し、**Move away**、**Come closer**、**Walk left**、
+   **Walk right**、**Stand still**で動かします。**Leave view**は対象喪失の試験です。
+3. 表示された質問に回答します。My serviceとCarry helperは**Yes**、
+   **Items are loaded**、**We have arrived**を使います。Person greetingは一度向きを合わせて挨拶します。
+4. **Person says** / **Say**は現在の質問への認識済み文章を模擬します。
+   マイク認識やLLMとの会話ではありません。
+5. **Cancel and stop**で終了します。サービスやテストモードを変える前に停止してください。
+   **Restart service**は前の試験を停止してから再開します。
 
-[Quickstart](../challenger-quickstart.ja.md)で開発環境を起動し、
-`/lab?sample=greeting` を開きます。カメラ・スマホ・実機・APIキーは不要です。
+## マーカーとシナリオ
 
-1. **Start greeting** を押します。制御権は自動取得します。
-2. **On the left** を選び、人の方向への旋回と挨拶を確認します。
-3. **Greeting** を変更して再実行すると、その言葉で挨拶します。
-4. **Maximum turn** を0にし、**On the right** を選んで再実行すると、旋回せず挨拶します。15に戻して比較します。
-5. **Outside view** で実行すると人を待ちます。**Stop** で中止でき、30秒検知しなければタイムアウトを表示します。
+**Test markers**は全サービスにあります。地図上に位置があっても検出済みとは限りません。
+**Markers visible**の既定は**オフ**です。オンにすると視野条件に応じて観測を生成します。
+実行中は座標を変更できません。
 
-利用者向け画面、仮想の人、実際のMissionコード、処理の記録を並べています。
-コードの強調はMissionの進捗報告に対応するもので、命令単位のデバッガではありません。
+Mobile receptionistは開始前にEntrance/Deskの座標を設定し、**Markers visible**をオンにして、
+**Start service**、**Enter view**、行き先、**Let's go**の順に操作します。
+マーカーが見えなければその場で旋回探索し、検出したら接近します。探索・接近には上限があり、
+走り回って探すことはありません。人物は開始のきっかけで、同行監視はしません。
+実機のマーカー案内はService・Playgroundとも無効です。
 
-画面の設定は次の実行だけに適用され、保存されません。設定を残すには
-`apps/pwa/src/config/greetingStarter.ts`、振る舞いを変えるには
-`apps/pwa/src/missions/challengerStarter.ts` を編集します。
-通常のPerson greeting starterと同じ設定・Missionを使います。
-再読み込みすると画面の一時設定を破棄し、ファイルの設定に戻ります。
-コードを編集する前に実行中の試験を停止してください。
+再現可能な環境は、停止後に**Scenario runner**へ切り替え、編集または読み込み、
+**Start selected scenario**で開始します。手動開始のステップは**Next step**で進めます。
+編集を残すには再読み込み前にJSONを保存してください。[シーン定義](student-service.ja.md)を参照。
+人物の手動操作とシナリオは全サービスで共通です。
 
-仮想の人は幾何計算による観測入力で、仮想カメラで画像認識しているわけではありません。
-挨拶サンプルは一度だけ旋回し、追従サービスのような継続追跡・対象喪失時の処理は行いません。
-Mission APIとサーバーの安全境界を利用しています。
-他のMission、非常停止の解除、詳しい診断には通常のLabを使います。
+## コードと診断
 
-このプロトは「サービスの体験と変更するコードの関係が分かるか」を試すものです。
-実機でのマーカー案内の検証は別途必要です。
+**Implementation**は実際のサービス定義を、サービス・地図の下に全幅で表示します。
+読み取り専用で、エディタや命令単位のデバッガではありません。
+My serviceは`apps/pwa/src/missions/myService.ts`、
+組み込み例は`apps/pwa/src/service/examples/`です。停止して編集し、再読み込みして同じ条件で試します。
 
-## 人追従を試す
+挨拶設定は`config/greetingStarter.ts`にあります。旧専用画面のプレビュースライダー、
+**Follow me** / **Guide me**ボタン、実行行の強調表示は共通画面にありません。
+汎用ミッション、対話、診断、障害注入は**Advanced controls**にあります。
+汎用ミッションと共通サービスは同時に動かさないでください。
 
-**Follow helper** に切り替えるか、`/lab?sample=follow` を開きます。
-
-1. **Follow me** を押します。人がいなければ仮想の人を正面に配置します。
-2. ローバーが近づき、距離を保つことを確認します。
-3. **Walk ahead** を押すと、人が12秒の緩やかなルートを歩き、ローバーが追従します。
-4. **Stand still** で人が止まり、ローバーが追いついて距離を保ちます。
-5. 移動中に **Outside view** を選ぶと、対象喪失を報告して停止します。
-6. 停止後に **Following distance** をNear / Farへ変えて比較します。
-
-追従には既存の `missions/comeHere.ts` の `carryHelperMission` / `runFollowMe` を使います。
-実際の追従ループを表示し、報告された判断の箇所へコード表示をスクロールします。
-距離の選択肢はカメラ内の人物幅に対する閾値で、物理的なメートル値の保証ではありません。
-永続的に変更する場合は表示された距離設定を同じファイルで編集します。
-
-Simulator内の空いた試験場面に限り、PlaygroundがCLEAR入力を開始時と実行中に供給します。
-これは障害物認識ではありません。仮想シーンの操作は実機用アダプターでは使いません。
-制御権喪失・非常停止・Stopで中止し、実行中のサンプル切り替えは無効にします。
-
-## マーカー案内を試す
-
-接近は最大32回に制限し、最後の移動後も到着を確認する。初期探索はその場で旋回し、
-実測で一周した時点、または最大36回の短い旋回で終了する。見つからなければ停止して移動を依頼し、
-見つからないまま前進して探すことはしない。
-
-**Test scene**で**In view / Behind rover / Not visible**を選ぶか、ローバーの開始x/y・向き、
-来訪者とEntrance・Deskのx/yを設定する。座標はm、向きは度。開始前のマップに配置が表示され、
-**Guide me**を押すたびにその開始条件へ戻る。来訪者が視野外ならサービスは検出を待つ。
-実行中は配置編集を禁止し、マップ横の表示・障害物操作は引き続き利用できる。
-**Save scene**はこのブラウザ内に1件保存し、**Load scene**で再読込後も復元できる。
-読込では走行しない。ソース変更・他者共有は行わない。MVPの配置編集はマーカー案内のみ。
-シーンのマーカー座標はSimulatorの位置補正にも反映され、実機用の既定配置は変更しない。
-
-**Marker guide** を選ぶか、`/lab?sample=receptionist` を開きます。
-行き先をEntrance / Deskから選び、**Guide me** を押します。来訪者は自動で入力され、
-既存の案内Missionが対象マーカーを探して接近し、到着を知らせます。Deskは遠いため時間がかかります。
-
-- **Other marker**：別のマーカーだけを見せます。IDが違うため案内先としては使いません。
-  **Correct marker** に戻すと、視野内に入った対象マーカーを検知します。
-- **Hide marker**：接近中に隠すと、対象喪失で停止します。戻して再実行できます。
-- **Path blocked**：進路が塞がれた状態を入力して前進を止めます。
-  チェックを外し、仮想の進路を確認して再実行すると再開できます。
-
-毎回、古い動作とシナリオを停止し、Simulatorの故障設定を解除して、
-Test sceneで指定したコース座標上の開始位置へ戻します。制御権と非常停止は維持します。
-マーカーは設定済み座標に置かれ、70度の視野と実際のSimulator位置から相対距離を計算します。
-到着はMissionの0.45m目標と2cmの許容幅で判断し、時刻による到着の演出は行いません。
-画像からのQR認識や経路探索ではありません。隠したマーカーは地図で薄く表示します。
-
-コード表示には実際の `runMobileReceptionist` と設定の参照先を出しています。
-マーカーのIDや座標を変える場合は、`config/courseMarkers.ts`とサーバーのコース設定を揃えます。
-実機案内は未検証ですが、このPlaygroundには印刷物や実機は不要です。
+シミュレータの観測は幾何学的な入力で、描画画像を認識しているわけではありません。
+実カメラ・ロボットは[実機Playground](hardware-playground.ja.md)を参照してください。

@@ -2,6 +2,15 @@
 
 # Mobile Receptionist demo
 
+For current shared-screen operation, use [Playground controls](service-playground.md)
+and [Live Playground](hardware-playground.md). Definitions are in `service/catalog.ts`
+and `service/examples/`. Old dedicated buttons, automatic consent renewal, and camera
+handoff below are not current UI instructions. Physical marker guidance is disabled in
+both Service and Playground.
+
+<details>
+<summary>Historical dedicated UI design and trial notes (not current operating instructions)</summary>
+
 Status: **Implemented in the shared Service App; supervised UGV02 walkthrough pending**
 
 For first-time desktop trials use the [Playground workshop](playground-workshop.md).
@@ -88,3 +97,5 @@ The Simulator scenario is a deterministic input harness, not a physical navigati
 Before a floor trial, verify marker 1 with the wheels raised, then perform a short supervised
 approach. Printed marker size, camera range, stopping distance, and the course layout remain
 physical test variables.
+
+</details>

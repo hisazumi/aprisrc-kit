@@ -9,7 +9,7 @@ URLのサービス識別子は `?service=my-service`、`carry`、`receptionist`�
 画面移動ではサービスを、サービス変更では画面を維持する。再読み込み・戻る・リンク共有でも両方の選択を復元する。
 実行中は停止してから切り替える。画面移動でシミュレータ／実機の接続先が変更されることはない。
 
-**My service** は `missions/studentCarry.ts` の編集用ひな形。初期動作は荷物運びの例であり、用途を限定しない。
+**My service** は `missions/myService.ts` の編集用ひな形。初期動作は荷物運びの例であり、用途を限定しない。
 表示名はコードの `title` で変更でき、URLの識別子は `my-service` のまま使う。
 旧 `/app`、`/lab`、`?service=student`、`?sample=student|greeting|follow|receptionist` も受け付け、新URLに整理する。
 `follow` は `carry` に対応し、選択がない場合は My service が既定となる。
@@ -24,7 +24,7 @@ Serviceにはシミュレータ上の挨拶も含めてカメラ入力を用意�
 `/console`には **Confirm clear path · 30 s** を追加した。接続中の操作権保持者が、
 前方を目視確認して既存APIへ期限付きの手動確認を送る。押すだけでは走行しない。
 期限切れ・接続断・操作権喪失・E-stop・障害物検知・タブ非表示・フォーカス喪失・解除・離脱で無効になる。
-後方や側方の障害物保護を追加するものではなく、周囲全体の監視が必要。他画面の操作は変更しない。
+後方や側方の障害物保護を追加するものではなく、周囲全体の監視が必要。共通Service・実機Playgroundにも別の30秒確認がある。
 
 ## `/service` — Service App
 
@@ -34,7 +34,7 @@ Serviceにはシミュレータ上の挨拶も含めてカメラ入力を用意�
 - front cameraによる上半身認識
 - Carry assistantの開始、承諾、積載確認、追従、中断
 - 期限付きの監督走行許可
-- service状態、人物方向、battery、接続状態
+- service進行、質問、カメラ入力、接続状態
 - 通常停止と非常停止
 
 汎用Mission Panel、Simulator詳細、event log、手動joystickは表示しない。独自missionの
@@ -56,7 +56,7 @@ PCで運営・デバッグを行うための画面である。
 ## `/playground` — Playground
 
 最初の体験は[Playground実習](demos/playground-workshop.ja.md)の
-`/playground?service=greeting`、`follow`、`receptionist`を使う。挙動と実コードを並べて確認できる。
+`/playground?service=greeting`、`carry`、`receptionist`を使う。挙動と実コードを並べて確認できる。
 Simulatorでは仮想入力とmarkerシーン編集、`websocket_rover`では
 [実機Playground](demos/hardware-playground.ja.md)のcamera観測とtelemetryを表示する。
 実機では挨拶・追従だけを有効にしており、このUIの実機検証は未完了。
@@ -78,3 +78,16 @@ Simulatorでは仮想入力とmarkerシーン編集、`websocket_rover`では
 画面を移動しても、実行中の処理や未保存のシーン編集までは引き継がない。
 
 画面の分離は表示と編集範囲を整理するためのものであり、安全制御をブラウザ側へ移すものではない。
+
+## 現行の走行許可
+
+共通Service・実機Playgroundは **Acquire control → Confirm clear path · 30 s → Start service**。
+30秒は確認ボタンから数え、回答待ちも含む。開始しても延長しない。
+失効時は前方確認を取り消し、前進を制限する。全方向の正確な停止時刻を保証するものではない。
+再試験は中断・実停止・周囲確認後に再許可して開始する。
+自動許可更新はSimulatorのPlaygroundだけで、Simulator接続のServiceも手動確認を使う。
+旧Carry専用UIの自動更新は共通化時に失われた既知の制約で、復旧済みではない。
+[実機操作](demos/hardware-playground.ja.md)を参照。
+
+マーカー入力は全サービス共通で、**Markers visible**の既定はオフ。
+**Implementation**はサービス・地図の下に全幅で表示する。

@@ -55,7 +55,7 @@ or general obstacle avoidance.
 ## Read or change the Kit
 
 Start with [Try, change, and hand over APRISRC Kit](handoff.md), then the workshop or
-participant quickstart. `/app` is service-facing, `/lab` is for development and source/observation
+participant quickstart. `/service` is service-facing, `/playground` is for development and source/observation
 inspection, and `/console` is for operation. Each service may need its own user experience.
 The [roadmap](roadmap.md) tracks Kit development, not event deadlines or competition tasks.
 
