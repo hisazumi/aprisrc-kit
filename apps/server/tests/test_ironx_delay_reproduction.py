@@ -10,7 +10,12 @@ from test_ironx_network_adapter import FakeRobot
 from websockets.asyncio.server import serve
 
 from apris_server.ironx_gateway import IronXGateway
-from apris_server.ironx_network_adapter import IronXNetworkAdapter, OwnershipExpired
+from apris_server.ironx_network_adapter import (
+    DriveNotSent,
+    IronXNetworkAdapter,
+    NonceRejected,
+    OwnershipExpired,
+)
 
 
 class DelayedGateway(IronXGateway):
@@ -134,6 +139,79 @@ async def test_two_second_owner_survives_400ms_gap_with_fresh_command():
         assert not adapter.requires_rearm
         assert not adapter._failed
         await adapter.stop()
+
+
+@pytest.mark.parametrize("delay", [0.04, 0.24])
+async def test_rpc_queue_wait_consumes_ttl_before_sending(delay):
+    async with offline_link() as (adapter, gateway, robot):
+        await adapter.drive(0.10, 0, 0)
+        connection = adapter._socket
+        await adapter._rpc_lock.acquire()
+        driving = asyncio.create_task(adapter.drive(0.10, 0, 0))
+        try:
+            await asyncio.sleep(delay)
+        finally:
+            adapter._rpc_lock.release()
+        if delay < 0.2:
+            await driving
+            assert len(robot.drives) == 2
+            assert robot.drives[-1][3] < 170
+        else:
+            with pytest.raises(DriveNotSent):
+                await driving
+            assert len(robot.drives) == 1
+            assert gateway.owner is None
+            assert not any(method == "drive" and "error" in reply
+                           for method, reply in gateway.responses)
+        assert adapter._socket is connection
+        assert not adapter._failed
+        assert not adapter.requires_rearm
+        await adapter.stop()
+
+
+@pytest.mark.parametrize("code", ["invalid_nonce", "expired_nonce"])
+async def test_nonce_refusal_preserves_connection_and_requires_confirmed_stop(code):
+    async with offline_link() as (adapter, gateway, robot):
+        await adapter.drive(0.10, 0, 0)
+        connection = adapter._socket
+        if code == "invalid_nonce":
+            adapter._next_drive[0]["nonce"] = "unknown-test-nonce"
+        else:
+            gateway.request_delays["drive"] = 0.22
+        with pytest.raises(NonceRejected):
+            await adapter.drive(0.10, 0, 0)
+        assert adapter.last_drive_diagnostics["rpcs"][-1]["gateway_error"]["code"] == code
+        assert adapter._socket is connection
+        assert not adapter._failed
+        assert adapter._stop_unconfirmed
+        assert adapter.requires_rearm
+        assert len(robot.drives) == 1
+        await adapter.stop()
+        assert gateway.estopped
+        assert not adapter._stop_unconfirmed
+        assert adapter._socket is connection
+        with pytest.raises(RuntimeError, match="explicitly clear stop"):
+            await adapter.drive(0.10, 0, 0)
+        assert len(robot.drives) == 1
+
+
+async def test_stop_while_drive_waits_for_rpc_does_not_send_motion():
+    async with offline_link() as (adapter, gateway, robot):
+        await adapter.drive(0.10, 0, 0)
+        await adapter._rpc_lock.acquire()
+        driving = asyncio.create_task(adapter.drive(0.10, 0, 0))
+        await asyncio.sleep(0.01)
+        stopping = asyncio.create_task(adapter.stop())
+        try:
+            await asyncio.sleep(0.01)
+        finally:
+            adapter._rpc_lock.release()
+        with pytest.raises(DriveNotSent, match="superseded"):
+            await driving
+        await asyncio.wait_for(stopping, 1)
+        assert len(robot.drives) == 1
+        assert gateway.owner is None
+        assert not adapter._failed
 
 
 async def test_baseline_delayed_state_reply_reproduces_ownership_expiry(monkeypatch):

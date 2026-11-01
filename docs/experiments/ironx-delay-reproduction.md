@@ -136,16 +136,48 @@ Additional checks:
 - Existing expiry tests now wait for 2 s. Historical 300 ms reproductions explicitly
   override only the ownership constant within those tests.
 
-A remaining failure is exposed by a 320 ms background state RPC: the old nonce is
-pruned, a queued drive gets `invalid_nonce`, and the existing PC error path still
-classifies it as transport failure. The test characterizes this remaining defect;
-it is not fixed by lengthening ownership. No broader recovery change is included.
+At checkpoint `802b03e`, a remaining failure was exposed by a 320 ms background state RPC: the old nonce was
+pruned, a queued drive got `invalid_nonce`, and the PC error path
+classified it as transport failure. Lengthening ownership alone did not fix this.
+The next experiment below addresses this path without extending nonce lifetime.
 Likewise an expired drive can still revoke ownership through the unchanged error
 path. Two-second ownership does not promise uninterrupted following.
 
 Validation: all 293 server tests passed (38.53 s), including the temporary-mailbox
 watchdog test. Ruff passed for all six touched Python files. No live gateway/server
 restart, remote deployment, E-stop reset or movement was performed in this step.
+
+## Queued nonce and command expiry
+
+Checkpoint `802b03e` commits the ownership-only experiment. The next change is
+confined to the experimental PC adapter:
+
+- After acquiring the RPC lock, immediately before sending, recheck the command's
+  original 200 ms budget, conservative nonce age (300 ms), telemetry age, and stop
+  generation. Lock waiting consumes the budget; it never restarts a deadline.
+- If obsolete, do not send the drive. Release control and confirm stop using the
+  existing connection. Raise `DriveNotSent` rather than reporting successful motion
+  or transport loss. Successful local discard/stop does not itself require E-stop
+  rearm; runtime still reports the failed command and may end the service.
+- If time remains, send the reduced TTL. Never refresh/retry the old command with
+  a new nonce. New motion requires a new caller command.
+- Classify received `invalid_nonce` / `expired_nonce` refusals of owned drives as
+  `NonceRejected`, not connection loss. Discard cached challenges, retain the
+  connection, require explicit rearm, and confirm the gateway stop. Rejected
+  commands are not replayed. Genuine timeouts retain the transport-failure path.
+
+Tests cover a 40 ms lock wait (reduced TTL), 240 ms and 320 ms waits (no drive sent),
+stop while queued (no post-stop motion), unknown and in-transit-expired nonces
+(same-connection confirmation, rearm required). Diagnostics include lock waiting,
+`send_remaining_ttl_ms`, `send_challenge_age_ms`, and `not_sent` / `nonce_rejected`
+outcomes; no nonce values or tokens are logged.
+
+This reduces avoidable invalid submissions and misleading transport faults. It
+does not remove the need to stop when fresh commands cannot reach the robot, or
+guarantee continuity over jittery Wi-Fi. No live server or robot is updated.
+
+Validation: 298 server tests passed in 39.29 seconds, including command-bridge,
+gateway, runtime, and delay experiments. Ruff passed for the changed Python files.
 
 - These are fixed delay schedules using real wall-clock time, not a seeded
   packet-loss model or exact replay. A heavily loaded test host can affect timing.

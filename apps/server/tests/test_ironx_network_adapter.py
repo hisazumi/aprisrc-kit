@@ -375,7 +375,7 @@ async def test_diagnostics_separate_rpc_wait_and_round_trip():
         assert "nonce" not in json.dumps(trace)
 
 
-async def test_background_rpc_delay_exposes_pruned_nonce_in_diagnostics():
+async def test_background_rpc_delay_discards_drive_before_sending_pruned_nonce():
     robot = FakeRobot()
     gateway = IronXGateway(robot, "test-token")
     await gateway.initialize()
@@ -397,20 +397,22 @@ async def test_background_rpc_delay_exposes_pruned_nonce_in_diagnostics():
             robot.state = slow_state
             background = asyncio.create_task(adapter._rpc("state", deadline_s=1))
             await entered.wait()
-            with pytest.raises(RuntimeError, match="invalid_nonce"):
+            with pytest.raises(RuntimeError, match="expired before send"):
                 await adapter.drive(0.04, 0, 0)
             await background
             trace = adapter.last_drive_diagnostics
-            drive_rpc = trace["rpcs"][-1]
+            drive_rpc = next(r for r in trace["rpcs"] if r["method"] == "drive")
             assert drive_rpc["method"] == "drive"
             assert drive_rpc["rpc_wait_ms"] >= 250
-            # State prunes the expired cached nonce before drive arrives. Classification
-            # of this rejection remains a separate defect, outside the lease change.
-            assert drive_rpc["gateway_error"]["code"] == "invalid_nonce"
-            assert drive_rpc["outcome"] == "RuntimeError"
-            assert adapter._socket is None
-            assert adapter._failed
+            assert "gateway_error" not in drive_rpc
+            assert drive_rpc["request_id"] is None
+            assert drive_rpc["outcome"] == "not_sent"
+            assert adapter._socket is not None
+            assert not adapter._failed
+            assert not adapter.requires_rearm
+            assert trace["send_remaining_ttl_ms"] < 0
             assert len(robot.drives) == 1
+            assert gateway.owner is None
         finally:
             await adapter.close()
 

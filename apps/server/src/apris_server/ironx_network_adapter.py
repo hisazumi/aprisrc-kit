@@ -27,6 +27,14 @@ class GatewayStopping(RuntimeError):
     """An owned drive was rejected while the gateway was confirming a stop."""
 
 
+class NonceRejected(RuntimeError):
+    """A drive challenge was rejected; transport is intact but stop must be confirmed."""
+
+
+class DriveNotSent(RuntimeError):
+    """A queued drive became obsolete before any bytes were sent."""
+
+
 class IronXNetworkAdapter(IronXAdapter):
     """Only bounded-motion logic is inherited; no local file or ROS access is used."""
 
@@ -82,7 +90,7 @@ class IronXNetworkAdapter(IronXAdapter):
             except Exception as exc:
                 self.last_transport_error = f"connect:{type(exc).__name__}"
 
-    async def _rpc(self, method, params=None, *, deadline_s=0.25):
+    async def _rpc(self, method, params=None, *, deadline_s=0.25, prepare_params=None):
         # A caller cancelled while waiting for the lock must not close another RPC.
         queued_at = time.monotonic()
         async with self._rpc_lock:
@@ -94,6 +102,8 @@ class IronXNetworkAdapter(IronXAdapter):
                           "rpc_wait_ms": (started - queued_at) * 1000,
                           "deadline_ms": deadline_s * 1000, "outcome": "pending"}
             try:
+                if prepare_params is not None:
+                    params = prepare_params()
                 async with asyncio.timeout(deadline_s):
                     request_id = uuid.uuid4().hex
                     diagnostic["request_id"] = request_id
@@ -114,11 +124,14 @@ class IronXNetworkAdapter(IronXAdapter):
                             if isinstance(error, dict) else {"message": str(error)[:500]}
                         )
                         if self._owned and isinstance(error, dict) and error.get("code") in (
-                            "not_owner", "lease_expired", "expired_nonce"
+                            "not_owner", "lease_expired"
                         ):
                             raise OwnershipExpired(
                                 f"iron-X gateway rejected {method}: {error}"
                             )
+                        if (self._owned and method == "drive" and isinstance(error, dict)
+                                and error.get("code") in ("expired_nonce", "invalid_nonce")):
+                            raise NonceRejected(f"iron-X gateway rejected {method}: {error}")
                         if (self._owned and method == "drive" and isinstance(error, dict)
                                 and error.get("code") == "stopping"):
                             raise GatewayStopping(
@@ -127,10 +140,15 @@ class IronXNetworkAdapter(IronXAdapter):
                         raise RuntimeError(f"iron-X gateway rejected {method}: {reply['error']}")
                     diagnostic["outcome"] = "ok"
                     return reply["result"]
-            except (OwnershipExpired, GatewayStopping) as exc:
-                diagnostic["outcome"] = (
-                    "gateway_stopping" if isinstance(exc, GatewayStopping) else "ownership_expired"
-                )
+            except DriveNotSent:
+                diagnostic["outcome"] = "not_sent"
+                raise
+            except (OwnershipExpired, GatewayStopping, NonceRejected) as exc:
+                diagnostic["outcome"] = {
+                    OwnershipExpired: "ownership_expired",
+                    GatewayStopping: "gateway_stopping",
+                    NonceRejected: "nonce_rejected",
+                }[type(exc)]
                 self._next_drive = None
                 self._epoch += 1
                 self._owned = False
@@ -304,6 +322,7 @@ class IronXNetworkAdapter(IronXAdapter):
         state.connected = state.connected and state.pose_quality.age_ms < 300
         self._last_state = state.model_copy(deep=True)
         self._received_at = time.monotonic()
+        validated_at = self._received_at
         if not state.connected:
             await self._rpc("release", deadline_s=3)
             self._owned = False
@@ -317,19 +336,38 @@ class IronXNetworkAdapter(IronXAdapter):
             self._owned = False
             raise RuntimeError("iron-X command expired during network preparation")
         sent_at = time.monotonic()
-        reply = await self._rpc(
-            "drive",
-            {
+
+        def prepare_drive():
+            # Recheck after acquiring the RPC lock, not before a potentially long wait.
+            nonlocal sent_at
+            sent_at = time.monotonic()
+            remaining = min(ttl_ms, 200) - (sent_at - started) * 1000
+            nonce_age = (sent_at - observed_at) * 1000
+            if trace is not None:
+                trace["send_remaining_ttl_ms"] = remaining
+                trace["send_challenge_age_ms"] = nonce_age
+            if epoch != self._epoch or self._pending_stops or self._stop_lock.locked():
+                raise DriveNotSent("iron-X queued drive superseded by stop")
+            telemetry_age = state.pose_quality.age_ms + (sent_at - validated_at) * 1000
+            if remaining < 1 or nonce_age >= 300 or telemetry_age >= 300:
+                raise DriveNotSent("iron-X queued drive expired before send")
+            return {
                 "vx": vx,
                 "vy": vy,
                 "wz": wz,
-                "ttl_ms": remaining_ms,
+                "ttl_ms": remaining,
                 "nonce": result["nonce"],
-            },
-            # Reply latency is not permission to keep moving: the robot still
-            # expires this command within 200 ms, independently of ownership lifetime.
-            deadline_s=1,
-        )
+            }
+
+        try:
+            # Reply latency never extends command validity.
+            reply = await self._rpc("drive", deadline_s=1, prepare_params=prepare_drive)
+        except DriveNotSent:
+            # Confirm stopping on the existing connection; never replay an obsolete drive.
+            if self._owned:
+                await self._rpc("release", deadline_s=3)
+                self._owned = False
+            raise
         # A fresh single-use challenge replaces the next telemetry round trip.
         # Old gateways return null; keep their original state/drive sequence.
         if isinstance(reply, dict) and "state" in reply and "nonce" in reply:
