@@ -680,3 +680,62 @@ h2 { font-size: 1.25rem; letter-spacing: -.025em; }
 .manual-person label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .manual-person input { max-width: 100%; padding: 8px; font: inherit; }
 .manual-person button[aria-pressed="true"] { outline: 2px solid #316c55; }
+
+/* Playground prioritizes observation; other views keep their existing layout. */
+.service-stop-actions { display: contents; }
+main[data-view="lab"] { width: min(1800px, 100%); padding: 20px 24px 40px; }
+main[data-view="lab"] h1 { font-size: 1.75rem; line-height: 1.2; }
+main[data-view="lab"] :is(h1, h2, h3, .eyebrow, .section-label, .connection, .view-nav a) { letter-spacing: 0; }
+main[data-view="lab"] .topbar { align-items: center; flex-wrap: wrap; gap: 12px; }
+main[data-view="lab"] .eyebrow { margin-bottom: 4px; }
+main[data-view="lab"] .topbar__aside { flex-direction: row; align-items: center; flex-wrap: wrap; }
+main[data-view="lab"] .connection { padding: 8px 10px; }
+main[data-view="lab"] .dashboard { grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); align-items: start; gap: 20px; }
+main[data-view="lab"] .dashboard > .panel { padding: 16px 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; backdrop-filter: none; }
+main[data-view="lab"] .student-service { gap: 10px; }
+main[data-view="lab"] .service-stop-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+main[data-view="lab"] .dashboard .button { min-height: 40px; padding: 8px 10px; border-radius: 6px; font-size: .875rem; }
+main[data-view="lab"] .manual-person h3 { margin: 0 0 8px; font-size: 1rem; }
+main[data-view="lab"] .manual-person .scene-toolbar { gap: 8px; margin: 10px 0; }
+main[data-view="lab"] .manual-person form { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+main[data-view="lab"] .manual-person input { width: 100%; min-width: 0; }
+main[data-view="lab"] .student-service > :is(button, p, label) { max-width: 100%; overflow-wrap: anywhere; }
+main[data-view="lab"] .panel--map { position: sticky; top: 12px; }
+main[data-view="lab"] .panel--map .section-label { display: none; }
+main[data-view="lab"] .rover-map { margin-top: 12px; border-radius: 6px; aspect-ratio: 620 / 420; max-height: 65vh; }
+main[data-view="lab"] .telemetry { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+main[data-view="lab"] .telemetry div { padding: 8px 4px; border-radius: 0; background: transparent; border-top: 1px solid var(--line); }
+main[data-view="lab"] .telemetry strong { font-size: .75rem; overflow-wrap: anywhere; }
+main[data-view="lab"] .pose-quality { margin-top: 6px; }
+@media (max-width: 1000px) {
+  main[data-view="lab"] .dashboard { grid-template-columns: minmax(280px, 1fr) minmax(0, 1.5fr); }
+  main[data-view="lab"] .telemetry { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  main[data-view="lab"] { padding: 16px 12px 32px; }
+  main[data-view="lab"] .dashboard { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  main[data-view="lab"] .panel--map { grid-row: 1; position: static; }
+  main[data-view="lab"] .rover-map { max-height: 45vh; }
+  main[data-view="lab"] .topbar__aside { width: 100%; }
+  main[data-view="lab"] .service-navigation { width: 100%; }
+  main[data-view="lab"] .service-navigation select { flex: 1; }
+}
+@media (max-width: 760px), (max-height: 600px) {
+  main[data-view="lab"] { padding-bottom: 90px; }
+  main[data-view="lab"] .service-stop-actions[data-active="true"] {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+    justify-content: center; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line); background: #f6f8f7;
+  }
+}
+@media (max-height: 600px) and (min-width: 761px) {
+  main[data-view="lab"] { padding-top: 10px; }
+  main[data-view="lab"] h1 { font-size: 1.125rem; }
+  main[data-view="lab"] .eyebrow { display: none; }
+  main[data-view="lab"] .topbar { gap: 8px; }
+  main[data-view="lab"] .topbar__aside { display: contents; }
+  main[data-view="lab"] .service-navigation { gap: 6px; }
+  main[data-view="lab"] .connection { padding: 4px 8px; font-size: .625rem; }
+  main[data-view="lab"] .scene-toolbar { margin: 8px 0; }
+  main[data-view="lab"] .rover-map { max-height: calc(100dvh - 260px); }
+}
