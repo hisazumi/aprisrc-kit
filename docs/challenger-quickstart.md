@@ -2,6 +2,9 @@
 
 [日本語](challenger-quickstart.ja.md)
 
+Using an AI assistant to write code? See [AI-assisted development](ai-assisted-development.md)
+for the files to provide, change boundaries, and local verification workflow.
+
 This guide helps an APRISRC participant create their own service using APRISRC Kit.
 The starter demonstrates the API; it is not a prescribed challenge solution. Participants
 choose the service purpose and interaction. See [Purpose and scope](positioning.md).

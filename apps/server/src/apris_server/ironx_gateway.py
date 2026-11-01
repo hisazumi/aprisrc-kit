@@ -1,7 +1,7 @@
 """Authenticated local-mailbox gateway. No ROS or remote bounded-motion API.
 
 JSON RPC: {id, method, params} -> {id, result} or {id, error: {code, message}}.
-acquire returns {nonce}; state returns {state, nonce}; other results are null.
+acquire returns {nonce}; state and drive return {state, nonce}; other results are null.
 Nonces are opaque, connection/ownership scoped, single-use, and valid for 300 ms.
 Only successful drive renews ownership. Stop failure requires gateway restart.
 """
@@ -252,7 +252,7 @@ class IronXGateway:
                 raise GatewayError("superseded", "Command cancelled by stop") from None
             finally:
                 self._active = None
-        return None
+        return await self.dispatch(session, "state", {})
 
     async def respond(self, session, raw):
         request_id = None
@@ -307,6 +307,8 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument("--start-estopped", action="store_true",
+                        help="Require explicit stop reset after gateway startup")
     for flag, env in (
         ("state-file", "APRIS_ROS2_STATE_FILE"),
         ("command-file", "APRIS_IRONX_COMMAND_FILE"),
@@ -330,6 +332,8 @@ async def run(args):
     await adapter.start()
     try:
         await gateway.initialize()
+        if args.start_estopped:
+            await gateway._halt(revoke=True, emergency="Gateway maintenance startup")
         async with serve(
             gateway.handler,
             args.host,

@@ -2,6 +2,9 @@
 
 [日本語](ironx-follow.ja.md)
 
+For the opt-in P-controlled implementation, see [continuous following trial](continuous-follow-trial.md).
+It is software-prepared only; the default hardware flow below remains bounded motion.
+
 This is the operator entry point for supervised Carry helper trials. It is not
 an unattended navigation system or a fresh ROS installation guide.
 

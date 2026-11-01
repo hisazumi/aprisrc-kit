@@ -44,6 +44,10 @@ export interface MissionInput {
  * stay outside this interface.
  */
 export interface ServiceRover {
+  /** Optional continuous command; transport owns expiry and safety limits. */
+  setVelocity?(vx: number, wz: number): Promise<void>;
+  readonly continuousFollowMaxSpeed?: number;
+  readonly continuousFollowDistanceGain?: number;
   move(distanceM: number, speedMps?: number): Promise<void>;
   turn(angleDeg: number, speedRadS?: number): Promise<void>;
   stop(reason?: string): Promise<void>;
