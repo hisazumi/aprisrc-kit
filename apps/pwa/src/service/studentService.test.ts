@@ -27,6 +27,18 @@ async function reachOffer(s: ReturnType<typeof setup>) {
   s.emit(); await flush(); s.emit(); await flush();
 }
 describe("student service with existing motion helpers", () => {
+  it("preserves voice aliases and validates canonical answer values", async () => {
+    const s = setup();
+    const prompt = vi.fn<ServicePrompt>(async q => q.choices[0]);
+    await runStudentService({ title: "Aliases", run: async api => {
+      expect(await api.ask("Help?", { yes: ["sure"], no: ["no thanks"] })).toBe(true);
+      expect(await api.choose("Where?", [{ value: "desk", label: "Desk", phrases: ["my desk"] }])).toBe("desk");
+      await api.confirm("Loaded?", "Loaded", ["ready"]);
+    } }, s.context, prompt);
+    expect(prompt.mock.calls[0][0].options?.[0].phrases).toEqual(["sure"]);
+    expect(prompt.mock.calls[1][0].options?.[0]).toEqual({ value: "desk", label: "Desk", phrases: ["my desk"] });
+    expect(prompt.mock.calls[2][0].options?.[0].phrases).toEqual(["ready"]);
+  });
   it("supports custom choices and confirmation without carry-specific UI", async () => {
     const s = setup();
     const prompt = vi.fn<ServicePrompt>(async question => question.choices.at(-1)!);

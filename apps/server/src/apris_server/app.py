@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from .assistant import AssistantCommandRequest, AssistantIntentInterpreter
+from .assistant import AnswerRequest, AssistantCommandRequest, AssistantIntentInterpreter
 from .config import AppConfig
 from .factory_http_adapter import FactoryHttpRoverAdapter, UrllibFactoryHttpTransport
 from .front_obstacle import ClearFrontObstacleInput, FrontObstacleObservationInput
@@ -152,6 +152,12 @@ async def interpret_assistant_command(
 ) -> dict[str, object]:
     interpreter: AssistantIntentInterpreter = app.state.assistant_interpreter
     return (await interpreter.interpret(request.text, request.intents)).model_dump(mode="json")
+
+
+@app.post("/api/assistant/answer")
+async def interpret_service_answer(request: AnswerRequest) -> dict[str, object]:
+    interpreter: AssistantIntentInterpreter = app.state.assistant_interpreter
+    return (await interpreter.interpret_answer(request)).model_dump(mode="json")
 
 
 @app.get("/api/health", deprecated=True)
