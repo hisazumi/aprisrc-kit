@@ -3,8 +3,13 @@
 [日本語](assistant-providers.ja.md)
 
 Use **Human interaction** under Playground **Advanced controls**, with the shared service
-stopped. Shared service questions and **Person says** answers do not call this interpreter.
-Selecting a provider does not add voice/LLM controls to the shared Service panel.
+stopped for standalone commands. Service and Playground questions first match local
+labels/aliases, then send unmatched microphone or **Person says** replies to
+`POST /api/assistant/answer`. With Gemini or OpenAI configured, this classifies the
+reply using the current question and choices; it never executes a motor command.
+Rules mode, cloud failure, and ambiguous replies leave the question unanswered.
+Button answers remain available. Late results after answering or stopping are ignored.
+The question, choice labels/aliases, and reply text are sent to the selected provider.
 
 The browser transcribes speech; the server interprets the resulting text. Select
 the interpreter with `APRIS_ASSISTANT_PROVIDER=rules|openai|gemini` in the server

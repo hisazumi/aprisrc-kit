@@ -2,9 +2,12 @@
 
 [English (canonical)](assistant-providers.md)
 
-共通サービスを停止し、Playgroundの**Advanced controls**内の**Human interaction**を使います。
-共通サービスの質問と**Person says**の回答はこの解釈APIを呼びません。
-providerを設定しても、共通Serviceパネルに音声・LLM操作は追加されません。
+単独の命令は共通サービスを停止し、Playgroundの**Advanced controls**内の**Human interaction**で試します。
+Service・Playgroundの質問へのマイク入力と**Person says**は、まず表示名・別名で判定し、
+不一致なら`POST /api/assistant/answer`に送ります。GeminiまたはOpenAI設定時は、
+質問と選択肢に沿って回答を分類します。このAPI自体は移動指令を実行しません。
+rules・通信失敗・曖昧な回答では質問を進めず、ボタン回答も使えます。
+回答済み・停止後の古い結果は破棄します。質問・選択肢と別名・回答文が設定先へ送信されます。
 
 音声の文字起こしはブラウザが担当し、その後の文章をサーバーで解釈する。
 サーバー環境の`APRIS_ASSISTANT_PROVIDER`で`rules / openai / gemini`を選ぶ。

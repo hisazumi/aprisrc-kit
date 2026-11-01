@@ -4,6 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { serviceConfig } from "../config";
 import type { ServiceRover } from "../missions/api";
 import { StudentServicePanel } from "./StudentServicePanel";
+import { assistantApi } from "../assistantApi";
+vi.mock("../assistantApi", () => ({ assistantApi: { answer: vi.fn(async () => ({
+  value: null, source: "rules", response: "Please select an answer."
+})) } }));
 const service = {
   title: "test service", run: async (service: import("../service/studentService").StudentServiceApi) => {
     if (await service.ask("offer?")) {
@@ -31,6 +35,30 @@ it("shows labels and returns canonical values for simulated voice aliases", asyn
   } finally { await act(async () => root.unmount()); }
 });
 vi.mock("../speech", () => ({ speakEnglish: vi.fn() }));
+it("uses cloud answers but ignores late responses after a button answer", async () => {
+  const host = document.createElement("div"), root = createRoot(host);
+  const rover: ServiceRover = { move: vi.fn(), turn: vi.fn(), stop: vi.fn(async () => {}),
+    getPose: vi.fn(), onPose: vi.fn(), onMarker: vi.fn(), onPerson: vi.fn() };
+  const props = { service, rover, config: serviceConfig, eligible: true, acquire: vi.fn(), cancel: () => true,
+    emergencyStop: vi.fn(), clearance: () => true, simulator: { available: true, prepare: async () => {} } };
+  const click = async (label: string) => { await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === label)!.click()); };
+  try {
+    await act(async () => root.render(<StudentServicePanel {...props} />));
+    await click("Start simulation");
+    vi.mocked(assistantApi.answer).mockResolvedValueOnce({ value: "Yes", source: "gemini", response: "Accepted" });
+    await act(async () => root.render(<StudentServicePanel {...props} speech={{ id: 1, text: "That would be great" }} />));
+    expect(host.textContent).toContain("Where?");
+    let resolve!: (result: Awaited<ReturnType<typeof assistantApi.answer>>) => void;
+    vi.mocked(assistantApi.answer).mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    await act(async () => root.render(<StudentServicePanel {...props} speech={{ id: 2, text: "Somewhere to work" }} />));
+    const signal = vi.mocked(assistantApi.answer).mock.calls.at(-1)![3];
+    await click("Desk");
+    expect(signal.aborted).toBe(true);
+    await act(async () => resolve({ value: "Reception", source: "gemini", response: "Accepted" }));
+    expect(host.textContent).toContain("Ready for Desk?");
+    expect(host.textContent).not.toContain("Ready for Reception?");
+  } finally { await act(async () => root.unmount()); }
+});
 beforeEach(() => { (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; });
 afterEach(() => { (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = false; });
 it("explains unavailable starts and makes restart secondary while running", async () => {

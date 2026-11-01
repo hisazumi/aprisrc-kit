@@ -28,6 +28,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const assistantApi = {
+  answer: (question: string, text: string,
+    choices: readonly { value: string; label: string; phrases?: readonly string[] }[], signal: AbortSignal) => request<{
+      value: string | null; source: "rules" | "openai" | "gemini"; response: string;
+    }>("/api/assistant/answer", { method: "POST", signal, body: JSON.stringify({ question, text, choices }) }),
   interpret: (text: string, intents: readonly AssistantIntentDefinition[]) => request<AssistantDecision>(
     "/api/assistant/interpret",
     { method: "POST", body: JSON.stringify({ text, intents }) }
