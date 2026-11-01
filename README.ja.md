@@ -89,9 +89,9 @@ snapshotは`/api/status`で確認する。CLIでは次を実行する。
 uv run --directory apps/server apris-doctor --json
 ```
 
-- `https://localhost:5173/app`: スマートフォン用Service App
+- `https://localhost:5173/service`: スマートフォン用Service App
 - `https://localhost:5173/console`: PC用Operator Console
-- `https://localhost:5173/lab`: Simulator開発用の統合画面
+- `https://localhost:5173/playground`: Simulator開発用の統合画面
 
 `/`へアクセスした場合もService Appを表示する。各画面の役割は [PWA views](docs/pwa-views.ja.md) を参照する。
 
@@ -108,7 +108,7 @@ uv run --directory apps/server ruff check src tests
 uv run --directory apps/server pytest
 ```
 
-すべて成功してからコミットする。ブラウザに関係する変更では、必要に応じて`/app`、`/console`、`/lab`も実際に開いて確認する。
+すべて成功してからコミットする。ブラウザに関係する変更では、必要に応じて`/service`、`/console`、`/playground`も実際に開いて確認する。
 
 実機adapterの設定、factory firmware診断、実装詳細などの保守手順は
 [Documentation index](docs/README.ja.md)から辿る。
@@ -136,4 +136,4 @@ iPhoneによる人追従の成功報告があるが、最新の停止確認修�
 
 ### 受講生用サービステンプレート
 
-`apps/pwa/src/missions/studentCarry.ts` でサービスの流れを編集し、Simulatorでは `/lab?sample=student`、カメラを使う画面では `/app?service=student` を開きます。設定、入力ボタン、安全上の境界、確認範囲は[開始手順](docs/demos/student-service.ja.md)（[English](docs/demos/student-service.md)）を参照してください。
+`apps/pwa/src/missions/studentCarry.ts` でサービスの流れを編集し、Simulatorでは `/playground?service=my-service`、カメラを使う画面では `/service?service=my-service` を開きます。設定、入力ボタン、安全上の境界、確認範囲は[開始手順](docs/demos/student-service.ja.md)（[English](docs/demos/student-service.md)）を参照してください。

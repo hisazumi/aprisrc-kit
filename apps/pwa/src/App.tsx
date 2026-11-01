@@ -1,5 +1,4 @@
 import { StudentServicePanel } from "./components/StudentServicePanel";
-import { studentCarry } from "./missions/studentCarry";
 import { simulatorApi } from "./simulatorApi";
 import { StudentScenePanel, StudentSceneExecution } from "./components/StudentScenePanel";
 import { parseStudentScene, studentScenes } from "./simulation/studentScene";
@@ -11,43 +10,24 @@ import { selectFollowProfile } from "./missions/followProfile";
 import { ManualPathClearance } from "./components/ManualPathClearance";
 
 import { CameraPreview } from "./components/CameraPreview";
-import { AutonomousCarryService } from "./components/AutonomousCarryService";
 import { HumanInteractionPanel } from "./components/HumanInteractionPanel";
-import { MobileReceptionistService } from "./components/MobileReceptionistService";
 import { Joystick } from "./components/Joystick";
 import { MissionPanel } from "./components/MissionPanel";
 import { MotionTrace, type CommandedVelocity } from "./components/MotionTrace";
 import { RoverMap } from "./components/RoverMap";
 import { SimulatorScenarioPanel } from "./components/SimulatorScenarioPanel";
-import { VirtualPersonPanel } from "./components/VirtualPersonPanel";
-import { ServicePlayground } from "./components/ServicePlayground";
 import { serviceConfig } from "./config";
 import { missionRegistry } from "./missions";
 import type { Pose } from "./protocol";
 import { runtimeApi, type RoverAdapterType } from "./runtimeApi";
-import {
-  VIRTUAL_PERSON_WALK_DURATION_S,
-  projectVirtualPerson,
-  walkVirtualPerson,
-  type VirtualPersonTarget
-} from "./simulation/virtualPerson";
+import { projectVirtualPerson } from "./simulation/virtualPerson";
 import { useVirtualPersonSimulation } from "./simulation/useVirtualPersonSimulation";
 import { useRoverSocket } from "./useRoverSocket";
+import { serviceCatalog } from "./service/catalog";
+import { useVirtualMarkerSimulation } from "./simulation/useVirtualMarkerSimulation";
 
-export type PwaView = "app" | "console" | "lab";
-
-export function viewForPathname(pathname: string): PwaView {
-  if (pathname === "/console" || pathname.startsWith("/console/")) return "console";
-  if (pathname === "/lab" || pathname.startsWith("/lab/")) return "lab";
-  return "app";
-}
-
-export function serviceModeForSearch(search: string): "carry" | "receptionist" | "student" {
-  if (new URLSearchParams(search).get("service") === "student") return "student";
-  return new URLSearchParams(search).get("service") === "receptionist"
-    ? "receptionist"
-    : "carry";
-}
+import { viewForPathname, serviceModeForSearch, viewUrl, type PwaView } from "./navigation";
+export { viewForPathname, serviceModeForSearch } from "./navigation";
 
 const viewContent: Record<PwaView, { eyebrow: string; title: string; description: string }> = {
   app: {
@@ -61,8 +41,8 @@ const viewContent: Record<PwaView, { eyebrow: string; title: string; description
     description: "Observe the rover, take manual control, and inspect safety state without editing service UI."
   },
   lab: {
-    eyebrow: "APRIS 2026 · DEVELOPMENT LAB",
-    title: "Rover Lab",
+    eyebrow: "APRIS 2026 · PLAYGROUND",
+    title: "Rover Playground",
     description: "Use the service UI and Simulator tools together while developing without hardware."
   }
 };
@@ -78,29 +58,23 @@ function number(value: number | undefined): string {
 
 export function App() {
   const view = viewForPathname(window.location.pathname);
-  const playground = view === "lab" && ["greeting", "follow", "receptionist"].includes(new URLSearchParams(window.location.search).get("sample") ?? "");
-  const studentLab = view === "lab" && new URLSearchParams(window.location.search).get("sample") === "student";
+  const serviceMode = serviceModeForSearch(window.location.search);
+  const studentLab = view === "lab";
+  const selectedService = serviceCatalog[serviceMode];
   const content = viewContent[view];
   const [adapterType, setAdapterType] = useState<RoverAdapterType | null>(null);
   const rover = useRoverSocket(selectFollowProfile(adapterType, import.meta.env.VITE_IRONX_CONTINUOUS_FOLLOW));
-  const [serviceMode, setServiceMode] = useState<"carry" | "receptionist" | "student">(
-    () => serviceModeForSearch(window.location.search)
-  );
-  const [receptionistCameraFacing, setReceptionistCameraFacing] = useState<
-    "user" | "environment"
-  >("user");
-  const [receptionistVisionActive, setReceptionistVisionActive] = useState(false);
+  useEffect(() => {
+    const canonical = viewUrl(view, serviceMode, window.location.search);
+    if (window.location.pathname + window.location.search !== canonical) {
+      window.history.replaceState(null, "", canonical + window.location.hash);
+    }
+  }, [view, serviceMode]);
   const [path, setPath] = useState<Pose[]>([]);
   const [manualCommand, setManualCommand] = useState<CommandedVelocity>({
     sampleId: 0,
     vx: 0,
     wz: 0,
-  });
-  const [virtualPersonEnabled, setVirtualPersonEnabled] = useState(false);
-  const [virtualPersonWalking, setVirtualPersonWalking] = useState(false);
-  const [virtualPersonTarget, setVirtualPersonTarget] = useState<VirtualPersonTarget>({
-    x: 1.35,
-    y: 0.3
   });
   const [studentScene, setStudentScene] = useState(() => structuredClone(studentScenes[0]));
   const sceneRun = useStudentScene();
@@ -109,17 +83,24 @@ export function App() {
   const [testSpeech, setTestSpeech] = useState<{ id: number; text: string }>();
   const studentSimulator = studentLab && adapterType === "simulator";
   const pose = rover.state?.pose ?? null;
+  const [markersVisible, setMarkersVisible] = useState(false);
+  const [markerReady, setMarkerReady] = useState(false);
+  const [markers, setMarkers] = useState(() => serviceConfig.courseMarkers.filter(m => m.destination !== "kitchen")
+    .map((m, i) => ({ ...m, xM: 1.8 + i * .7, yM: i ? -.6 : .6 })));
+  const markerEnabled = studentSimulator && markerReady && rover.control.isOwner;
+  const entranceInput = useVirtualMarkerSimulation(pose, markersVisible ? markers[0] : null, markerEnabled);
+  const deskInput = useVirtualMarkerSimulation(pose, markersVisible ? markers[1] : null, markerEnabled);
   const manualPerson = useManualPerson(pose, studentSimulator && testMode === "manual" && rover.status === "connected");
-  const observedPerson = studentSimulator ? testMode === "manual" ? manualPerson.person : sceneRun.frame?.person ?? studentScene.person : virtualPersonTarget;
-  const personEnabled = studentSimulator ? testMode === "manual" ? rover.control.isOwner : sceneRun.active && sceneRun.frame?.visible === true : virtualPersonEnabled;
+  const observedPerson = testMode === "manual" ? manualPerson.person : sceneRun.frame?.person ?? studentScene.person;
+  const personEnabled = studentSimulator && rover.control.isOwner && (testMode === "manual" || sceneRun.active && sceneRun.frame?.visible === true);
   const studentRunningChanged = useCallback((running: boolean) => {
     setStudentRunning(running);
-    if (!running) { sceneRun.stop(); manualPerson.stop(); }
+    if (!running) { sceneRun.stop(); manualPerson.stop(); setMarkerReady(false); }
   }, [sceneRun.stop, manualPerson.stop]);
   const virtualPerson = useVirtualPersonSimulation(
     pose,
     observedPerson,
-    view === "lab" && !playground && personEnabled
+    view === "lab" && personEnabled
   );
 
   useEffect(() => {
@@ -153,26 +134,8 @@ export function App() {
     });
   }, [pose?.x, pose?.y, pose?.yaw]);
 
-  useEffect(() => {
-    if (!virtualPersonEnabled || !virtualPersonWalking || !pose) return;
-    const origin = virtualPersonTarget;
-    const headingRad = Math.atan2(origin.y - pose.y, origin.x - pose.x);
-    const startedAt = performance.now();
-    const timer = window.setInterval(() => {
-      const elapsedS = (performance.now() - startedAt) / 1000;
-      setVirtualPersonTarget(walkVirtualPerson(origin, headingRad, elapsedS));
-      if (elapsedS >= VIRTUAL_PERSON_WALK_DURATION_S) setVirtualPersonWalking(false);
-    }, 50);
-    return () => window.clearInterval(timer);
-  }, [virtualPersonEnabled, virtualPersonWalking]);
-
   const driveDisabled =
     rover.status !== "connected" || !rover.control.isOwner || rover.control.estopLatched;
-  const carryMission = missionRegistry.find((mission) => mission.id === "carry-helper");
-  const approachMission = missionRegistry.find((mission) => mission.id === "come-here");
-  const receptionistMission = missionRegistry.find(
-    (mission) => mission.id === "mobile-receptionist"
-  );
 
   const driveManually = useCallback((vx: number, wz: number) => {
     setManualCommand((current) => ({ sampleId: current.sampleId + 1, vx, wz }));
@@ -183,14 +146,6 @@ export function App() {
     setManualCommand((current) => ({ sampleId: current.sampleId + 1, vx: 0, wz: 0 }));
     rover.actions.stop("joystick released");
   }, [rover.actions.stop]);
-
-  const selectServiceMode = useCallback((mode: "carry" | "receptionist" | "student") => {
-    setServiceMode(mode);
-    const url = new URL(window.location.href);
-    if (mode !== "carry") url.searchParams.set("service", mode);
-    else url.searchParams.delete("service");
-    window.history.replaceState(null, "", url);
-  }, []);
 
   const connectionText = useMemo(() => {
     if (rover.status === "connecting") return "Connecting";
@@ -255,6 +210,9 @@ export function App() {
         pose={pose}
         path={path}
         person={view === "lab" && (personEnabled || (studentSimulator && !sceneRun.active)) ? observedPerson : null}
+        markers={studentSimulator ? markers.map(m => ({
+          id: m.id, label: m.label, x: m.xM, y: m.yM, selected: false, visible: markersVisible
+        })) : []}
       />
       <div className="telemetry">
         <div><span>x</span><strong>{number(pose?.x)} m</strong></div>
@@ -326,40 +284,11 @@ export function App() {
     />
   );
 
-  const receptionistVision = (
-    <CameraPreview
-      onObservation={rover.actions.observe}
-      variant="service"
-      initialFacing="user"
-      requestedFacing={receptionistCameraFacing}
-      requestedActive={receptionistVisionActive}
-      virtualPerson={adapterType === "simulator" ? null : undefined}
-    />
-  );
-
-  const mobileReceptionistService = (
-    <MobileReceptionistService
-      connected={rover.status === "connected"}
-      isOwner={rover.control.isOwner}
-      controlAvailable={rover.control.isOwner || rover.control.ownerClientId === null}
-      estopLatched={rover.control.estopLatched}
-      adapterType={adapterType}
-      rover={rover.serviceRover}
-      mission={receptionistMission}
-      config={serviceConfig}
-      onAcquireControl={rover.actions.acquire}
-      onReleaseControl={rover.actions.release}
-      onCancelMotion={rover.actions.cancelMotion}
-      onEmergencyStop={rover.actions.estop}
-      onPathClearanceChange={rover.actions.setPathClearance}
-      onCameraFacingChange={setReceptionistCameraFacing}
-      onVisionActiveChange={setReceptionistVisionActive}
-    />
-  );
-
   const studentServicePanel = (
     <StudentServicePanel
-      service={studentCarry}
+      service={selectedService.definition}
+      blockedReason={selectedService.simulatorOnly && adapterType !== null && adapterType !== "simulator"
+        ? "Live marker guidance is not enabled in this shared MVP. Use the simulator for this service." : undefined}
       rover={rover.serviceRover}
       config={serviceConfig}
       eligible={rover.status === "connected" && rover.control.isOwner && !rover.control.estopLatched}
@@ -393,6 +322,9 @@ export function App() {
           if (status.adapter.type !== "simulator" || !pose) throw new Error("Simulator is not available");
           if (testMode === "manual") {
             sceneRun.stop();
+            await simulatorApi.placePose({ ...pose, markers: markers.map(m => ({ id: m.id, x_m: m.xM, y_m: m.yM })) });
+            signal.throwIfAborted();
+            setMarkerReady(true);
             const response = await simulatorApi.setFrontObstacle("CLEAR", "healthy");
             signal.throwIfAborted();
             if (response.front_obstacle.latched) throw new Error("Clear the obstacle latch in Advanced controls before restarting.");
@@ -401,7 +333,10 @@ export function App() {
           }
           const definition = parseStudentScene(studentScene);
           sceneRun.stop();
-          await simulatorApi.placePose(definition.rover);
+          await simulatorApi.placePose({ ...definition.rover,
+            markers: markers.map(m => ({ id: m.id, x_m: m.xM, y_m: m.yM })) });
+          signal.throwIfAborted();
+          setMarkerReady(true);
           setPath([]);
           signal.throwIfAborted();
           const response = await simulatorApi.setFrontObstacle("CLEAR", "healthy");
@@ -411,26 +346,6 @@ export function App() {
           sceneRun.start(definition);
         }
       } : undefined}
-    />
-  );
-
-  const autonomousCarryService = (
-    <AutonomousCarryService
-      connected={rover.status === "connected"}
-      isOwner={rover.control.isOwner}
-      controlAvailable={rover.control.isOwner || rover.control.ownerClientId === null}
-      estopLatched={rover.control.estopLatched}
-      batteryPercent={rover.state?.battery_percent ?? null}
-      frontObstacle={rover.frontObstacle}
-      rover={rover.serviceRover}
-      approachMission={approachMission}
-      mission={carryMission}
-      config={serviceConfig}
-      onAcquireControl={rover.actions.acquire}
-      onReleaseControl={rover.actions.release}
-      onCancelMotion={rover.actions.cancelMotion}
-      onEmergencyStop={rover.actions.estop}
-      onPathClearanceChange={rover.actions.setPathClearance}
     />
   );
 
@@ -489,6 +404,11 @@ export function App() {
     </section>
   );
 
+  const implementationPanel = <section className="shared-source" aria-label="Service implementation">
+    <h2>Implementation</h2><p><code>apps/pwa/src/{selectedService.file}</code></p>
+    <pre><code>{selectedService.source}</code></pre>
+  </section>;
+
   return (
     <main data-view={view}>
       <header className="topbar">
@@ -497,20 +417,23 @@ export function App() {
           <h1>{content.title}</h1>
         </div>
         <div className="topbar__aside">
-          <nav className="view-nav" aria-label="PWA views">
-            <a href="/lab?sample=student">Student service</a>
-            <a href="/app" aria-current={view === "app" ? "page" : undefined}>App</a>
-            <a
-              href="/console"
-              aria-current={view === "console" ? "page" : undefined}
-              target={view === "app" ? "_blank" : undefined}
-              rel={view === "app" ? "noreferrer" : undefined}
-              title={view === "app" ? "Open the operator console in a new tab" : undefined}
-            >
-              Console{view === "app" ? " ↗" : ""}
-            </a>
-            <a href="/lab" aria-current={view === "lab" ? "page" : undefined}>Lab</a>
-          </nav>
+          <div className="service-navigation">
+            <select aria-label="Selected service" value={serviceMode}
+              disabled={studentRunning}
+              onChange={event => window.location.assign(viewUrl(view,
+                event.target.value as import("./navigation").ServiceMode, window.location.search))}>
+              {(Object.entries(serviceCatalog) as [import("./navigation").ServiceMode, typeof selectedService][])
+                .map(([id, entry]) => <option key={id} value={id}>{entry.definition.title}</option>)}
+            </select>
+            <nav className="view-nav" aria-label="PWA views">
+              {([["app", "Service"], ["lab", "Playground"], ["console", "Console"]] as const).map(([target, label]) =>
+                <a key={target} href={viewUrl(target, serviceMode, window.location.search)}
+                  aria-current={view === target ? "page" : undefined}
+                  aria-disabled={studentRunning || undefined}
+                  onClick={event => { if (studentRunning) event.preventDefault(); }}>{label}</a>)}
+            </nav>
+          </div>
+          {studentRunning && <span role="status">Stop the service to switch.</span>}
           <div className={`connection connection--${rover.status}`}>
             <span className="connection__dot" />
             {connectionText}
@@ -518,7 +441,7 @@ export function App() {
         </div>
       </header>
 
-      {view !== "app" && !playground && !studentLab && (
+      {view === "console" && (
         <section className="hero-note">
           <p>{content.description}</p>
           <span>Client {rover.clientId ?? "—"}</span>
@@ -527,30 +450,7 @@ export function App() {
 
       {view === "app" && (
         <section className="service-app">
-          <div className="service-selector" role="tablist" aria-label="Service prototype">
-            <button role="tab" aria-selected={serviceMode === "student"} onClick={() => selectServiceMode("student")}>Student service</button>
-            <button
-              role="tab"
-              aria-selected={serviceMode === "carry"}
-              onClick={() => selectServiceMode("carry")}
-            >
-              Carry helper
-            </button>
-            <button
-              role="tab"
-              aria-selected={serviceMode === "receptionist"}
-              onClick={() => selectServiceMode("receptionist")}
-            >
-              Mobile receptionist
-            </button>
-          </div>
-          {serviceMode === "student" ? (
-            <>{studentServicePanel}{serviceVision}</>
-          ) : serviceMode === "carry" ? (
-            <>{autonomousCarryService}{serviceVision}</>
-          ) : (
-            <>{mobileReceptionistService}{receptionistVision}</>
-          )}
+          {estopBanner}{studentServicePanel}{serviceVision}
         </section>
       )}
 
@@ -562,35 +462,30 @@ export function App() {
         </>
       )}
 
-      {playground && <ServicePlayground rover={rover} adapterType={adapterType} />}
-
-      {view === "lab" && !playground && (
+      {view === "lab" && (
         <>
-          {!studentLab && <a className="playground-link" href="/lab?sample=student">Try student service</a>}
-          {!studentLab && <a className="playground-link" href="/lab?sample=greeting">Open greeting playground</a>}
           {studentSimulator && <div className="scene-toolbar" role="tablist" aria-label="Test mode">
             <button role="tab" aria-selected={testMode === "manual"} disabled={studentRunning} onClick={() => setTestMode("manual")}>Manual test</button>
             <button role="tab" aria-selected={testMode === "scenario"} disabled={studentRunning} onClick={() => setTestMode("scenario")}>Scenario runner</button>
           </div>}
           {studentSimulator && testMode === "scenario" && <StudentScenePanel scene={studentScene} onChange={setStudentScene} />}
-          {studentLab && <>{estopBanner}<section className="dashboard">{studentServicePanel}{simulatorPanel}</section></>}
-          {!studentLab && <section className="dashboard">{simulatorPanel}{manualControlPanel}</section>}
-          {!studentSimulator && <section className="virtual-person-section">
-            <VirtualPersonPanel
-              pose={pose}
-              enabled={virtualPersonEnabled}
-              projection={virtualPerson.projection}
-              walking={virtualPersonWalking}
-              observationError={virtualPerson.error}
-              onTarget={setVirtualPersonTarget}
-              onEnabled={(enabled) => {
-                setVirtualPersonEnabled(enabled);
-                if (!enabled) setVirtualPersonWalking(false);
-              }}
-              onWalking={setVirtualPersonWalking}
-            />
-          </section>}
-          {!studentLab && <section className="autonomous-service-section">{autonomousCarryService}</section>}
+          {studentLab && <>{estopBanner}<section className="dashboard">{studentServicePanel}{simulatorPanel}</section>
+            {implementationPanel}
+            {studentSimulator && <section className="shared-environment" aria-label="Test markers">
+              <h2>Test markers</h2>
+              <label><input type="checkbox" checked={markersVisible} onChange={e => setMarkersVisible(e.target.checked)} />Markers visible</label>
+              {markers.map((marker, index) => <fieldset key={marker.id} disabled={studentRunning}>
+                <legend>{marker.label}</legend>
+                {(["xM", "yM"] as const).map(axis => <label key={axis}>{axis === "xM" ? "x (m)" : "y (m)"}
+                  <input type="number" aria-label={`${marker.label} ${axis}`} value={marker[axis]} min={-10} max={10} step={.1}
+                    onChange={e => { const value = e.target.valueAsNumber;
+                      if (Number.isFinite(value) && Math.abs(value) <= 10) setMarkers(current => current.map((m, i) => i === index ? { ...m, [axis]: value } : m));
+                    }} /></label>)}
+              </fieldset>)}
+              {(entranceInput.error || deskInput.error) && <p role="alert">{entranceInput.error || deskInput.error}</p>}
+            </section>}
+            {!studentSimulator && serviceVision}
+          </>}
           <details open={studentLab ? undefined : true}>
           <summary>Advanced controls</summary>
           {studentLab && manualControlPanel}

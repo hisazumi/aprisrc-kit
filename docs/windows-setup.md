@@ -24,7 +24,7 @@ local compilation; package mirrors or custom installation settings can affect th
 The package's minimum Python metadata is not a promise that every newer Python
 version has prebuilt dependencies on Windows. Use the pinned version.
 
-Open `http://localhost:5173/lab?sample=student` (use the port Vite prints if 5173 is busy).
+Open `http://localhost:5173/playground?service=my-service` (use the port Vite prints if 5173 is busy).
 Confirm both `[pwa]` and `[server]` startup messages. A page loading is not proof
 that the backend has started. `http://127.0.0.1:8000/api/status` should return JSON.
 Stop the development processes with Ctrl+C. These settings are for the desktop

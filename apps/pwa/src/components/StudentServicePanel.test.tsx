@@ -35,6 +35,23 @@ it("explains unavailable starts and makes restart secondary while running", asyn
     expect(host.textContent).not.toContain("Another client has control.");
   } finally { await act(async () => root.unmount()); }
 });
+it("blocks an unsupported physical service even when control is owned", async () => {
+  const host = document.createElement("div"), root = createRoot(host);
+  const run = vi.fn(async () => {});
+  const rover: ServiceRover = { move: vi.fn(), turn: vi.fn(), stop: vi.fn(async () => {}),
+    getPose: vi.fn(), onPose: vi.fn(), onMarker: vi.fn(), onPerson: vi.fn() };
+  try {
+    await act(async () => root.render(<StudentServicePanel
+      service={{ title: "Guide", run }} rover={rover} config={serviceConfig} eligible
+      blockedReason="Live marker guidance is not enabled" acquire={vi.fn()} cancel={() => true}
+      emergencyStop={vi.fn()} clearance={() => true} />));
+    const start = [...host.querySelectorAll("button")].find(b => b.textContent === "Start service")!;
+    expect(start.disabled).toBe(true);
+    expect(host.textContent).toContain("Live marker guidance is not enabled");
+    await act(async () => start.click());
+    expect(run).not.toHaveBeenCalled();
+  } finally { await act(async () => root.unmount()); }
+});
 it("routes simulated speech to the current question without replaying it on the next question", async () => {
   const host = document.createElement("div"), root = createRoot(host);
   const rover: ServiceRover = { move: vi.fn(), turn: vi.fn(), stop: vi.fn(async () => {}),

@@ -24,10 +24,54 @@ uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 
-ターミナルを起動したまま、[Person greeting](http://localhost:5173/lab?sample=greeting)を開きます。
+ターミナルを起動したまま、[Person greeting](http://localhost:5173/playground?service=greeting)を開きます。
 この設定はSimulatorとHTTPを明示し、証明書があってもPCだけで試せます。
 実機やスマホカメラの試験にはこの起動方法を使わないでください。
 ポートが使用中なら既存のAPRISサーバーを使うか、停止してから起動します。終了はCtrl-Cです。
+
+## 共通Playground
+
+上部で **My service / Carry helper / Person greeting / Mobile receptionist** を選びます。
+開始・停止、質問と回答、人の操作、地図、**Implementation** のコード表示は全サービス共通です。
+コード欄は説明用のコピーではなく実際のサービス定義を読み込みます。
+ServiceとPlaygroundは `service/catalog.ts` の同じ定義を実行します。
+Service側はカメラ入力を使い、挨拶サービスにもカメラの入口があります。
+
+| サービス | 操作例 |
+| --- | --- |
+| My service / Carry helper | Start service → Enter view → Yes → Items are loaded → Move away → We have arrived |
+| Person greeting | Start service → Enter view。人を検出し、向きを合わせて挨拶する |
+| Mobile receptionist | 開始前にTest markersで座標設定し、Markers visibleをオン（既定はオフ）→ Start service → Enter view → EntranceまたはDesk → Let's go |
+
+**Leave view**で見失う場面、**Stand still**で人の停止、**Person says**で現在の質問への回答を試せます。
+受付では人は案内開始のきっかけで、同行監視はしません。**Markers visible**でマーカーを隠せます。
+マーカー座標は実行中には編集できず、試験開始時にシミュレータ側と同期します。座標はワールド座標のmです。
+障害物や故障の操作は **Advanced controls** にあります。
+
+全サービスに **Manual test / Scenario runner** があります。人物シーンの編集・JSON入出力は
+[共通の開始ガイド](student-service.ja.md)を参照してください。
+マーカー座標は人物シーンのJSONとは別設定で、再読み込みでは保存されません。
+
+## コードを変える
+
+停止してから **Implementation** に表示されたファイルを編集・保存し、再実行します。
+My serviceなら `apps/pwa/src/missions/studentCarry.ts` の質問文を変更したり、追従前に
+`await service.confirm("Are you ready?", "Ready")` を追加してみます。
+画面を編集せず、次の実行で確認の質問が増えます。
+挨拶・荷物運び・受付の定義は `apps/pwa/src/service/examples/` にあります。
+挨拶の文章・旋回上限は `config/greetingStarter.ts`、マーカーへの接近設定は
+`missions/mobileReceptionist.ts` です。補助関数の中身はコード欄に展開しません。
+コード欄は読み取り専用で、エディタや命令単位のデバッガではありません。
+
+共通画面はシミュレータで確認したMVPです。旧専用画面はソースとして残しますが、通常のURLからは使いません。
+旧画面の音声・LLM専用操作やプレビュー用スライダーは、共通画面には移植していません。
+実機マーカー案内は無効のまま、それ以外の共通画面も実機での再確認が必要です。
+経路計画・一般的な障害物回避・同行者監視の実装を意味するものではありません。
+
+<details>
+<summary>旧専用デモの実習例（現在の共通画面とは異なります）</summary>
+
+以下は教材として参照できるよう残した旧画面の手順です。現在の操作は上記の共通手順を使ってください。
 
 ## 3つのサービスを動かす
 
@@ -151,3 +195,5 @@ npm run build
 
 感想にはサンプルと行き先、座標とプリセット、変更した1か所、期待と実際、表示された状態やスクリーンショットを添えます。
 特に「変更するコードを自分で見つけられたか」「なぜ動きが変わったか説明できるか」を教えてください。
+
+</details>

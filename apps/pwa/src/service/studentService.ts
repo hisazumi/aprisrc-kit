@@ -1,8 +1,13 @@
 import type { MissionContext } from "../missions/api";
 import { runComeHere, runFollowMe } from "../missions/comeHere";
 import { waitForPerson } from "../missions/observations";
+import { createGreetingMission } from "../missions/challengerStarter";
+import { runMobileReceptionist } from "../missions/mobileReceptionist";
+import type { CourseDestination } from "../config";
 
 export interface StudentServiceApi {
+  greetPerson(): Promise<void>;
+  guideTo(destination: CourseDestination): Promise<void>;
   waitForPerson(): Promise<void>;
   approachPerson(): Promise<void>;
   ask(message: string): Promise<boolean>;
@@ -57,6 +62,13 @@ export async function runStudentService(
   });
   try {
     await definition.run({
+      greetPerson: () => checked(() => createGreetingMission().run({ ...context, signal })),
+      guideTo: (destination) => checked(async () => {
+        // Guiding turns toward a marker, so the visitor can leave the camera view.
+        unsubscribe(); unsubscribe = () => {};
+        const outcome = await runMobileReceptionist(rover, context.config, signal, destination, { onUpdate: report });
+        if (outcome !== "arrived") throw new Error(`Guidance stopped: ${outcome}`);
+      }),
       waitForPerson: () => checked(async () => {
         report({ phase: "waiting", detail: "Waiting for a person" });
         await waitForPerson(rover, signal, 60_000);

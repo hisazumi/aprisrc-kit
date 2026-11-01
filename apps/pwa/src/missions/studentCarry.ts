@@ -1,8 +1,9 @@
 import type { StudentService } from "../service/studentService";
 
-// Edit only this file for the workshop. Save, then rerun at /app?service=student.
+// Edit this template, then rerun at /playground?service=my-service.
+// Its initial behavior is a carry-assistant example: approach, ask, then follow.
 export const studentCarry: StudentService = {
-  title: "My carry service",
+  title: "My service",
   async run(service) {
     await service.waitForPerson();
     await service.approachPerson();

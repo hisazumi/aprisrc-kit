@@ -24,7 +24,8 @@ import { PlaygroundSceneEditor } from "./PlaygroundSceneEditor";
 import { parseScene, scenePreset, SCENE_STORAGE_KEY } from "../simulation/playgroundScene";
 import { HardwarePlaygroundInputs } from "./HardwarePlaygroundInputs";
 
-type Props = { rover: ReturnType<typeof useRoverSocket>; adapterType: RoverAdapterType | null };
+type Props = { rover: ReturnType<typeof useRoverSocket>; adapterType: RoverAdapterType | null;
+  sample: Sample; serviceOnly?: boolean; onRunningChange?(running: boolean): void };
 type Placement = "left" | "ahead" | "right" | "absent";
 type Sample = "greeting" | "follow" | "receptionist";
 type FollowDistance = "near" | "normal" | "far";
@@ -40,11 +41,7 @@ const receptionistEnd = receptionistSource.indexOf("\nfunction destinationMarker
 const receptionistRunSource = receptionistSource.slice(receptionistStart, receptionistEnd).split("\n");
 const destinations = serviceConfig.courseMarkers.filter((marker) => marker.destination !== "kitchen");
 
-export function ServicePlayground({ rover, adapterType }: Props) {
-  const [sample, setSample] = useState<Sample>(() => {
-    const value = new URLSearchParams(window.location.search).get("sample");
-    return value === "follow" || value === "receptionist" ? value : "greeting";
-  });
+export function ServicePlayground({ rover, adapterType, sample, serviceOnly = false, onRunningChange }: Props) {
   const [destination, setDestination] = useState<CourseDestination>("entrance");
   const [scene, setScene] = useState(() => scenePreset("front"));
   const [sceneNotice, setSceneNotice] = useState("");
@@ -60,6 +57,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
   const [hardwareReady, setHardwareReady] = useState(false);
   const [motionSteps, setMotionSteps] = useState<string[]>([]);
   const [startWhenOwned, setStartWhenOwned] = useState(false);
+  useEffect(() => { onRunningChange?.(active || startWhenOwned); }, [active, startWhenOwned, onRunningChange]);
   const [progress, setProgress] = useState<MissionProgress>({ phase: "idle", detail: "Ready" });
   const [message, setMessage] = useState("");
   const [trace, setTrace] = useState<MissionProgress[]>([]);
@@ -284,17 +282,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
   return (
     <section className="playground" aria-label="Service playground">
       <div className="playground-heading">
-        <div className="playground-segments" role="tablist" aria-label="Service sample">
-          {(["greeting", "follow", "receptionist"] as const).map((id) => <button key={id} role="tab"
-            aria-selected={sample === id} disabled={active || startWhenOwned} onClick={() => {
-              setSample(id); setMessage(""); setTrace([]); setWalking(false); setPath([]); setPathBlocked(false);
-              setProgress({ phase: "idle", detail: "Ready" });
-              const url = new URL(window.location.href); url.searchParams.set("sample", id);
-              window.history.replaceState(null, "", url);
-            }}>{id === "greeting" ? "Person greeting" : id === "follow" ? "Follow helper" : "Marker guide"}</button>)}
-        </div>
         <div className="playground-actions">
-          <a href="/lab">All Lab tools</a>
           <span className="playground-note">{simulator ? "Simulator" : hardware ? "Live rover · WebSocket" : "Adapter unavailable"}</span>
           <button className="button button--estop" disabled={rover.status !== "connected"}
             onClick={rover.actions.estop}>Emergency stop</button>
@@ -307,7 +295,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
         <button disabled={rover.status !== "connected" || !rover.control.isOwner} onClick={rover.actions.clearEstop}>Clear E-stop</button>
       </div>}
       {!rover.control.isOwner && rover.control.ownerClientId !== null && <p role="status">Another controller is using the rover.</p>}
-      <div className="playground-grid">
+      <div className={serviceOnly ? "service-app" : "playground-grid"}>
         <div className="playground-experience">
           <section className="greeting-service" aria-label="Service experience">
             <span className="section-label">{sample === "receptionist" ? "RECEPTION DESK" : sample === "follow" ? "CARRY HELPER" : "GREETING SERVICE"}</span>
@@ -328,7 +316,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
             </div>
           </section>
           {hardware && <HardwarePlaygroundInputs rover={rover} onReady={setHardwareReady} />}
-          {simulator && <section className="playground-scene" aria-label="Try a situation">
+          {simulator && !serviceOnly && <section className="playground-scene" aria-label="Try a situation">
             {sample === "receptionist" ? <>
               <h3>Destination marker</h3>
               <div className="playground-segments" role="group" aria-label="Marker visibility">
@@ -364,7 +352,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
             {sample === "receptionist" && markerInput.error && <p role="alert">{markerInput.error}</p>}
           </section>}
         </div>
-        <div className="playground-development">
+        {!serviceOnly && <div className="playground-development">
           {simulator && sample === "receptionist" && <PlaygroundSceneEditor scene={scene}
             disabled={active || startWhenOwned || !simulator}
             onChange={(next) => { setScene(next); setSceneNotice(""); setPath([]);
@@ -412,7 +400,7 @@ export function ServicePlayground({ rover, adapterType }: Props) {
             <ol>{trace.map((entry, i) => <li key={i}>{entry.detail}</li>)}</ol>
             {hardware && <><h3>Motion requests and outcomes</h3><ol>{motionSteps.map((entry, i) => <li key={i}>{entry}</li>)}</ol></>}
           </section>
-        </div>
+        </div>}
       </div>
     </section>
   );

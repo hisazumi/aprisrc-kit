@@ -24,11 +24,11 @@ npm.cmd run dev
 ```
 
 These settings explicitly select the desktop Simulator, not a physical robot.
-Open `http://localhost:5173/lab?sample=student`.
+Open `http://localhost:5173/playground?service=my-service`.
 HTTP is explicitly selected even when certificates exist. For an existing Python environment
 or startup errors, see [Windows setup](../windows-setup.md).
 
-1. Open **Student service** from the top navigation. The default is **Manual test**. Press **Start service**; control and simulated clear-path permission are prepared automatically.
+1. Select **My service** in the shared header and open **Playground**. The default is **Manual test**. Press **Start service**; control and simulated clear-path permission are prepared automatically.
 2. Use **Enter view** to put the person in front of the rover. Answer **Yes**, then **Items are loaded**.
 3. In **Test person**, press **Move away**, **Come closer**, **Walk left**, or **Walk right**. Walking continues until **Stand still**, a placement action, service termination, page hiding, or the simulation's movement boundary. Speed controls the person, not the robot.
 4. Use **Leave view** to test target loss, or **We have arrived** to finish normally. **Reset person** places the person 1.35 m ahead of the current rover; it does not reset the rover or restart the service. After a target-loss failure, use Enter view and Start service to try again.
@@ -66,10 +66,20 @@ Press **Start selected scenario** to run a fresh copy from its initial state. If
 
 **Export JSON** saves the scene; **Import JSON** validates and loads a scene without starting it. Export before reloading to retain edits. Files are versioned (`version: 1`), limited to 64 KB on import, 20 steps and 20 waypoints per step, coordinates within +/-10 m, delay 0-120 s, and person speed 0.01-0.5 m/s. See [an example scene](scenes/person-enters.json). The checklist records what a human should observe, not an automatic pass/fail result. Multiple people, obstacle geometry, and service-answer automation are outside this MVP.
 
-The service screen using real camera observations is `http://localhost:5173/app?service=student`.
-Simulator person and obstacle controls stay in `/lab`. Do not acquire control from multiple screens at the same time.
+The service screen using real camera observations is `http://localhost:5173/service?service=my-service`.
+Simulator person and obstacle controls stay in `/playground`. Do not acquire control from multiple screens at the same time.
 
 ## Editing example and boundaries
+
+All four services now use this panel in both Service and Playground. Choose the service
+in the shared header. Playground also shows **Implementation**, loading the actual source
+file listed above the code; My service shows `missions/studentCarry.ts`.
+The examples live in `service/examples/` and are registered with their sources in
+`service/catalog.ts`. The common runner owns questions, cancellation and final stopping.
+`greetPerson()` reuses the existing greeting mission; `guideTo("desk" | "entrance")`
+reuses marker guidance and fails rather than announcing arrival when blocked or lost.
+The source panel is read-only and does not highlight individual executed statements.
+Physical marker guidance is disabled in this shared MVP; simulator checks do not qualify hardware.
 
 ```ts
 await service.waitForPerson();

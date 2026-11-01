@@ -5,10 +5,31 @@
 One PWA build exposes three URLs for distinct roles. All views share the Local Server,
 WebSocket protocol, mission API, and UI components.
 
-## `/app`: Service App
+The shared header selects a service independently of the view: **Service**, **Playground**,
+or **Console**. Every URL includes `?service=my-service`, `carry`, `receptionist`, or
+`greeting`. Changing views preserves the service; changing services preserves the view.
+Reload, Back, and shared links restore both selections. Running services must be stopped
+before using either navigation control. Navigation never selects a different hardware adapter.
 
-The smartphone-facing experience for Carry assistant (default) or the experimental Mobile
-Receptionist at `/app?service=receptionist`. It is also the installed PWA's start URL.
+**My service** is the editable template in `missions/studentCarry.ts`. Its initial flow is
+a carry-assistant example, not a restriction on what participants can build. Its `title`
+controls the displayed name; its stable URL identifier is `my-service`.
+
+Legacy `/app`, `/lab`, `?service=student`, and `?sample=student|greeting|follow|receptionist`
+links remain accepted and are normalized to the new URLs. `follow` maps to `carry`.
+Without a selection, My service is the default.
+
+All four selections now use one service runner and interaction panel in both views.
+Playground adds shared manual person inputs, scenarios, the map, and actual definition source.
+Marker inputs and map markers are available for every service, independent of its script. Service always offers camera
+input, including greeting on the simulator. Legacy dedicated UI components remain in source,
+but their specialized voice/LLM controls and preview sliders are not exposed in this shared MVP.
+Live marker guidance is disabled; physical validation of the shared UI remains outstanding.
+
+## `/service`: Service App
+
+The smartphone-facing experience for the selected service, initially My service.
+The installed PWA starts at `/service?service=my-service`; its existing app identity is retained.
 
 - Front-camera upper-body perception
 - Carry assistant start, consent, loading, following, and cancellation
@@ -17,7 +38,7 @@ Receptionist at `/app?service=receptionist`. It is also the installed PWA's star
 - Normal stop and emergency stop
 
 It intentionally omits the generic Mission Panel, Simulator detail, event log, and manual
-joystick. Use `/lab` to select and test arbitrary missions.
+joystick. Use `/playground` to select and test arbitrary missions.
 
 ## `/console`: Operator Console
 
@@ -39,9 +60,9 @@ This is not sensor-derived clearance, and rear/side obstacle protection is not
 implemented. Check the whole swept area. Other views keep their existing controls.
 The iron-X console workflow is described in [iron-X operation](hardware/ironx-quickstart.md).
 
-## `/lab`: Development Lab
+## `/playground`: Playground
 
-For first-time trials, use `/lab?sample=greeting`, `follow`, or `receptionist` via the
+For first-time trials, use `/playground?service=greeting`, `follow`, or `receptionist` via the
 [Playground workshop](demos/playground-workshop.md). These show behavior beside real source.
 The Simulator provides virtual inputs and marker scene editing. With `websocket_rover`,
 [Live Playground](demos/hardware-playground.md) replaces them with camera observations and
@@ -49,18 +70,18 @@ telemetry; only greeting/following are enabled, and physical verification is pen
 
 The integrated development view combines service UI, console, and Simulator tools. It
 includes the virtual person, reproducible scenarios, perception values, Human Interaction,
-and the generic Mission Panel. Use `/app` for final smartphone experience checks.
+and the generic Mission Panel. Use `/service` for final smartphone experience checks.
 
 ## Control ownership
 
 Each browser tab or device is a separate WebSocket client. Exactly one client may own motion
 control.
 
-- While `/app` runs a service, `/console` can observe and issue E-stop without ownership.
-- Release `/app` control before acquiring manual control in `/console`.
+- While `/service` runs a service, `/console` can observe and issue E-stop without ownership.
+- Release `/service` control before acquiring manual control in `/console`.
 - Navigating away from the owner view disconnects it; the server stops motion and releases control.
 - Any connected view may issue emergency stop.
 
-The `/app` navigation opens `Console` in a new tab so monitoring does not disconnect the
-service owner. View separation organizes experience and debugging; it never moves safety
-authority into the browser.
+Navigation uses the same tab. To observe a running service, open its Console URL in a
+separate tab without acquiring control. View separation never moves safety authority
+into the browser. Switching views does not preserve an active run or unsaved scene edits.

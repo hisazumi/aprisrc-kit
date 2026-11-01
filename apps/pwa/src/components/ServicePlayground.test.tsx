@@ -67,7 +67,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="receptionist" rover={mock.rover} adapterType="simulator" />));
     const button = (name: string) => [...container.querySelectorAll("button")].find((b) => b.textContent === name)!;
     await act(async () => button("Behind rover").click());
     expect(container.querySelector<HTMLInputElement>('input[aria-label="visitor x"]')?.value).toBe("-2.15");
@@ -84,7 +84,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="receptionist" rover={mock.rover} adapterType="simulator" />));
     const select = container.querySelector("select")!;
     await act(async () => { select.value = "desk"; select.dispatchEvent(new Event("change", { bubbles: true })); });
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Guide me")!.click());
@@ -105,7 +105,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="receptionist" rover={mock.rover} adapterType="simulator" />));
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Guide me")!.click());
     await act(async () => mock.emit());
     await act(async () => mock.emitMarker(1, "detected", .8));
@@ -122,7 +122,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="follow" rover={mock.rover} adapterType="simulator" />));
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Follow me")!.click());
     expect(mock.rover.serviceRover.move).not.toHaveBeenCalled();
     expect(mock.cancelMotion).toHaveBeenCalled();
@@ -134,10 +134,10 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
-    await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Follow helper")!.click());
-    expect(window.location.search).toBe("?sample=follow");
+    const onRunningChange = vi.fn();
+    await act(async () => root.render(<ServicePlayground sample="follow" rover={mock.rover} adapterType="simulator" onRunningChange={onRunningChange} />));
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Follow me")!.click());
+    expect(onRunningChange).toHaveBeenLastCalledWith(true);
     expect(simulatorApi.setFrontObstacle).toHaveBeenCalledWith("CLEAR", "healthy");
     await act(async () => mock.emit());
     expect(mock.rover.serviceRover.move).toHaveBeenCalledWith(.1, .15);
@@ -145,7 +145,7 @@ describe("ServicePlayground", () => {
     await act(async () => mock.emit({ status: "lost" }));
     expect(mock.rover.serviceRover.stop).toHaveBeenCalledWith("person lost");
     expect(container.querySelector(".greeting-service h3")?.textContent).toBe("I lost sight of you. Stopping.");
-    expect([...container.querySelectorAll("button")].find((b) => b.textContent === "Follow helper")?.disabled).toBe(false);
+    expect(onRunningChange).toHaveBeenLastCalledWith(false);
     await act(async () => root.unmount());
   });
 
@@ -154,7 +154,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="follow" rover={mock.rover} adapterType="simulator" />));
     const select = container.querySelector("select")!;
     await act(async () => { select.value = "far"; select.dispatchEvent(new Event("change", { bubbles: true })); });
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Follow me")!.click());
@@ -162,7 +162,7 @@ describe("ServicePlayground", () => {
     expect(mock.rover.serviceRover.move).not.toHaveBeenCalled();
     expect(mock.rover.serviceRover.stop).toHaveBeenCalledWith("follow distance reached");
     const disconnected = { ...mock.rover, control: { ...mock.rover.control, isOwner: false } };
-    await act(async () => root.render(<ServicePlayground rover={disconnected} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="follow" rover={disconnected} adapterType="simulator" />));
     expect(mock.cancelMotion).toHaveBeenCalled();
     expect(container.textContent).toContain("Service stopped");
     await act(async () => root.unmount());
@@ -172,12 +172,12 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="greeting" rover={mock.rover} adapterType="simulator" />));
     const start = [...container.querySelectorAll("button")].find((b) => b.textContent === "Start greeting")!;
     await act(async () => start.click());
     expect(container.textContent).toContain("Waiting for a visible person");
     const rerendered = { ...mock.rover, actions: { ...mock.rover.actions, cancelMotion: vi.fn(() => true) } };
-    await act(async () => root.render(<ServicePlayground rover={rerendered} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="greeting" rover={rerendered} adapterType="simulator" />));
     await act(async () => mock.emit());
     expect(mock.rover.serviceRover.turn).toHaveBeenCalledWith(12, .35);
     expect(container.querySelector(".greeting-service h3")?.textContent).toBe("Hello. I can see you.");
@@ -189,7 +189,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="greeting" rover={mock.rover} adapterType="simulator" />));
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Start greeting")!.click());
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Stop")!.click());
     await act(async () => mock.emit());
@@ -203,7 +203,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType={adapterType} />));
+    await act(async () => root.render(<ServicePlayground sample="greeting" rover={mock.rover} adapterType={adapterType} />));
     const click = async (text: string) => act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === text)!.click());
     await click("Test live camera");
     await act(async () => mock.emit({ source: "camera" }));
@@ -226,13 +226,13 @@ describe("ServicePlayground", () => {
     mock.rover.control.ownerClientId = null;
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="simulator" />));
+    await act(async () => root.render(<ServicePlayground sample="greeting" rover={mock.rover} adapterType="simulator" />));
     await act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === "Start greeting")!.click());
     expect(mock.acquire).toHaveBeenCalledOnce();
     expect(mock.rover.serviceRover.turn).not.toHaveBeenCalled();
     await act(async () => root.unmount());
     const physicalRoot = createRoot(container);
-    await act(async () => physicalRoot.render(<ServicePlayground rover={socket().rover} adapterType="websocket_rover" />));
+    await act(async () => physicalRoot.render(<ServicePlayground sample="greeting" rover={socket().rover} adapterType="websocket_rover" />));
     expect([...container.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent === "Start greeting")?.disabled).toBe(true);
     expect(container.textContent).not.toContain("Visitor location");
@@ -247,7 +247,7 @@ describe("ServicePlayground", () => {
     const mock = socket();
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(async () => root.render(<ServicePlayground rover={mock.rover} adapterType="websocket_rover" />));
+    await act(async () => root.render(<ServicePlayground sample="follow" rover={mock.rover} adapterType="websocket_rover" />));
     const click = async (text: string) => act(async () => [...container.querySelectorAll("button")].find((b) => b.textContent === text)!.click());
     await click("Test live camera");
     await act(async () => mock.emit({ source: "camera" }));

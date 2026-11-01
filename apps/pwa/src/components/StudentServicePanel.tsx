@@ -11,6 +11,7 @@ interface Props {
   rover: ServiceRover;
   config: ServiceConfig;
   eligible: boolean;
+  blockedReason?: string;
   acquire(): void;
   cancel(): boolean;
   emergencyStop(): void;
@@ -21,7 +22,7 @@ interface Props {
   resetToken?: number;
   onRunningChange?(running: boolean): void;
 }
-export function StudentServicePanel({ service, rover, config, eligible, acquire, cancel, emergencyStop, clearance, simulator, resetToken, onRunningChange, execution, speech }: Props) {
+export function StudentServicePanel({ service, rover, config, eligible, blockedReason, acquire, cancel, emergencyStop, clearance, simulator, resetToken, onRunningChange, execution, speech }: Props) {
   const [running, setRunning] = useState(false);
   const [clearanceGeneration, setClearanceGeneration] = useState(0);
   const [detail, setDetail] = useState("");
@@ -81,7 +82,7 @@ export function StudentServicePanel({ service, rover, config, eligible, acquire,
     };
   }, []);
   const start = async () => {
-    if (controller.current || (simulator ? !simulator.available : !eligible)) return;
+    if (blockedReason || controller.current || (simulator ? !simulator.available : !eligible)) return;
     const run = new AbortController();
     controller.current = run;
     let finish!: () => void;
@@ -145,11 +146,11 @@ export function StudentServicePanel({ service, rover, config, eligible, acquire,
       setDetail(error instanceof Error ? error.message : "New trial cancelled");
     } finally { transition.current = null; setSwitching(false); }
   };
-  const unavailableReason = simulator && !simulator.available
-    ? simulator.unavailableReason ?? "Simulator control is unavailable." : null;
+  const unavailableReason = blockedReason ?? (simulator && !simulator.available
+    ? simulator.unavailableReason ?? "Simulator control is unavailable." : null);
   const startButton = <button className={running || switching ? "button" : "button button--primary"}
     aria-describedby={unavailableReason ? "student-start-unavailable" : undefined}
-    disabled={switching || (simulator ? !simulator.available : running || !eligible)}
+    disabled={!!blockedReason || switching || (simulator ? !simulator.available : running || !eligible)}
     onClick={() => void startSelected()}>{switching ? "Stopping previous trial..." : simulator?.startLabel ?? (simulator?.name ? "Start selected scenario" : simulator ? "Start simulation" : "Start service")}</button>;
   return <section className="panel student-service" aria-label="Student service">
     <h2>{service.title}</h2>
