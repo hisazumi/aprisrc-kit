@@ -8,6 +8,7 @@ import logging
 import math
 import time
 import uuid
+from contextvars import ContextVar
 
 from websockets.asyncio.client import connect
 
@@ -15,6 +16,11 @@ from .ironx_adapter import IronXAdapter
 from .models import Capabilities, Pose, PoseEstimateQuality, RoverState, Velocity
 
 logger = logging.getLogger(__name__)
+_drive_trace = ContextVar("ironx_drive_trace", default=None)
+
+
+class OwnershipExpired(RuntimeError):
+    """The gateway replied; control is unavailable but transport is intact."""
 
 
 class IronXNetworkAdapter(IronXAdapter):
@@ -42,6 +48,7 @@ class IronXNetworkAdapter(IronXAdapter):
         self.last_transport_error = None
         self._next_drive = None
         self._stop_unconfirmed = False
+        self.last_drive_diagnostics = None
 
     async def start(self):
         self._closing = False
@@ -73,14 +80,19 @@ class IronXNetworkAdapter(IronXAdapter):
 
     async def _rpc(self, method, params=None, *, deadline_s=0.25):
         # A caller cancelled while waiting for the lock must not close another RPC.
+        queued_at = time.monotonic()
         async with self._rpc_lock:
             socket = self._socket
             if socket is None:
                 raise RuntimeError("iron-X network connection unavailable")
             started = time.monotonic()
+            diagnostic = {"method": method, "request_id": None,
+                          "rpc_wait_ms": (started - queued_at) * 1000,
+                          "deadline_ms": deadline_s * 1000, "outcome": "pending"}
             try:
                 async with asyncio.timeout(deadline_s):
                     request_id = uuid.uuid4().hex
+                    diagnostic["request_id"] = request_id
                     await socket.send(
                         json.dumps(
                             {"id": request_id, "method": method, "params": params or {}},
@@ -88,15 +100,35 @@ class IronXNetworkAdapter(IronXAdapter):
                         )
                     )
                     reply = json.loads(await socket.recv())
-                    elapsed_ms = (time.monotonic() - started) * 1000
-                    if elapsed_ms >= 100:
-                        logger.warning("iron-X slow reply (%s, elapsed=%.1f ms)", method, elapsed_ms)
                     if reply.get("id") != request_id:
                         raise ValueError("iron-X response ID mismatch")
                     if "error" in reply:
+                        error = reply["error"]
+                        diagnostic["gateway_error"] = (
+                            {"code": str(error.get("code", ""))[:100],
+                             "message": str(error.get("message", ""))[:500]}
+                            if isinstance(error, dict) else {"message": str(error)[:500]}
+                        )
+                        if self._owned and isinstance(error, dict) and error.get("code") in (
+                            "not_owner", "lease_expired", "expired_nonce"
+                        ):
+                            raise OwnershipExpired(
+                                f"iron-X gateway rejected {method}: {error}"
+                            )
                         raise RuntimeError(f"iron-X gateway rejected {method}: {reply['error']}")
+                    diagnostic["outcome"] = "ok"
                     return reply["result"]
+            except OwnershipExpired:
+                diagnostic["outcome"] = "ownership_expired"
+                self._next_drive = None
+                self._epoch += 1
+                self._owned = False
+                self._estop = self.requires_rearm = True
+                self._stop_unconfirmed = True
+                raise
             except BaseException as exc:
+                diagnostic["outcome"] = type(exc).__name__
+                diagnostic["elapsed_ms"] = (time.monotonic() - started) * 1000
                 self.last_transport_error = f"{method}:{type(exc).__name__}"
                 logger.warning("iron-X transport lost (%s, elapsed=%.1f ms, deadline=%.1f ms)",
                                self.last_transport_error, (time.monotonic() - started) * 1000,
@@ -111,6 +143,14 @@ class IronXNetworkAdapter(IronXAdapter):
                 self._retry_at = time.monotonic() + 1
                 await socket.close()
                 raise
+            finally:
+                diagnostic.setdefault("elapsed_ms", (time.monotonic() - started) * 1000)
+                trace = _drive_trace.get()
+                if trace is not None:
+                    trace["rpcs"].append(diagnostic)
+                if (diagnostic["outcome"] != "ok" or diagnostic["elapsed_ms"] >= 100
+                        or diagnostic["rpc_wait_ms"] >= 100):
+                    logger.warning("iron-X RPC diagnostic %s", json.dumps(diagnostic))
 
     def _unavailable(self, command_age_ms):
         return RoverState(
@@ -167,14 +207,27 @@ class IronXNetworkAdapter(IronXAdapter):
             return self._unavailable(command_age_ms)
 
     async def drive(self, vx, vy, wz, *, ttl_ms=500):
-        if self._pending_stops:
-            raise RuntimeError("iron-X network adapter stopped; stop confirmation pending")
         started = time.monotonic()
+        trace = {"rpcs": [], "command_wait_ms": 0.0, "outcome": "pending"}
+        token = _drive_trace.set(trace)
         epoch = self._epoch
-        async with self._command_lock:
-            if epoch != self._epoch:
-                raise RuntimeError("iron-X drive superseded by stop")
-            await self._drive(vx, vy, wz, ttl_ms=ttl_ms, started=started)
+        try:
+            if self._pending_stops:
+                raise RuntimeError("iron-X network adapter stopped; stop confirmation pending")
+            async with self._command_lock:
+                trace["command_wait_ms"] = (time.monotonic() - started) * 1000
+                if epoch != self._epoch:
+                    raise RuntimeError("iron-X drive superseded by stop")
+                await self._drive(vx, vy, wz, ttl_ms=ttl_ms, started=started)
+                trace["outcome"] = "ok"
+        except BaseException as exc:
+            trace["outcome"] = type(exc).__name__
+            trace["detail"] = str(exc)[:500]
+            raise
+        finally:
+            trace["total_ms"] = (time.monotonic() - started) * 1000
+            self.last_drive_diagnostics = trace
+            _drive_trace.reset(token)
 
     async def _drive(self, vx, vy, wz, *, ttl_ms, started):
         if (
@@ -204,9 +257,18 @@ class IronXNetworkAdapter(IronXAdapter):
             await self._rpc("acquire", deadline_s=3)
             self._owned = True
         cached, self._next_drive = self._next_drive, None
+        trace = _drive_trace.get()
+        if trace is not None:
+            trace["cached_reply_age_ms"] = (
+                (time.monotonic() - cached[1]) * 1000 if cached else None
+            )
         if cached is not None and time.monotonic() - cached[1] < 0.1:
             result, observed_at = cached
+            if trace is not None:
+                trace["used_cached_reply"] = True
         else:
+            if trace is not None:
+                trace["used_cached_reply"] = False
             # Drain read-only replies on cancellation; never send the next drive.
             observed_at = time.monotonic()
             reading = asyncio.create_task(self._rpc("state"))
@@ -229,6 +291,9 @@ class IronXNetworkAdapter(IronXAdapter):
             self._owned = False
             raise RuntimeError("iron-X telemetry unavailable")
         remaining_ms = min(ttl_ms, 200) - (time.monotonic() - started) * 1000
+        if trace is not None:
+            trace["prepared_at_ms"] = (time.monotonic() - started) * 1000
+            trace["remaining_ttl_ms"] = remaining_ms
         if remaining_ms < 1:
             await self._rpc("release", deadline_s=3)
             self._owned = False
@@ -284,7 +349,13 @@ class IronXNetworkAdapter(IronXAdapter):
                 self._stop_unconfirmed = False
                 self._owned = False
             elif self._owned:
-                await self._rpc("release", deadline_s=3)
+                try:
+                    await self._rpc("release", deadline_s=3)
+                except OwnershipExpired:
+                    await self._rpc("emergency_stop", {
+                        "reason": "confirm stop after ownership expiry"
+                    }, deadline_s=3)
+                    self._stop_unconfirmed = False
                 self._owned = False
 
     async def emergency_stop(self, reason):

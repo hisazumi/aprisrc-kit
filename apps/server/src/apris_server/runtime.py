@@ -447,7 +447,9 @@ class RoverRuntime:
                 self.log.record(
                     "adapter_command",
                     "drive_failed",
-                    {"error": type(exc).__name__},
+                    {"error": type(exc).__name__, "detail": str(exc)[:500],
+                     "seq": command.seq,
+                     "transport": getattr(self.adapter, "last_drive_diagnostics", None)},
                 )
             await self._error(
                 client_id,
@@ -664,7 +666,8 @@ class RoverRuntime:
             self.log.record(
                 "adapter_command",
                 "drive_requested",
-                {"vx": vx, "vy": vy, "wz": wz, "ttl_ms": ttl_ms},
+                {"vx": vx, "vy": vy, "wz": wz, "ttl_ms": ttl_ms,
+                 "transport": getattr(self.adapter, "last_drive_diagnostics", None)},
             )
         now = time.monotonic()
         async with self._lock:

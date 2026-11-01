@@ -39,6 +39,9 @@ class FakeRobot:
     async def stop(self):
         self.stops += 1
 
+    async def emergency_stop(self, reason):
+        await self.stop()
+
 
 async def test_local_validation_cannot_extend_network_command_ttl(tmp_path, monkeypatch):
     adapter = IronXAdapter(tmp_path / "state", tmp_path / "command", tmp_path / "bridge")
@@ -139,7 +142,50 @@ async def test_real_gateway_expiry_rejects_same_client_resume():
             with pytest.raises(RuntimeError):
                 await adapter.drive(0.04, 0, 0)
             assert len(robot.drives) == 1
+            assert adapter._socket is not None
+            assert not adapter._failed
+            assert adapter.requires_rearm
+            await adapter.stop()
+            assert gateway.estopped
+            assert not adapter._stop_unconfirmed
             assert not (await adapter.state()).connected
+        finally:
+            await adapter.close()
+
+
+@pytest.mark.parametrize("fail_confirmation", [False, True])
+async def test_release_after_lease_expiry_confirms_stop_on_same_connection(fail_confirmation):
+    robot = FakeRobot()
+    gateway = IronXGateway(robot, "test-token")
+    await gateway.initialize()
+    async with serve(gateway.handler, "127.0.0.1", 0,
+                     process_request=gateway.authenticate) as server:
+        adapter = IronXNetworkAdapter(
+            f"ws://127.0.0.1:{server.sockets[0].getsockname()[1]}", "test-token")
+        await adapter.start()
+        try:
+            await adapter.drive(0.04, 0, 0)
+            connection = adapter._socket
+            await asyncio.sleep(0.31)
+            await gateway.expire()
+            if fail_confirmation:
+                async def fail_stop(reason):
+                    raise TimeoutError("physical stop not confirmed")
+                robot.emergency_stop = fail_stop
+                with pytest.raises(RuntimeError, match="stop_unconfirmed"):
+                    await adapter.stop()
+                assert adapter._stop_unconfirmed
+                assert adapter.requires_rearm
+                return
+            await adapter.stop()
+            assert adapter._socket is connection
+            assert not adapter._failed
+            assert not adapter._stop_unconfirmed
+            assert adapter.requires_rearm
+            assert gateway.estopped
+            with pytest.raises(RuntimeError):
+                await adapter.drive(0.04, 0, 0)
+            assert len(robot.drives) == 1
         finally:
             await adapter.close()
 
@@ -306,6 +352,65 @@ async def test_busy_robot_never_receives_drive():
         with pytest.raises(RuntimeError, match="busy"):
             await adapter.drive(0.04, 0, 0)
         assert not any(r["method"] == "drive" for r in requests)
+        trace = adapter.last_drive_diagnostics
+        assert trace["outcome"] == "RuntimeError"
+        assert trace["rpcs"][0]["gateway_error"] == {"message": "busy"}
+        assert trace["rpcs"][0]["request_id"] == requests[0]["id"]
+        assert "test-token" not in json.dumps(trace)
+
+
+async def test_diagnostics_separate_rpc_wait_and_round_trip():
+    async with endpoint() as (adapter, _, _):
+        await adapter._rpc_lock.acquire()
+        task = asyncio.create_task(adapter.drive(0.04, 0, 0))
+        await asyncio.sleep(0.04)
+        adapter._rpc_lock.release()
+        await task
+        trace = adapter.last_drive_diagnostics
+        assert trace["rpcs"][0]["rpc_wait_ms"] >= 30
+        assert trace["total_ms"] >= trace["rpcs"][0]["rpc_wait_ms"]
+        assert trace["remaining_ttl_ms"] < 170
+        assert trace["used_cached_reply"] is False
+        assert all(r["outcome"] == "ok" for r in trace["rpcs"])
+        assert "nonce" not in json.dumps(trace)
+
+
+async def test_background_rpc_delay_exposes_expired_lease_in_diagnostics():
+    robot = FakeRobot()
+    gateway = IronXGateway(robot, "test-token")
+    await gateway.initialize()
+    async with serve(gateway.handler, "127.0.0.1", 0,
+                     process_request=gateway.authenticate) as server:
+        adapter = IronXNetworkAdapter(
+            f"ws://127.0.0.1:{server.sockets[0].getsockname()[1]}", "test-token")
+        await adapter.start()
+        try:
+            await adapter.drive(0.04, 0, 0)
+            entered = asyncio.Event()
+            original_state = robot.state
+
+            async def slow_state():
+                entered.set()
+                await asyncio.sleep(0.32)
+                return await original_state()
+
+            robot.state = slow_state
+            background = asyncio.create_task(adapter._rpc("state", deadline_s=1))
+            await entered.wait()
+            with pytest.raises(RuntimeError, match="lease_expired"):
+                await adapter.drive(0.04, 0, 0)
+            await background
+            trace = adapter.last_drive_diagnostics
+            drive_rpc = trace["rpcs"][-1]
+            assert drive_rpc["method"] == "drive"
+            assert drive_rpc["rpc_wait_ms"] >= 250
+            assert drive_rpc["gateway_error"]["code"] == "lease_expired"
+            assert drive_rpc["outcome"] == "ownership_expired"
+            assert adapter._socket is not None
+            assert not adapter._failed
+            assert len(robot.drives) == 1
+        finally:
+            await adapter.close()
 
 
 async def test_cancelled_status_consumer_does_not_close_connection():
