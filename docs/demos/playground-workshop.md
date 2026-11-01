@@ -43,7 +43,7 @@ The Service view replaces simulated inputs with the camera, including for greeti
 | --- | --- |
 | My service / Carry helper | Start service, Enter view, Yes, Items are loaded, Move away, We have arrived |
 | Person greeting | Start service, Enter view; waits for detection, faces the person, then greets |
-| Mobile receptionist | Set Test markers coordinates before starting; Start service, Enter view, Entrance or Desk, Let's go |
+| Mobile receptionist | Set Test markers coordinates and enable Markers visible (off by default); Start service, Enter view, Entrance or Desk, Let's go |
 
 Use **Leave view** to test lost-person handling, **Stand still** to stop the person,
 and **Person says** for typed answers to the currently displayed question.

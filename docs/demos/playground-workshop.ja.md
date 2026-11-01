@@ -41,7 +41,7 @@ Service側はカメラ入力を使い、挨拶サービスにもカメラの入�
 | --- | --- |
 | My service / Carry helper | Start service → Enter view → Yes → Items are loaded → Move away → We have arrived |
 | Person greeting | Start service → Enter view。人を検出し、向きを合わせて挨拶する |
-| Mobile receptionist | 開始前にTest markersで座標設定 → Start service → Enter view → EntranceまたはDesk → Let's go |
+| Mobile receptionist | 開始前にTest markersで座標設定し、Markers visibleをオン（既定はオフ）→ Start service → Enter view → EntranceまたはDesk → Let's go |
 
 **Leave view**で見失う場面、**Stand still**で人の停止、**Person says**で現在の質問への回答を試せます。
 受付では人は案内開始のきっかけで、同行監視はしません。**Markers visible**でマーカーを隠せます。

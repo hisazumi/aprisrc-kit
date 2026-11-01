@@ -83,7 +83,7 @@ export function App() {
   const [testSpeech, setTestSpeech] = useState<{ id: number; text: string }>();
   const studentSimulator = studentLab && adapterType === "simulator";
   const pose = rover.state?.pose ?? null;
-  const [markersVisible, setMarkersVisible] = useState(true);
+  const [markersVisible, setMarkersVisible] = useState(false);
   const [markerReady, setMarkerReady] = useState(false);
   const [markers, setMarkers] = useState(() => serviceConfig.courseMarkers.filter(m => m.destination !== "kitchen")
     .map((m, i) => ({ ...m, xM: 1.8 + i * .7, yM: i ? -.6 : .6 })));
@@ -469,8 +469,8 @@ export function App() {
             <button role="tab" aria-selected={testMode === "scenario"} disabled={studentRunning} onClick={() => setTestMode("scenario")}>Scenario runner</button>
           </div>}
           {studentSimulator && testMode === "scenario" && <StudentScenePanel scene={studentScene} onChange={setStudentScene} />}
-          {studentLab && <>{estopBanner}<section className="dashboard">{studentServicePanel}
-            <div className="workbench-observation">{simulatorPanel}{implementationPanel}</div></section>
+          {studentLab && <>{estopBanner}<section className="dashboard">{studentServicePanel}{simulatorPanel}</section>
+            {implementationPanel}
             {studentSimulator && <section className="shared-environment" aria-label="Test markers">
               <h2>Test markers</h2>
               <label><input type="checkbox" checked={markersVisible} onChange={e => setMarkersVisible(e.target.checked)} />Markers visible</label>
