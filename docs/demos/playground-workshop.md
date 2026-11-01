@@ -31,6 +31,54 @@ trial, even when local HTTPS certificates exist. Do not use this startup for a p
 or smartphone camera trial. If the ports are occupied, use the existing APRIS server or stop
 it before starting another instance. End the development server with Ctrl-C when finished.
 
+## Shared Playground
+
+Select **My service**, **Carry helper**, **Person greeting**, or **Mobile receptionist**
+in the header. Every service uses the same start/stop, questions, person controls, map,
+and **Implementation** panel. That panel loads the real service definition, not a separate
+example snippet. Service and Playground run the same definition from `service/catalog.ts`.
+The Service view replaces simulated inputs with the camera, including for greeting.
+
+| Service | Trial |
+| --- | --- |
+| My service / Carry helper | Start service, Enter view, Yes, Items are loaded, Move away, We have arrived |
+| Person greeting | Start service, Enter view; waits for detection, faces the person, then greets |
+| Mobile receptionist | Set Test markers coordinates before starting; Start service, Enter view, Entrance or Desk, Let's go |
+
+Use **Leave view** to test lost-person handling, **Stand still** to stop the person,
+and **Person says** for typed answers to the currently displayed question.
+The receptionist only needs the person to start guiding; it does not monitor escort progress.
+Its **Markers visible** checkbox can test marker loss. Coordinates are locked while running
+and synchronized with the simulator before each trial. The map uses world metres.
+Obstacle and fault controls remain under **Advanced controls**.
+
+All services offer **Manual test** and **Scenario runner** for the person. See
+[scene import/export and editing](student-service.md#define-a-test-scene) for reusable scenes.
+Marker coordinates are separate from the person-scene JSON and are not persisted across reloads.
+
+## Change the Code
+
+Stop first. Edit the file named in **Implementation**, save, then restart the trial.
+For My service, edit `apps/pwa/src/missions/studentCarry.ts`: change the offer text or
+insert `await service.confirm("Are you ready?", "Ready")` before following.
+The next run displays that question without any UI changes.
+Greeting, carry, and receptionist definitions are in `apps/pwa/src/service/examples/`.
+Greeting's wording and maximum turn remain in `config/greetingStarter.ts`; marker approach
+limits remain in `missions/mobileReceptionist.ts`. These helpers are not expanded into
+the definition panel. The panel is read-only source, not an editor or step debugger.
+
+This shared UI is a simulator-validated MVP. Legacy dedicated UIs remain in source for
+reference, but are no longer the default routes. Their specialized voice/LLM controls and
+preview sliders are not part of the shared panel. Live marker guidance stays disabled;
+other shared hardware workflows still need physical validation. No general obstacle
+avoidance, route planning, or escort tracking is implied.
+
+<details>
+<summary>Historical dedicated-demo exercises (not the current shared UI)</summary>
+
+The instructions below describe the previous dedicated screens, retained as teaching
+reference. Use the shared controls and code workflow above for the current application.
+
 ## Try the three services
 
 | Sample | Actions | Expected result |
@@ -174,3 +222,5 @@ When reporting feedback, include the sample/destination, scene coordinates and p
 one setting or code line changed, expected versus observed behavior, and the visible status
 or screenshot. Most importantly: could you find the code to change without help, and could
 you explain why the result changed?
+
+</details>

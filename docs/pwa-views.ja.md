@@ -14,6 +14,12 @@ URLのサービス識別子は `?service=my-service`、`carry`、`receptionist`�
 旧 `/app`、`/lab`、`?service=student`、`?sample=student|greeting|follow|receptionist` も受け付け、新URLに整理する。
 `follow` は `carry` に対応し、選択がない場合は My service が既定となる。
 
+4サービスとも両画面で共通の実行処理・質問回答パネルを使う。
+Playgroundは人物の手動操作・シナリオ・地図・実際のサービス定義コードを追加し、受付だけマーカー入力も表示する。
+Serviceにはシミュレータ上の挨拶も含めてカメラ入力を用意する。
+旧専用UIはソースとして残すが、専用の音声・LLM操作やプレビュースライダーは共通MVPに含めない。
+実機マーカー案内は無効で、共通UIの実機検証は今後必要となる。
+
 コンソールの最新手順は[iron-X操作ガイド](hardware/ironx-quickstart.ja.md)も参照する。
 `/console`には **Confirm clear path · 30 s** を追加した。接続中の操作権保持者が、
 前方を目視確認して既存APIへ期限付きの手動確認を送る。押すだけでは走行しない。

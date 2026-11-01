@@ -72,6 +72,15 @@ Simulatorの仮想人物・障害操作は `/playground` にあります。複�
 
 ## 編集例と境界
 
+4サービスともServiceとPlaygroundでこの共通パネルを使います。上部の共通ヘッダーで選択します。
+Playgroundの **Implementation** は表示されたパスの実ファイルを読み込みます。
+My serviceは `missions/studentCarry.ts`、組み込み例は `service/examples/` にあり、
+`service/catalog.ts` に定義とソースを登録します。質問・中断・終了時の停止は共通実行処理が担当します。
+`greetPerson()` は既存の挨拶ミッション、`guideTo("desk" | "entrance")` は既存のマーカー案内を使います。
+案内で障害物・見失いが起きた場合は、到着扱いにせずエラーで終了します。
+コード欄は読み取り専用で、命令単位の実行位置は強調しません。
+共通MVPでは実機マーカー案内を無効にしています。シミュレータ検証は実機の動作保証ではありません。
+
 ```ts
 await service.waitForPerson();
 await service.approachPerson();

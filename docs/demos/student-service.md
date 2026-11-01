@@ -71,6 +71,16 @@ Simulator person and obstacle controls stay in `/playground`. Do not acquire con
 
 ## Editing example and boundaries
 
+All four services now use this panel in both Service and Playground. Choose the service
+in the shared header. Playground also shows **Implementation**, loading the actual source
+file listed above the code; My service shows `missions/studentCarry.ts`.
+The examples live in `service/examples/` and are registered with their sources in
+`service/catalog.ts`. The common runner owns questions, cancellation and final stopping.
+`greetPerson()` reuses the existing greeting mission; `guideTo("desk" | "entrance")`
+reuses marker guidance and fails rather than announcing arrival when blocked or lost.
+The source panel is read-only and does not highlight individual executed statements.
+Physical marker guidance is disabled in this shared MVP; simulator checks do not qualify hardware.
+
 ```ts
 await service.waitForPerson();
 await service.approachPerson();

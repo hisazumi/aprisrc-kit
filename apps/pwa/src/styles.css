@@ -115,6 +115,14 @@ h2 { font-size: 1.25rem; letter-spacing: -.025em; }
 .service-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; max-width: 100%; }
 .service-navigation select { min-width: 0; max-width: 100%; padding: 9px 12px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); }
 .view-nav a[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.shared-source, .shared-environment { margin-top: 24px; padding: 18px 0; border-top: 1px solid var(--line); min-width: 0; }
+.shared-source h2, .shared-environment h2 { font-size: 1.1rem; }
+.shared-source p { overflow-wrap: anywhere; }
+.shared-source pre { padding: 16px; background: #f6f8f7; border: 1px solid var(--line); border-radius: 6px; overflow: auto; max-height: 28rem; font-size: .85rem; line-height: 1.6; }
+.workbench-observation { min-width: 0; }
+.student-service { align-self: start; }
+.shared-environment fieldset { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; border: 1px solid var(--line); }
+.shared-environment input[type="number"] { width: 90px; margin-left: 8px; }
 .view-nav { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: rgba(247, 248, 242, .72); }
 .view-nav a { padding: 7px 11px; border-radius: 999px; color: #53685f; font: 700 .7rem "SFMono-Regular", Consolas, monospace; letter-spacing: .04em; text-decoration: none; text-transform: uppercase; }
 .view-nav a[aria-current="page"] { background: var(--ink); color: var(--acid); }
@@ -293,7 +301,7 @@ h2 { font-size: 1.25rem; letter-spacing: -.025em; }
 .map-person path { fill: none; stroke: #8d3021; stroke-width: 7; stroke-linecap: round; }
 .map-person text { fill: #8d3021; font: 700 11px "SFMono-Regular", Consolas, monospace; text-anchor: middle; }
 
-.telemetry { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 14px; }
+.telemetry { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .telemetry div, .safety-grid div { padding: 12px; border-radius: 12px; background: rgba(21, 37, 31, .055); }
 .telemetry span, .safety-grid span { display: block; margin-bottom: 5px; color: #60766d; font-size: .72rem; }
 .telemetry strong, .safety-grid strong { font-family: "SFMono-Regular", Consolas, monospace; font-size: .84rem; }
