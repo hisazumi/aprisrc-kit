@@ -286,6 +286,7 @@ export function App() {
 
   const studentServicePanel = (
     <StudentServicePanel
+      voiceDefault={view === "app"}
       service={selectedService.definition}
       blockedReason={selectedService.simulatorOnly && adapterType !== null && adapterType !== "simulator"
         ? "Live marker guidance is not enabled in this shared MVP. Use the simulator for this service." : undefined}

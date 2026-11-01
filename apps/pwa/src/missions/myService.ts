@@ -7,15 +7,20 @@ export const myService: StudentService = {
   async run(service) {
     await service.waitForPerson();
     await service.approachPerson();
-    if (!await service.ask("Would you like help carrying your belongings?")) {
+    if (!await service.ask("Would you like help carrying your belongings?", {
+      yes: ["yes please", "sure", "please help me"],
+      no: ["no thanks", "not now"]
+    })) {
       service.say("No problem. Ask me again when you need help.");
       return;
     }
-    await service.confirm("Place your belongings on the rover.", "Items are loaded");
+    await service.confirm("Place your belongings on the rover.", "Items are loaded",
+      ["ready", "all set", "loaded"]);
     service.say("I will follow you. Press We have arrived when you reach your destination.");
     await service.followPerson({
       message: "Press We have arrived when you reach your destination",
-      buttonLabel: "We have arrived"
+      buttonLabel: "We have arrived",
+      phrases: ["we are here", "arrived", "this is the place"]
     });
     service.say("We have arrived. Please take your belongings.");
   }

@@ -4,17 +4,19 @@ import { waitForPerson } from "../missions/observations";
 import { createGreetingMission } from "../missions/challengerStarter";
 import { runMobileReceptionist } from "../missions/mobileReceptionist";
 import type { CourseDestination } from "../config";
+import { choiceOption, type ServiceChoice, type ServiceChoiceInput } from "./simulatedSpeech";
+export type { ServiceChoice, ServiceChoiceInput } from "./simulatedSpeech";
 
 export interface StudentServiceApi {
   greetPerson(): Promise<void>;
   guideTo(destination: CourseDestination): Promise<void>;
   waitForPerson(): Promise<void>;
   approachPerson(): Promise<void>;
-  ask(message: string): Promise<boolean>;
-  confirm(message: string, buttonLabel?: string): Promise<void>;
-  choose(message: string, choices: readonly string[]): Promise<string>;
+  ask(message: string, phrases?: { yes?: readonly string[]; no?: readonly string[] }): Promise<boolean>;
+  confirm(message: string, buttonLabel?: string, phrases?: readonly string[]): Promise<void>;
+  choose(message: string, choices: readonly ServiceChoiceInput[]): Promise<string>;
   waitForLoaded(message: string): Promise<void>;
-  followPerson(options?: { message?: string; buttonLabel?: string }): Promise<void>;
+  followPerson(options?: { message?: string; buttonLabel?: string; phrases?: readonly string[] }): Promise<void>;
   /** Requests display and speech; does not wait for speech to finish. */
   say(message: string): void;
 }
@@ -22,7 +24,7 @@ export interface StudentService {
   title: string;
   run(service: StudentServiceApi): Promise<void>;
 }
-export interface ServiceQuestion { message: string; choices: readonly string[] }
+export interface ServiceQuestion { message: string; choices: readonly string[]; options?: readonly ServiceChoice[] }
 export type ServicePrompt = (question: ServiceQuestion, signal: AbortSignal) => Promise<string>;
 
 /** Runs only through the existing safety-enforced ServiceRover boundary. */
@@ -45,17 +47,23 @@ export async function runStudentService(
     signal.throwIfAborted();
     return value;
   };
-  const question = async (message: string, choices: readonly string[], inputSignal: AbortSignal) => {
-    if (!choices.length || choices.some(choice => !choice.trim()) || new Set(choices).size !== choices.length) {
+  const question = async (message: string, choices: readonly ServiceChoiceInput[], inputSignal: AbortSignal) => {
+    const options = choices.map(choice => {
+      const option = choiceOption(choice);
+      return { ...option, ...(option.phrases ? { phrases: [...option.phrases] } : {}) };
+    });
+    if (!options.length || options.some(choice => !choice.value.trim() || !choice.label.trim()
+      || choice.phrases?.some(phrase => !phrase.trim())) || new Set(options.map(choice => choice.value)).size !== options.length) {
       throw new Error("Choices must be non-empty, distinct labels");
     }
-    const labels = [...choices];
-    const answer = await prompt({ message, choices: labels }, inputSignal);
+    const labels = options.map(choice => choice.value);
+    const answer = await prompt({ message, choices: labels,
+      ...(choices.some(choice => typeof choice !== "string") ? { options } : {}) }, inputSignal);
     inputSignal.throwIfAborted();
     if (!labels.includes(answer)) throw new Error("Unexpected service answer");
     return answer;
   };
-  const request = (message: string, choices: readonly string[]) => checked(async () => {
+  const request = (message: string, choices: readonly ServiceChoiceInput[]) => checked(async () => {
     await rover.stop("waiting for service input");
     say(message);
     return question(message, choices, signal);
@@ -81,8 +89,13 @@ export async function runStudentService(
         const outcome = await runComeHere(rover, signal, { onUpdate: report });
         if (outcome !== "arrived") throw new Error("Target lost. Service interrupted.");
       }),
-      ask: async (message) => await request(message, ["Yes", "No"]) === "Yes",
-      confirm: async (message, buttonLabel = "Continue") => { await request(message, [buttonLabel]); },
+      ask: async (message, phrases) => await request(message, phrases ? [
+        { value: "Yes", label: "Yes", phrases: phrases.yes },
+        { value: "No", label: "No", phrases: phrases.no }
+      ] : ["Yes", "No"]) === "Yes",
+      confirm: async (message, buttonLabel = "Continue", phrases) => {
+        await request(message, [phrases ? { value: buttonLabel, label: buttonLabel, phrases } : buttonLabel]);
+      },
       choose: request,
       waitForLoaded: async (message) => { await request(message, ["Items are loaded"]); },
       followPerson: (options = {}) => checked(async () => {
@@ -92,7 +105,9 @@ export async function runStudentService(
         // Both operations are cancelled and joined before allowing a restart.
         const following = runFollowMe(rover, controller.signal, { onUpdate: report });
         const arrival = question(options.message ?? "Press We have arrived when you reach your destination",
-          [options.buttonLabel ?? "We have arrived"], controller.signal);
+          [options.phrases ? { value: options.buttonLabel ?? "We have arrived",
+            label: options.buttonLabel ?? "We have arrived", phrases: options.phrases }
+            : options.buttonLabel ?? "We have arrived"], controller.signal);
         try {
           const result = await Promise.race([
             following.then(() => "lost" as const),

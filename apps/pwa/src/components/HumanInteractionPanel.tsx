@@ -9,6 +9,7 @@ import type {
   ServiceRover
 } from "../missions";
 import { speakEnglish } from "../speech";
+import { getSpeechRecognitionConstructor, type SpeechRecognitionInstance } from "../speechRecognition";
 
 interface HumanInteractionPanelProps {
   disabled: boolean;
@@ -19,31 +20,6 @@ interface HumanInteractionPanelProps {
 }
 
 const initialDetail = "Ready when you are";
-
-interface SpeechRecognitionResultEvent {
-  results: ArrayLike<{ readonly [index: number]: { transcript: string } }>;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-}
-
-interface SpeechRecognitionInstance {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  start: () => void;
-  abort: () => void;
-}
-
-interface SpeechRecognitionWindow extends Window {
-  SpeechRecognition?: new () => SpeechRecognitionInstance;
-  webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
-}
 
 export function HumanInteractionPanel({
   disabled,
@@ -185,7 +161,7 @@ export function HumanInteractionPanel({
     if (!recognitionConstructor || listening || assistantBusy) return;
     const recognition = new recognitionConstructor();
     recognitionRef.current = recognition;
-    recognition.lang = "ja-JP";
+    recognition.lang = "en-US";
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.onstart = () => {
@@ -251,7 +227,7 @@ export function HumanInteractionPanel({
               type="button"
               disabled={assistantBusy || listening}
               onClick={listenForCommand}
-              aria-label="Speak a rover command in Japanese"
+              aria-label="Speak a rover command in English"
             >
               {listening ? "Listening…" : "Speak"}
             </button>
@@ -313,10 +289,4 @@ export function HumanInteractionPanel({
 
 function formatBearing(value: number | undefined): string {
   return value === undefined ? "bearing —" : `bearing ${value.toFixed(1)}°`;
-}
-
-function getSpeechRecognitionConstructor(): (new () => SpeechRecognitionInstance) | undefined {
-  if (typeof window === "undefined") return undefined;
-  const speechWindow = window as SpeechRecognitionWindow;
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
 }

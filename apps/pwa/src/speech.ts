@@ -66,24 +66,32 @@ export function waitForEnglishVoice<T extends VoiceCandidate>(
 }
 
 let latestSpeechRequest = 0;
+let finishPendingSpeech: (() => void) | undefined;
 
-export function speakEnglish(text: string): void {
+export function speakEnglish(text: string): Promise<void> {
+  finishPendingSpeech?.();
   if (
     typeof window === "undefined"
     || !("speechSynthesis" in window)
     || typeof SpeechSynthesisUtterance === "undefined"
-  ) return;
+  ) return Promise.resolve();
 
   const request = ++latestSpeechRequest;
   const synthesis = window.speechSynthesis;
   synthesis.cancel();
-  void waitForEnglishVoice(synthesis).then((voice) => {
-    if (request !== latestSpeechRequest || !voice) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    utterance.voice = voice;
-    synthesis.speak(utterance);
+  return new Promise<void>(resolve => {
+    const finish = () => { if (finishPendingSpeech === finish) finishPendingSpeech = undefined; resolve(); };
+    finishPendingSpeech = finish;
+    void waitForEnglishVoice(synthesis).then((voice) => {
+      if (request !== latestSpeechRequest || !voice) { finish(); return; }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = 0.96;
+      utterance.pitch = 1;
+      utterance.voice = voice;
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      synthesis.speak(utterance);
+    }).catch(finish);
   });
 }
