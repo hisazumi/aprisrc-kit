@@ -32,6 +32,30 @@ npm.cmd --version
 コマンドが見つからない場合は、まずターミナルを開き直し、インストールの完了とPATH設定を確認します。
 PowerShellの実行ポリシーは変更しません。このガイドでは`npm.ps1`の制限を避けるため`npm.cmd`を使います。
 
+### uvをインストールする
+
+uvは、このプロジェクトで使うPythonと依存パッケージを準備するツールです。
+以下の方法でuvを入れる前に、Pythonを別途インストールする必要はありません。
+PowerShellで、[uv公式の導入案内](https://docs.astral.sh/uv/getting-started/installation/#winget)
+にあるWinGetコマンドを実行します。
+
+```powershell
+winget install --id=astral-sh.uv -e
+```
+
+完了後、PowerShellを閉じて開き直します。VS Code内のターミナルならVS Codeも再起動し、確認します。
+
+```powershell
+uv --version
+```
+
+バージョン番号が表示されれば準備完了です。既に動く場合はインストール不要です。
+`winget`が見つからない場合は、公式案内の別の導入方法を参照するかPC管理者へ相談してください。
+組織のインストール制限を回避しないでください。
+開き直しても`uv`が見つからない場合は、インストールの完了と実行ファイルのPATH登録を確認します。
+
+続く`uv python install 3.12`でPythonを導入し、`uv sync`でこのプロジェクトの依存パッケージを準備します。
+
 ### シミュレータを起動する
 
 `package.json`があるリポジトリのルートで実行してください。

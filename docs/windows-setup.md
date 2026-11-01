@@ -34,6 +34,33 @@ If either command is not found, first reopen the terminal, then check that the
 installation completed and PATH was enabled. Do not change PowerShell's execution policy;
 this guide uses `npm.cmd` to avoid the `npm.ps1` restriction.
 
+### Install uv
+
+uv installs the project's Python version and dependencies. You do not need to
+install Python separately before installing uv this way.
+In PowerShell, use the WinGet command from the
+[official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/#winget):
+
+```powershell
+winget install --id=astral-sh.uv -e
+```
+
+After installation, close and reopen PowerShell (restart VS Code if using its
+terminal), then check:
+
+```powershell
+uv --version
+```
+
+A version number confirms that uv is available. If it already works, skip installation.
+If `winget` is unavailable, consult the official guide for another installation method
+or ask your PC administrator. Do not bypass institutional installation restrictions.
+If `uv` is still not found after reopening the terminal, check whether installation
+completed and its executable directory was added to PATH.
+
+Continue below: `uv python install 3.12` installs Python, while `uv sync` prepares
+this project's dependencies.
+
 ### Start the simulator
 
 Run these commands from the repository root, the folder containing `package.json`:
