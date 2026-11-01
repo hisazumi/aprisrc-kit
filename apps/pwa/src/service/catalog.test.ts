@@ -26,7 +26,7 @@ it.each(["student", "carry"] as const)("%s asks consent and waits for loading be
   const service = api();
   await serviceCatalog[id].definition.run(service);
   expect(service.ask).toHaveBeenCalledOnce();
-  expect(service.confirm).toHaveBeenCalledWith("Place your belongings on the rover.", "Items are loaded");
+  expect(service.confirm).toHaveBeenCalledWith("Place your belongings on the rover.", "Items are loaded", ["ready", "all set", "loaded"]);
   expect(service.followPerson).toHaveBeenCalledOnce();
   expect(vi.mocked(service.confirm).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(service.followPerson).mock.invocationCallOrder[0]);
   const refused = api(); vi.mocked(refused.ask).mockResolvedValue(false);

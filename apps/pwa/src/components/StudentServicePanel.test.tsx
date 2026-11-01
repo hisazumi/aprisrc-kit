@@ -12,6 +12,24 @@ const service = {
     }
   }
 };
+it("shows labels and returns canonical values for simulated voice aliases", async () => {
+  const host = document.createElement("div"), root = createRoot(host);
+  const selected = vi.fn();
+  const rover: ServiceRover = { move: vi.fn(), turn: vi.fn(), stop: vi.fn(async () => {}),
+    getPose: vi.fn(), onPose: vi.fn(), onMarker: vi.fn(), onPerson: vi.fn() };
+  const props = { service: { title: "Choices", run: async (api: import("../service/studentService").StudentServiceApi) => {
+    selected(await api.choose("Where?", [{ value: "desk-id", label: "Desk", phrases: ["my desk"] }]));
+  } }, rover, config: serviceConfig, eligible: true, acquire: vi.fn(), cancel: () => true,
+    emergencyStop: vi.fn(), clearance: () => true, simulator: { available: true, prepare: async () => {} } };
+  try {
+    await act(async () => root.render(<StudentServicePanel {...props} />));
+    await act(async () => [...host.querySelectorAll("button")].find(b => b.textContent === "Start simulation")!.click());
+    expect([...host.querySelectorAll("button")].some(b => b.textContent === "Desk")).toBe(true);
+    expect(host.textContent).not.toContain("desk-id");
+    await act(async () => root.render(<StudentServicePanel {...props} speech={{ id: 1, text: "My desk!" }} />));
+    expect(selected).toHaveBeenCalledWith("desk-id");
+  } finally { await act(async () => root.unmount()); }
+});
 vi.mock("../speech", () => ({ speakEnglish: vi.fn() }));
 beforeEach(() => { (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; });
 afterEach(() => { (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = false; });

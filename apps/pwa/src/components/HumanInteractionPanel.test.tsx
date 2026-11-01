@@ -89,15 +89,16 @@ describe("HumanInteractionPanel", () => {
     await act(async () => speak?.click());
 
     const recognition = FakeSpeechRecognition.latest;
-    expect(recognition?.lang).toBe("ja-JP");
+    expect(recognition?.lang).toBe("en-US");
+    expect(speak?.getAttribute("aria-label")).toBe("Speak a rover command in English");
     await act(async () => {
-      recognition?.onresult?.({ results: [[{ transcript: "止まって" }]] });
+      recognition?.onresult?.({ results: [[{ transcript: "Stop" }]] });
       recognition?.onend?.();
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(assistantApi.interpret).toHaveBeenCalledWith("止まって", []);
+    expect(assistantApi.interpret).toHaveBeenCalledWith("Stop", []);
     expect(stop).toHaveBeenCalledWith("interaction stopped");
     expect(container.textContent).toContain("Stopping.");
 

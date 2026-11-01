@@ -8,6 +8,49 @@ selects My service, Carry helper, Person greeting, or Mobile receptionist. Use
 
 ## Manual testing
 
+### Voice answers
+
+Authors can add alternative phrases without changing the buttons or service logic:
+
+```ts
+const accepted = await service.ask("Would you like help?", {
+  yes: ["yes please", "sure", "please help me"],
+  no: ["no thanks", "not now"]
+});
+await service.confirm("Place your belongings on the rover.", "Items are loaded",
+  ["ready", "all set", "loaded"]);
+const destination = await service.choose("Where?", [
+  { value: "desk", label: "Desk", phrases: ["my desk", "the desk please"] },
+  { value: "entrance", label: "Entrance", phrases: ["the entrance please"] }
+]);
+await service.followPerson({ phrases: ["we are here", "arrived"] });
+```
+
+`label` appears on the button; `value` is returned to the program. The label itself
+and each entry in `phrases` are accepted. Existing string choices still work.
+`ask` returns a boolean; its optional `yes` and `no` arrays add phrases.
+`confirm` accepts phrases as its third argument, and `followPerson` accepts a
+`phrases` option for arrival. Carry helper and My service demonstrate these aliases.
+The same matching applies to microphone input and Playground's simulated speech.
+Matching ignores capitalization and trailing sentence punctuation, but is not a
+substring search or general language understanding. Ambiguous aliases do not select
+an answer. Avoid overlapping phrases; **Stop** remains reserved for stopping.
+
+**Voice conversation** defaults to on in Service and off in Playground; either
+screen lets you change it. Start the service and allow microphone access when
+prompted. In this mode, each question starts English recognition after its spoken
+prompt finishes. Say a displayed choice, such as **Yes**, **No**, **Items are loaded**,
+or **We have arrived**. Buttons remain available. This uses choice matching, not an LLM.
+
+With the mode off, **Answer by voice** listens once. If nothing matches or microphone
+access fails, retry with that button or select a choice; the service does not advance.
+Recognition stops on cancellation, loss of control, leaving the page, or answering.
+Normal voice commands remain separate from answers to the current question.
+
+Use HTTPS (or localhost) and a browser supporting speech recognition. Browsers may
+require another tap before listening; if recognition is unavailable, use the answer
+buttons. Automatic listening is not a substitute for the emergency-stop control.
+
 1. Keep **Manual test** selected and press **Start service**. Simulator control and
    synthetic clear-path input are prepared automatically.
 2. Press **Enter view**. Use **Move away**, **Come closer**, **Walk left**, **Walk right**,
