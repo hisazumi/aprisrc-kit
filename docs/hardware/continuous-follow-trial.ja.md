@@ -2,17 +2,26 @@
 
 [English (canonical)](continuous-follow-trial.md)
 
-現時点はソフトウェアの準備のみで、iron-Xの連続追従は実機未検証です。
+短時間の監視付きiron-X実機試験は後述のとおりですが、すべてのネットワークでの安定性を保証しません。
 Simulatorでは実カメラの揺れ、Wi-Fi遅延、制動性能まで評価できません。
 
 Simulatorは上限0.25 m/s・距離ゲイン0.8の連続P制御を使います。
-実機は既定で従来の距離指定方式のままです。明示的に有効化できるのは
-`ironx_network`だけで、UGV02・同一ホストiron-Xは変更しません。
+`ironx_network`もP制御＋加減速制限の連続追従が標準です。
+UGV02・同一ホストiron-Xは変更しません。
 
-PWA開発サーバーを起動する前に設定します。
+## 従来方式に切り替える
+
+まずサービスを停止します。連続追従をオフにするには、PWAを起動するターミナルで
+起動前に設定します（Windows PowerShell）。
+
+```powershell
+$env:VITE_IRONX_CONTINUOUS_FOLLOW = "0"
+```
+
+macOS/Linuxの場合：
 
 ```sh
-export VITE_IRONX_CONTINUOUS_FOLLOW=1
+export VITE_IRONX_CONTINUOUS_FOLLOW=0
 ```
 
 [PC・iPhoneの既存手順](ironx-follow.ja.md)に従い、PCサーバーは`ironx_network`を使います。
@@ -28,8 +37,17 @@ export VITE_IRONX_CONTINUOUS_FOLLOW=1
 操作者の許可後、短い前進追従、左右への追従、人の停止、対象喪失の順に確認します。
 指令速度・観測速度・停止距離を記録し、停止を確認する前に最高速度を上げないでください。
 
-戻す場合はサービスを止め、`VITE_IRONX_CONTINUOUS_FOLLOW`を未設定にし、PWAを再起動・
-再ビルドしてスマホを再読み込みします。実機は従来のmove/turn追従に戻ります。
+ネットワーク接続のiron-Xでは、`0`だけが従来のmove/turn追従を選択します。
+標準の連続追従に戻す場合はサービスを停止し、設定を削除します。
+
+```powershell
+Remove-Item Env:VITE_IRONX_CONTINUOUS_FOLLOW -ErrorAction SilentlyContinue
+```
+
+macOS/Linuxでは`unset VITE_IRONX_CONTINUOUS_FOLLOW`を使います。
+Viteの`.env`ファイルに書いた場合はそちらの設定も削除してください。
+`1`を設定しても連続追従になります。どちらの変更でもPWAを再起動・再ビルドし、
+スマホを再読み込みします。
 再接続だけでサービスを再開しません。ソース設定やソフトウェアテストの成功は、
 実機への配備・動作確認を意味しません。
 

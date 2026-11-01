@@ -62,10 +62,13 @@ npm.cmd run dev
 `APRIS_IRONX_GATEWAY_TOKEN`. Keep token entry out of shared screens and recordings.
 The `ironx` adapter is for a server running on the robot itself; do not select it on Windows.
 
-Continuous following is an explicit trial option, not enabled by this snippet. Only for an
-agreed continuous-follow trial, set `$env:VITE_IRONX_CONTINUOUS_FOLLOW="1"` **before** starting
-Vite; see [the trial guide](continuous-follow-trial.md). Leave the existing profile unchanged
-for connection-only checks.
+Network iron-X uses continuous P-controlled following with acceleration limits by default
+(maximum forward speed 0.15 m/s). This does not grant movement permission.
+To use legacy bounded move/turn following instead, set
+`$env:VITE_IRONX_CONTINUOUS_FOLLOW="0"` **before** starting Vite.
+Stop the service before changing modes, restart Vite and reload the phone.
+For restoring the default and macOS/Linux commands, see
+[the continuous-follow guide](continuous-follow-trial.md).
 
 ## UGV02
 

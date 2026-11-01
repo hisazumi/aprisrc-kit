@@ -1,14 +1,20 @@
 import { expect, it } from "vitest";
 import { followProfileTuning, selectFollowProfile } from "./followProfile";
 
-it("requires explicit opt-in for iron-X and leaves other hardware on bounded motion", () => {
-  expect(selectFollowProfile("ironx_network", undefined)).toBe(false);
+it("defaults network iron-X to continuous following with an explicit opt-out", () => {
+  expect(selectFollowProfile("ironx_network", undefined)).toBe("ironx");
+  expect(selectFollowProfile("ironx_network", "")).toBe("ironx");
   expect(selectFollowProfile("ironx_network", "0")).toBe(false);
   expect(selectFollowProfile("ironx_network", "1")).toBe("ironx");
-  for (const adapter of [null, "ironx", "websocket_rover", "factory_http"]) {
-    expect(selectFollowProfile(adapter, "1")).toBe(false);
+});
+
+it("leaves other adapters unchanged regardless of the hardware flag", () => {
+  for (const flag of [undefined, "0", "1"]) {
+    for (const adapter of [null, "ironx", "websocket_rover", "factory_http"]) {
+      expect(selectFollowProfile(adapter, flag)).toBe(false);
+    }
+    expect(selectFollowProfile("simulator", flag)).toBe("simulator");
   }
-  expect(selectFollowProfile("simulator", undefined)).toBe("simulator");
 });
 
 it("keeps simulator and hardware tuning independent", () => {

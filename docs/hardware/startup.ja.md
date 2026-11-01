@@ -62,10 +62,13 @@ npm.cmd run dev
 tokenはgatewayの`APRIS_IRONX_GATEWAY_TOKEN`と一致させ、入力画面を共有・録画しないでください。
 `ironx`は機体内でKitサーバーを動かす場合のAdapterです。Windowsでは選びません。
 
-連続追従は明示的に選ぶ試験用設定で、上のコマンドだけでは有効にしません。
-合意した連続追従試験の場合だけ、Vite起動**前**に
-`$env:VITE_IRONX_CONTINUOUS_FOLLOW="1"`を設定します。
-[連続追従ガイド](continuous-follow-trial.ja.md)を参照し、接続確認だけなら既存の追従設定は変えません。
+ネットワーク接続のiron-Xは、P制御＋加減速制限の連続追従が標準です
+（前進上限0.15 m/s）。この設定だけでは走行を許可しません。
+従来の距離・角度指定方式に戻す場合は、Vite起動**前**に
+`$env:VITE_IRONX_CONTINUOUS_FOLLOW="0"`を設定します。
+方式変更前にサービスを停止し、Viteを再起動してスマホを再読み込みします。
+標準に戻す方法とmacOS/Linuxのコマンドは
+[連続追従ガイド](continuous-follow-trial.ja.md)を参照してください。
 
 ## UGV02
 

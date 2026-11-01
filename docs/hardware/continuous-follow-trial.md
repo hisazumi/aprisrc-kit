@@ -2,17 +2,26 @@
 
 [日本語](continuous-follow-trial.ja.md)
 
-Software preparation only: iron-X continuous following has not been physically
-validated. Simulator checks do not qualify camera noise, Wi-Fi latency or braking.
+Short supervised iron-X trials are recorded below; they do not establish reliability
+on every network. Simulator checks do not qualify camera noise, Wi-Fi latency or braking.
 
 Simulator automatically uses continuous P control with a 0.25 m/s ceiling and
-distance gain 0.8. Hardware remains on bounded motion by default. Only the
-`ironx_network` adapter can opt in; UGV02 and same-host iron-X remain unchanged.
+distance gain 0.8. The `ironx_network` adapter also uses continuous P control with
+acceleration limits by default. UGV02 and same-host iron-X remain unchanged.
 
-Before starting the PWA development server, set:
+## Switching to legacy following
+
+Stop the service first. To disable continuous following, set this in the terminal
+that starts the PWA, before starting it (Windows PowerShell):
+
+```powershell
+$env:VITE_IRONX_CONTINUOUS_FOLLOW = "0"
+```
+
+On macOS/Linux:
 
 ```sh
-export VITE_IRONX_CONTINUOUS_FOLLOW=1
+export VITE_IRONX_CONTINUOUS_FOLLOW=0
 ```
 
 Use the existing [PC/iPhone setup](ironx-follow.md), with the PC server configured
@@ -31,8 +40,16 @@ After operator approval, test short forward following, left/right alignment,
 person stopping and target loss, in that order. Record commanded/observed velocity
 and stop distance. Do not tune maximum speed before checking stopping behavior.
 
-To revert: stop the service, unset `VITE_IRONX_CONTINUOUS_FOLLOW`, restart/rebuild
-the PWA and reload the phone. Hardware then returns to bounded move/turn following.
+Only `0` selects legacy bounded move/turn following for network iron-X. To restore
+continuous following, stop the service and remove the setting:
+
+```powershell
+Remove-Item Env:VITE_IRONX_CONTINUOUS_FOLLOW -ErrorAction SilentlyContinue
+```
+
+On macOS/Linux, use `unset VITE_IRONX_CONTINUOUS_FOLLOW`. If you set it in a Vite
+`.env` file, remove it there too. Setting it to `1` also enables continuous following.
+Restart/rebuild the PWA and reload the phone after either change.
 Reconnection alone must not resume the service. No robot deployment is implied
 by changing this source flag or by passing software tests.
 

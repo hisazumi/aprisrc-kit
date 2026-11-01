@@ -1,8 +1,8 @@
 export type FollowProfile = "simulator" | "ironx" | false;
 
-export function selectFollowProfile(adapter: string | null, hardwareOptIn: string | undefined): FollowProfile {
+export function selectFollowProfile(adapter: string | null, continuousFollow: string | undefined): FollowProfile {
   if (adapter === "simulator") return "simulator";
-  if (adapter === "ironx_network" && hardwareOptIn === "1") return "ironx";
+  if (adapter === "ironx_network" && continuousFollow !== "0") return "ironx";
   return false;
 }
 
