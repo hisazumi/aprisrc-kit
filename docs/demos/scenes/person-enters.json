@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "Enter from left",
+  "rover": { "x": 0, "y": 0, "yaw": 0 },
+  "person": { "x": 1.35, "y": 1.2 },
+  "steps": [
+    {
+      "action": "walk",
+      "trigger": { "type": "delay", "seconds": 2 },
+      "points": [{ "x": 1.35, "y": 0 }],
+      "speedMps": 0.1
+    },
+    {
+      "action": "walk",
+      "trigger": { "type": "manual" },
+      "points": [{ "x": 2, "y": 0 }, { "x": 2.3, "y": 0.2 }],
+      "speedMps": 0.1
+    }
+  ],
+  "checks": ["Waits while the person is outside view", "Stops when the person stops"]
+}

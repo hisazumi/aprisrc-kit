@@ -22,6 +22,7 @@ points; these guides do not define event rules or judging criteria.
 
 | Goal | Document |
 | --- | --- |
+| Start on Windows or recover from Python/backend setup errors | [Windows setup](windows-setup.md) |
 | Choose a trial, service-development, or hardware handoff path | [Try, change, and hand over APRISRC Kit](handoff.md) |
 | Run the MVP and compare a small service change | [Playground hands-on](demos/playground-workshop.md) |
 | Try a service and connect its behavior to code | [Service playground](demos/service-playground.md) |

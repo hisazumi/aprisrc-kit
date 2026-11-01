@@ -9,7 +9,7 @@
     "cert:generate": "node scripts/generate-dev-cert.mjs",
     "dev": "concurrently -n server,pwa -c blue,green \"npm run dev:server\" \"npm run dev:pwa\"",
     "dev:pwa": "npm --workspace @apris/pwa run dev",
-    "dev:server": "uv run --directory apps/server uvicorn apris_server.app:app --reload --host 0.0.0.0 --port 8000",
+    "dev:server": "uv run --directory apps/server --no-dev uvicorn apris_server.app:app --reload --host 0.0.0.0 --port 8000",
     "build": "npm --workspace @apris/pwa run build",
     "test": "npm --workspace @apris/pwa run test",
     "test:starter": "npm --workspace @apris/pwa run test:starter",

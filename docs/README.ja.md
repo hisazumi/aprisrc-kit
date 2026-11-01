@@ -26,6 +26,7 @@ WebのチャットやAIを使う場合は[AIを使った開発手順](ai-assiste
 
 | やりたいこと | ドキュメント |
 | --- | --- |
+| Windowsで起動する・Pythonやバックエンドの準備エラーを解決する | [Windowsの起動・トラブル対応](windows-setup.ja.md) |
 | 体験・開発・実機引き継ぎの入口を選ぶ | [試す・変更する・引き継ぐ](handoff.ja.md) |
 | MVPを動かし、小さな変更の効果を比較する | [Playground実習ガイド](demos/playground-workshop.ja.md) |
 | サービスの体験とコードの関係を試す | [Service playground](demos/service-playground.ja.md) |

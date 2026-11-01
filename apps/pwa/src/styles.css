@@ -643,3 +643,30 @@ h2 { font-size: 1.25rem; letter-spacing: -.025em; }
 .hardware-observations { display: grid; gap: 8px; font-size: .85rem; }
 .hardware-observations > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; }
 .hardware-observations dd { margin: 0; overflow-wrap: anywhere; }
+.student-service {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.student-service__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-scene { margin: 24px 0; padding: 20px 0; border-top: 1px solid #b9c6bf; }
+.scene-toolbar, .scene-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 12px 0; }
+.student-scene label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.student-scene input, .student-scene select, .student-scene textarea { max-width: 100%; padding: 8px; font: inherit; }
+.scene-fields input { width: 145px; }
+.student-scene fieldset { border: 0; padding: 12px 0; min-width: 0; }
+.student-scene textarea { width: 100%; }
+.scene-steps { padding-left: 24px; }
+.scene-steps > li { border-top: 1px solid #b9c6bf; padding: 12px 0; }
+.manual-person { width: 100%; border-top: 1px solid #b9c6bf; padding-top: 12px; }
+.manual-person fieldset { border: 0; padding: 0; min-width: 0; }
+.manual-person label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.manual-person input { max-width: 100%; padding: 8px; font: inherit; }
+.manual-person button[aria-pressed="true"] { outline: 2px solid #316c55; }

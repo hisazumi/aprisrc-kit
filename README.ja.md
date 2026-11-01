@@ -67,13 +67,16 @@ docs/                   Guides, reference, operations, and design records
 
 ## Development
 
-Requirements: Node.js 22.x (22.12+) or 24+, npm, Python 3.11 or later, and `uv`.
+必要なものはNode.js 22.x（22.12以降）または24以降、npm、Python 3.12、`uv`です。
+ローカル開発ではPython 3.12を使うよう固定しています。Windows PowerShellでは
+[Windowsの起動・トラブル対応](docs/windows-setup.ja.md)を参照してください。
 
 ```bash
 git clone https://github.com/hisazumi/aprisrc-kit.git
 cd aprisrc-kit
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 npm run dev
 ```
 
@@ -97,6 +100,7 @@ PC の `localhost` ではカメラを利用できるが、スマートフォン�
 変更後は次の標準チェックを実行する。
 
 ```bash
+uv sync --directory apps/server --dev
 npm run typecheck
 npm test
 npm run build
@@ -129,3 +133,7 @@ iPhoneによる人追従の成功報告があるが、最新の停止確認修�
 
 コード開発はこちらの公開repoで行う。[初回公開の範囲](docs/release-scope.ja.md)と[開発への参加](CONTRIBUTING.ja.md)を参照する。
 独自部分は[MIT](LICENSE)、同梱firmwareは既存GPLである。[ライセンスと出典](LICENSING.md)を確認する。
+
+### 受講生用サービステンプレート
+
+`apps/pwa/src/missions/studentCarry.ts` でサービスの流れを編集し、Simulatorでは `/lab?sample=student`、カメラを使う画面では `/app?service=student` を開きます。設定、入力ボタン、安全上の境界、確認範囲は[開始手順](docs/demos/student-service.ja.md)（[English](docs/demos/student-service.md)）を参照してください。

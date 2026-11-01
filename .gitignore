@@ -3,6 +3,7 @@
 .certs/
 .runtime/
 .venv/
+.venv-backup-*/
 __pycache__/
 .pytest_cache/
 .ruff_cache/

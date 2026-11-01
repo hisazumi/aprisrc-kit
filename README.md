@@ -68,13 +68,16 @@ docs/                    Guides, reference, operations, and design records
 
 ## Development
 
-Requirements: Node.js 22.x (22.12+) or 24+, npm, Python 3.11 or later, and `uv`.
+Requirements: Node.js 22.x (22.12+) or 24+, npm, Python 3.12, and `uv`.
+The repository pins Python 3.12 for local development. For Windows PowerShell,
+use [Windows setup and troubleshooting](docs/windows-setup.md).
 
 ```bash
 git clone https://github.com/hisazumi/aprisrc-kit.git
 cd aprisrc-kit
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 npm run dev
 ```
 
@@ -91,6 +94,7 @@ Cameras are available on the PC through `localhost`, but HTTPS is required when 
 After making changes, run the following standard checks:
 
 ```bash
+uv sync --directory apps/server --dev
 npm run typecheck
 npm test
 npm run build
@@ -124,3 +128,7 @@ tracked in the [Development roadmap](docs/roadmap.md).
 
 This public repository is the code-development home. See [Initial public release](docs/release-scope.md) and [Contributing](CONTRIBUTING.md).
 Original Kit code/docs use [MIT](LICENSE); vendored firmware retains its GPL terms. See [Licensing and attribution](LICENSING.md).
+
+### Student service template
+
+Edit the service flow in `apps/pwa/src/missions/studentCarry.ts`, then run `/lab?sample=student` with the Simulator or `/app?service=student` with camera observations. See [the quick start](docs/demos/student-service.md) ([日本語](docs/demos/student-service.ja.md)) for setup, UI input, safety boundaries, and limitations.

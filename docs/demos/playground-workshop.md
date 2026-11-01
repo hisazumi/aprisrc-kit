@@ -13,11 +13,14 @@ development workspace, not the final visitor-facing app.
 ## Start
 
 Clone this public repository; no access invitation is required.
-Install Node.js/npm, Python 3.11 or later, and `uv`, then run from the repository root:
+Install Node.js/npm, Python 3.12 (pinned), and `uv`.
+On Windows, follow [PowerShell setup](../windows-setup.md).
+On macOS/Linux (Bash or zsh), run from the repository root:
 
 ```bash
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 

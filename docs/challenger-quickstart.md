@@ -14,11 +14,14 @@ changing APRIS platform code or firmware. Start in the Simulator. Allow 30-45 mi
 
 ## 1. Start the development environment
 
-Requirements: Node.js, npm, Python 3.11 or later, and `uv`.
+Requirements: Node.js 22.12+ or 24+, npm, Python 3.12 (pinned), and `uv`.
+Windows: use [PowerShell startup and troubleshooting](windows-setup.md).
+The commands below are for macOS/Linux (Bash or zsh), from the repository root.
 
 ```bash
-npm install
-uv sync --directory apps/server --dev
+npm ci
+uv python install 3.12
+uv sync --directory apps/server --no-dev
 APRIS_ADAPTER=simulator APRIS_DISABLE_HTTPS=1 npm run dev
 ```
 
