@@ -123,3 +123,7 @@ tracked in the [Development roadmap](docs/roadmap.md).
 
 This public repository is the code-development home. See [Initial public release](docs/release-scope.md) and [Contributing](CONTRIBUTING.md).
 Original Kit code/docs use [MIT](LICENSE); vendored firmware retains its GPL terms. See [Licensing and attribution](LICENSING.md).
+
+### Student service template
+
+Edit the service flow in `apps/pwa/src/missions/studentCarry.ts`, then run `/lab?sample=student` with the Simulator or `/app?service=student` with camera observations. See [the quick start](docs/demos/student-service.md) ([日本語](docs/demos/student-service.ja.md)) for setup, UI input, safety boundaries, and limitations.

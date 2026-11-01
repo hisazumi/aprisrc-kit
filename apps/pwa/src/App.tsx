@@ -1,3 +1,4 @@
+import { StudentServicePanel } from "./components/StudentServicePanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ManualPathClearance } from "./components/ManualPathClearance";
 
@@ -32,7 +33,8 @@ export function viewForPathname(pathname: string): PwaView {
   return "app";
 }
 
-export function serviceModeForSearch(search: string): "carry" | "receptionist" {
+export function serviceModeForSearch(search: string): "carry" | "receptionist" | "student" {
+  if (new URLSearchParams(search).get("service") === "student") return "student";
   return new URLSearchParams(search).get("service") === "receptionist"
     ? "receptionist"
     : "carry";
@@ -70,7 +72,7 @@ export function App() {
   const playground = view === "lab" && ["greeting", "follow", "receptionist"].includes(new URLSearchParams(window.location.search).get("sample") ?? "");
   const content = viewContent[view];
   const rover = useRoverSocket();
-  const [serviceMode, setServiceMode] = useState<"carry" | "receptionist">(
+  const [serviceMode, setServiceMode] = useState<"carry" | "receptionist" | "student">(
     () => serviceModeForSearch(window.location.search)
   );
   const [adapterType, setAdapterType] = useState<RoverAdapterType | null>(null);
@@ -159,10 +161,10 @@ export function App() {
     rover.actions.stop("joystick released");
   }, [rover.actions.stop]);
 
-  const selectServiceMode = useCallback((mode: "carry" | "receptionist") => {
+  const selectServiceMode = useCallback((mode: "carry" | "receptionist" | "student") => {
     setServiceMode(mode);
     const url = new URL(window.location.href);
-    if (mode === "receptionist") url.searchParams.set("service", mode);
+    if (mode !== "carry") url.searchParams.set("service", mode);
     else url.searchParams.delete("service");
     window.history.replaceState(null, "", url);
   }, []);
@@ -332,6 +334,18 @@ export function App() {
     />
   );
 
+  const studentServicePanel = (
+    <StudentServicePanel
+      rover={rover.serviceRover}
+      config={serviceConfig}
+      eligible={rover.status === "connected" && rover.control.isOwner && !rover.control.estopLatched}
+      acquire={rover.actions.acquire}
+      cancel={rover.actions.cancelMotion}
+      emergencyStop={rover.actions.estop}
+      clearance={rover.actions.setPathClearance}
+    />
+  );
+
   const autonomousCarryService = (
     <AutonomousCarryService
       connected={rover.status === "connected"}
@@ -445,6 +459,7 @@ export function App() {
       {view === "app" && (
         <section className="service-app">
           <div className="service-selector" role="tablist" aria-label="Service prototype">
+            <button role="tab" aria-selected={serviceMode === "student"} onClick={() => selectServiceMode("student")}>Student service</button>
             <button
               role="tab"
               aria-selected={serviceMode === "carry"}
@@ -460,7 +475,9 @@ export function App() {
               Mobile receptionist
             </button>
           </div>
-          {serviceMode === "carry" ? (
+          {serviceMode === "student" ? (
+            <>{studentServicePanel}{serviceVision}</>
+          ) : serviceMode === "carry" ? (
             <>{autonomousCarryService}{serviceVision}</>
           ) : (
             <>{mobileReceptionistService}{receptionistVision}</>
@@ -498,7 +515,7 @@ export function App() {
             />
           </section>
           <section className="autonomous-service-section">
-            {autonomousCarryService}
+            {new URLSearchParams(window.location.search).get("sample") === "student" ? studentServicePanel : autonomousCarryService}
           </section>
           <section className="simulator-tools">
             <SimulatorScenarioPanel events={rover.scenarioEvents} />

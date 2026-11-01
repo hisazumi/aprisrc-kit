@@ -128,3 +128,7 @@ iPhoneによる人追従の成功報告があるが、最新の停止確認修�
 
 コード開発はこちらの公開repoで行う。[初回公開の範囲](docs/release-scope.ja.md)と[開発への参加](CONTRIBUTING.ja.md)を参照する。
 独自部分は[MIT](LICENSE)、同梱firmwareは既存GPLである。[ライセンスと出典](LICENSING.md)を確認する。
+
+### 受講生用サービステンプレート
+
+`apps/pwa/src/missions/studentCarry.ts` でサービスの流れを編集し、Simulatorでは `/lab?sample=student`、カメラを使う画面では `/app?service=student` を開きます。設定、入力ボタン、安全上の境界、確認範囲は[開始手順](docs/demos/student-service.ja.md)（[English](docs/demos/student-service.md)）を参照してください。
