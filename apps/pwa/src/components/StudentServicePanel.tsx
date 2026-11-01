@@ -4,8 +4,9 @@ import type { ServiceConfig } from "../config";
 import { runStudentService, type StudentService, type ServiceQuestion, type ServicePrompt } from "../service/studentService";
 import { speakEnglish } from "../speech";
 import { ManualPathClearance } from "./ManualPathClearance";
-import { choiceOption, normalizedSpeech, spokenChoice } from "../service/simulatedSpeech";
+import { choiceOption, normalizedSpeech, matchingSpokenChoices } from "../service/simulatedSpeech";
 import { VoiceAnswerButton } from "./VoiceAnswerButton";
+import { assistantApi } from "../assistantApi";
 
 interface Props {
   service: StudentService;
@@ -26,6 +27,8 @@ interface Props {
 }
 export function StudentServicePanel({ service, rover, config, eligible, blockedReason, acquire, cancel, emergencyStop, clearance, simulator, resetToken, onRunningChange, execution, speech, voiceDefault = false }: Props) {
   const [voiceMode, setVoiceMode] = useState(voiceDefault);
+  const voiceModeNow = useRef(voiceMode);
+  voiceModeNow.current = voiceMode;
   const speechDone = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => { setVoiceMode(voiceDefault); }, [voiceDefault]);
   const [running, setRunning] = useState(false);
@@ -38,6 +41,11 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
   const transition = useRef<AbortController | null>(null);
   const [switching, setSwitching] = useState(false);
   const [speechResult, setSpeechResult] = useState("");
+  const answerRequest = useRef<AbortController | null>(null);
+  const [answerBusy, setAnswerBusy] = useState(false);
+  const inputNow = useRef(input);
+  inputNow.current = input;
+  useEffect(() => () => answerRequest.current?.abort(), []);
   const heard = useRef<number | null>(null);
   const eligibleNow = useRef(eligible);
   eligibleNow.current = eligible;
@@ -58,7 +66,50 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
     const timer = window.setInterval(renew, 300);
     return () => { window.clearInterval(timer); actions.current.clearance(false); };
   }, [Boolean(simulator), running, eligible]);
-  const stop = () => { transition.current?.abort(); controller.current?.abort(); cancel(); clearance(false); };
+  const stop = () => { answerRequest.current?.abort(); transition.current?.abort(); controller.current?.abort(); cancel(); clearance(false); };
+  const resumeConversation = (message?: string) => {
+    if (voiceModeNow.current) {
+      // A new readiness promise re-arms this question's microphone after speech.
+      speechDone.current = message ? Promise.resolve(speakEnglish(message)) : Promise.resolve();
+    }
+  };
+  const answerSpeech = async (text: string) => {
+    const question = input;
+    if (!eligibleNow.current || !question || !controller.current || controller.current.signal.aborted) return;
+    if (normalizedSpeech(text) === "stop" || normalizedSpeech(text) === "停止") {
+      stop(); setSpeechResult("Stop requested"); return;
+    }
+    answerRequest.current?.abort();
+    const matches = matchingSpokenChoices(text, question.options ?? question.choices);
+    if (matches.length > 1) {
+      const message = "That matches more than one answer. Please select an answer on screen.";
+      if (voiceModeNow.current) void speakEnglish(message);
+      setAnswerBusy(false); setSpeechResult(message); return;
+    }
+    if (matches.length === 1) { question.reply(matches[0].value); setSpeechResult(`Heard: ${text}. Answer accepted.`); return; }
+    const request = new AbortController();
+    answerRequest.current = request;
+    setAnswerBusy(true); setSpeechResult(`Heard: ${text}. Interpreting answer...`);
+    try {
+      const result = await assistantApi.answer(question.message, text,
+        (question.options ?? question.choices).map(choiceOption), request.signal);
+      if (request.signal.aborted || inputNow.current?.id !== question.id || !eligibleNow.current
+        || !controller.current || controller.current.signal.aborted) return;
+      if (result.value !== null && question.choices.includes(result.value)) {
+        question.reply(result.value);
+        setSpeechResult(`Heard: ${text}. Answer accepted (${result.source}).`);
+      } else {
+        if (result.source !== "rules") {
+          resumeConversation(result.outcome === "acknowledgement" ? undefined : result.response);
+        }
+        setSpeechResult(`Heard: ${text}. ${result.outcome === "acknowledgement" ? "Acknowledged." : "No matching answer."} ${result.response}`);
+      }
+    } catch {
+      if (!request.signal.aborted) setSpeechResult("Could not interpret your answer. Please select an answer or try again.");
+    } finally {
+      if (answerRequest.current === request) { answerRequest.current = null; setAnswerBusy(false); }
+    }
+  };
   useEffect(() => {
     if (!speech || heard.current === speech.id) return;
     heard.current = speech.id;
@@ -67,9 +118,8 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
     if (value === "stop" || value === "停止") {
       stop(); setSpeechResult(`Person: ${speech.text} · Stop requested`); return;
     }
-    const answer = input && spokenChoice(speech.text, input.options ?? input.choices);
-    if (answer && input) { input.reply(answer); setSpeechResult(`Person: ${speech.text} · Answer accepted`); }
-    else setSpeechResult(`Person: ${speech.text} · ${input ? "No matching answer" : "No question is waiting"}`);
+    if (input) void answerSpeech(speech.text);
+    else setSpeechResult(`Person: ${speech.text} · No question is waiting`);
   }, [speech, input, simulator, eligible]);
   useEffect(() => {
     if (!eligible) { transition.current?.abort(); controller.current?.abort(); actions.current.cancel(); actions.current.clearance(false); }
@@ -97,7 +147,7 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
     const prompt: ServicePrompt = (question, signal) => new Promise((resolve, reject) => {
       signal.throwIfAborted();
       let settled = false;
-      const cleanup = () => { signal.removeEventListener("abort", abort); setInput(null); };
+      const cleanup = () => { answerRequest.current?.abort(); setAnswerBusy(false); signal.removeEventListener("abort", abort); setInput(null); };
       const abort = () => { settled = true; cleanup(); reject(signal.reason); };
       signal.addEventListener("abort", abort, { once: true });
       setSpeechResult("");
@@ -176,14 +226,9 @@ export function StudentServicePanel({ service, rover, config, eligible, blockedR
     {!running && !switching && startButton}
     {input && <div className="student-service__choices">
       {(input.options ?? input.choices).map(choiceOption).map(choice => <button key={choice.value} className="button" onClick={() => input.reply(choice.value)}>{choice.label}</button>)}
-      <VoiceAnswerButton key={input.id} disabled={!eligible || !running} automatic={voiceMode}
+      <VoiceAnswerButton key={input.id} disabled={!eligible || !running} automatic={voiceMode} busy={answerBusy}
         ready={speechDone.current} onStatus={setSpeechResult}
-        onAnswer={text => {
-          if (normalizedSpeech(text) === "stop") { stop(); setSpeechResult("Stop requested"); return; }
-          const answer = spokenChoice(text, input.options ?? input.choices);
-          if (answer) { input.reply(answer); setSpeechResult(`Heard: ${text}. Answer accepted.`); }
-          else setSpeechResult(`Heard: ${text}. No matching answer. Please say or select: ${(input.options ?? input.choices).map(choiceOption).map(choice => choice.label).join(", ")}.`);
-        }} />
+        onAnswer={text => { void answerSpeech(text); }} />
     </div>}
     {execution}
     {speechResult && <p role="status">{speechResult}</p>}

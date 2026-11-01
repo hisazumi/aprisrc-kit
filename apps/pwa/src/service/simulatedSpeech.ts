@@ -11,9 +11,12 @@ export function normalizedSpeech(text: string): string {
   return text.trim().toLocaleLowerCase().replace(/[.!?。！？]+$/u, "").trim();
 }
 export function spokenChoice(text: string, choices: readonly ServiceChoiceInput[]): string | undefined {
+  const matches = matchingSpokenChoices(text, choices);
+  return matches.length === 1 ? matches[0].value : undefined;
+}
+export function matchingSpokenChoices(text: string, choices: readonly ServiceChoiceInput[]): ServiceChoice[] {
   const value = normalizedSpeech(text);
   const aliases: Record<string, string> = { "はい": "yes", "いいえ": "no" };
-  const matches = choices.map(choiceOption).filter(choice =>
+  return choices.map(choiceOption).filter(choice =>
     [choice.label, ...(choice.phrases ?? [])].some(phrase => normalizedSpeech(phrase) === (aliases[value] ?? value)));
-  return matches.length === 1 ? matches[0].value : undefined;
 }

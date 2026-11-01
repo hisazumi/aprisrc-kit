@@ -40,7 +40,10 @@ an answer. Avoid overlapping phrases; **Stop** remains reserved for stopping.
 screen lets you change it. Start the service and allow microphone access when
 prompted. In this mode, each question starts English recognition after its spoken
 prompt finishes. Say a displayed choice, such as **Yes**, **No**, **Items are loaded**,
-or **We have arrived**. Buttons remain available. This uses choice matching, not an LLM.
+or **We have arrived**. Buttons remain available. Labels/aliases match locally;
+unmatched replies use the configured Gemini/OpenAI provider to classify the current
+answer. Ambiguous replies or API failures do not advance the service. In rules mode,
+use a listed phrase or button. See [provider setup](../assistant-providers.md).
 
 With the mode off, **Answer by voice** listens once. If nothing matches or microphone
 access fails, retry with that button or select a choice; the service does not advance.
@@ -58,7 +61,7 @@ buttons. Automatic listening is not a substitute for the emergency-stop control.
 3. Answer the service's displayed questions. My service and Carry helper use **Yes**,
    **Items are loaded**, and **We have arrived**. Person greeting faces and greets once.
 4. **Person says** / **Say** simulates recognized text for the current question.
-   It is not microphone recognition or an LLM conversation.
+   It bypasses microphone recognition; unmatched answers use the configured LLM just like spoken answers.
 5. **Cancel and stop** ends a trial. Stop before changing service or test mode.
    **Restart service** stops the previous trial before starting another.
 

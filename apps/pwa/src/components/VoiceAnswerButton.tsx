@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { getSpeechRecognitionConstructor, type SpeechRecognitionInstance } from "../speechRecognition";
 
-export function VoiceAnswerButton({ disabled, automatic = false, ready, onAnswer, onStatus }: {
+export function VoiceAnswerButton({ disabled, busy = false, automatic = false, ready, onAnswer, onStatus }: {
   disabled: boolean;
+  busy?: boolean;
   automatic?: boolean;
   ready?: Promise<void>;
   onAnswer(text: string): void;
@@ -61,8 +62,8 @@ export function VoiceAnswerButton({ disabled, automatic = false, ready, onAnswer
     return () => { cancelled = true; abort(); setListening(false); };
   }, [automatic, disabled, ready]);
   if (!Constructor) return null;
-  return <button className="button" disabled={disabled || listening}
+  return <button className="button" disabled={disabled || listening || busy}
     aria-label="Answer the current question in English" onClick={listen}>
-    {listening ? "Listening..." : "Answer by voice"}
+    {busy ? "Interpreting..." : listening ? "Listening..." : "Answer by voice"}
   </button>;
 }
