@@ -11,6 +11,7 @@ import pytest
 from apris_server.adapter import BoundedMotionExecutionError, BoundedMotionGoal
 from apris_server.config import AppConfig
 from apris_server.ironx_adapter import IronXAdapter
+from apris_server.ironx_gateway import IronXGateway, Session
 from apris_server.models import Capabilities, Pose, RoverState, Velocity
 
 scripts = Path(__file__).resolve().parents[3] / "scripts"
@@ -55,6 +56,39 @@ async def test_drive_mailbox_expiry_and_no_renewal(tmp_path, monkeypatch, vx):
     mailbox.poll(data["monotonic"] + 0.2)
     assert lease.output(data["monotonic"] + 0.2, True) == (0, 0)
     assert mailbox.accepted_id == data["id"]
+
+
+async def test_two_second_ownership_does_not_extend_mailbox_motion(tmp_path, monkeypatch):
+    a = adapter(tmp_path)
+    lease = bridge_module.CommandLease()
+    mailbox = bridge_module.FileCommands(a.command_file, lease)
+
+    async def current(*args):
+        return state()
+
+    async def stop_without_physical_feedback():
+        a._write(0, 0, 200)
+
+    monkeypatch.setattr(a, "state", current)
+    monkeypatch.setattr(a, "stop", stop_without_physical_feedback)
+    now = [time.monotonic()]
+    gateway = IronXGateway(a, "test-token", clock=lambda: now[0])
+    await gateway.initialize()
+    owner = Session()
+    nonce = (await gateway.dispatch(owner, "acquire", {}))["nonce"]
+    await gateway.dispatch(owner, "drive", {
+        "nonce": nonce, "vx": 0.10, "vy": 0, "wz": 0, "ttl_ms": 200,
+    })
+    data = json.loads(a.command_file.read_text())
+    assert 0 < data["ttl_ms"] <= 200
+    mailbox.poll(time.monotonic())
+    assert lease.output(data["monotonic"] + 0.01, True) == (0.10, 0)
+    assert lease.output(data["monotonic"] + 0.21, True) == (0, 0)
+    now[0] += 0.4
+    await gateway.expire()
+    assert gateway.owner is owner
+    mailbox.poll(data["monotonic"] + 0.4)
+    assert lease.output(data["monotonic"] + 0.4, True) == (0, 0)
 
 
 @pytest.mark.parametrize("case", ["startup", "future", "expired", "nan", "invalid", "ttl"])

@@ -126,9 +126,12 @@ ready. These commands are preparation instructions, not actions performed here.
 - Each drive requires a fresh, single-use challenge scoped to the connection and
   ownership epoch, valid for 300 ms. Transit consumes its lifetime. The client
   caps command TTL at 200 ms; the gateway also caps it by remaining challenge
-  lifetime. Only successful drive renews the 300 ms ownership lease; reading
+  lifetime. In the experimental two-second lease version, only successful drive
+  renews the 2 s ownership lease; reading
   telemetry does not. Expired commands, expired ownership, and owner disconnect
   trigger stopping through the local watchdog/Adapter path.
+  This requires updating the robot-side gateway; a PC-only update does not change
+  the deployed lease. See [offline experiment](../experiments/ironx-delay-reproduction.md).
 - Stop confirmation failure is latched at the gateway and requires operator
   recovery and gateway restart. A timeout or zero command is not proof of a
   physical stop. Keep an independent physical stop/power control accessible;

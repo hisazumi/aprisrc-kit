@@ -121,9 +121,11 @@ LANからの接続を許可する。接続元は承認済みPCに制限する。
   動作間に操作権を取り合わない。
 - 各driveには接続・操作権の世代に紐づいた、新鮮で1回限りのchallengeが必要。
   有効期間は300 msで、通信時間も消費する。clientのcommand TTL上限は200 msで、
-  gatewayはchallengeの残り時間でも制限する。成功したdriveだけが300 msの操作権
+  gatewayはchallengeの残り時間でも制限する。操作権2秒の実験版では成功したdriveだけが2秒の操作権
   leaseを更新し、telemetryの読み出しでは更新しない。command期限切れ、操作権の
   期限切れ、所有接続の切断はローカルwatchdog・Adapter経由の停止を起こす。
+  この変更には機体側gatewayの更新が必要で、PC側だけ更新しても配備済みの期限は変わらない。
+  [オフライン実験](../experiments/ironx-delay-reproduction.ja.md)を参照。
 - 停止確認の失敗はgatewayにラッチされ、担当者による復旧とgateway再起動が必要。
   timeoutやゼロcommandは実際の停止の証明ではない。独立した物理停止・電源操作を
   常に可能にしておく。bridge・OS・serialの故障は上流command watchdogでは覆えない。

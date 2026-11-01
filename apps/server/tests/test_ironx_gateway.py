@@ -138,10 +138,51 @@ async def test_state_and_reacquire_do_not_renew_lease(setup):
         await rpc(g, owner, "state")
         await acquire(g, owner)
         assert g.deadline == deadline
-    now[0] += 0.04
+    now[0] = deadline
     await g.expire()
     assert g.owner is None and a.stops == 2
     assert "result" in await rpc(g, other, "acquire")
+
+
+async def test_ownership_expires_at_two_seconds_not_nonce_deadline(setup):
+    g, a, now, owner, other = setup
+    await acquire(g, owner)
+    assert g.deadline == now[0] + 2.0
+    now[0] += 1.999
+    await g.expire()
+    assert g.owner is owner and a.stops == 1
+    assert "error" in await rpc(g, other, "acquire")
+    now[0] = g.deadline
+    await g.expire()
+    assert g.owner is None and a.stops == 2
+    assert "result" in await rpc(g, other, "acquire")
+
+
+@pytest.mark.parametrize("gap", [0.4, 1.5])
+async def test_fresh_command_after_gap_keeps_owner_and_renews_two_seconds(setup, gap):
+    g, a, now, owner, other = setup
+    first = await acquire(g, owner)
+    assert "result" in await rpc(g, owner, "drive", **drive_params(first, ttl_ms=200))
+    now[0] += gap
+    await g.expire()
+    assert g.owner is owner
+    assert "error" in await rpc(g, other, "acquire")
+    fresh = (await rpc(g, owner, "state"))["result"]["nonce"]
+    assert "result" in await rpc(g, owner, "drive", **drive_params(fresh, ttl_ms=200))
+    assert len(a.drives) == 2 and 0 < a.drives[-1][3] <= 200
+    assert g.deadline == now[0] + 2.0
+
+
+async def test_old_nonce_is_rejected_while_two_second_ownership_is_valid(setup):
+    g, a, now, owner, _ = setup
+    old = await acquire(g, owner)
+    assert owner.nonces[old][0] == now[0] + 0.3
+    now[0] += 0.31
+    await g.expire()
+    assert g.owner is owner
+    reply = await rpc(g, owner, "drive", **drive_params(old, ttl_ms=200))
+    assert reply["error"]["code"] == "expired_nonce"
+    assert not a.drives
 
 
 @pytest.mark.parametrize("operation", ["release", "disconnect", "expire"])
@@ -154,7 +195,7 @@ async def test_reacquire_waits_for_confirmed_stop(setup, operation):
     elif operation == "disconnect":
         task = asyncio.create_task(g.disconnect(owner))
     else:
-        now[0] += 0.31
+        now[0] = g.deadline
         task = asyncio.create_task(g.expire())
     await a.stop_started.wait()
     assert (await rpc(g, other, "acquire"))["error"]["code"] == "stopping"
@@ -332,6 +373,12 @@ async def test_websocket_auth_protocol_watchdog_and_disconnect():
                 for _ in range(8):
                     await call(ws, "state")
                     await asyncio.sleep(0.05)
+                assert gateway.owner is not None
+                async with asyncio.timeout(3):
+                    while gateway.owner is not None:
+                        await call(ws, "state")
+                        await asyncio.sleep(0.05)
+                await asyncio.wait_for(adapter.stop_confirmed.wait(), 1)
                 assert gateway.owner is None and adapter.stops >= 2
                 await call(ws, "acquire")
                 adapter.stop_confirmed.clear()

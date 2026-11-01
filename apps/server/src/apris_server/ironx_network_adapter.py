@@ -327,7 +327,7 @@ class IronXNetworkAdapter(IronXAdapter):
                 "nonce": result["nonce"],
             },
             # Reply latency is not permission to keep moving: the robot still
-            # expires this command within 200 ms and its ownership within 300 ms.
+            # expires this command within 200 ms, independently of ownership lifetime.
             deadline_s=1,
         )
         # A fresh single-use challenge replaces the next telemetry round trip.

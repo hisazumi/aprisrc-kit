@@ -4,6 +4,13 @@
 
 ## Scope
 
+**Current experiment:** ownership alone is 2 seconds (`OWNERSHIP_LEASE_SECONDS`),
+nonce validity remains 300 ms (`NONCE_SECONDS`), and the PC command TTL ceiling
+remains 200 ms. No NOP or heartbeat is added. The robot-side gateway has **not**
+been updated or restarted; the live robot still uses its previous 300 ms lease.
+The earlier 300 ms experiments below are historical baselines, explicitly selected
+in tests with a temporary test-only override.
+
 Experimental branch: `experiment/ironx-delay-reproduction`, based on `5c7844d`.
 Keep this work in a separate worktree. Do not restart the demonstration servers,
 change their environment, switch their checkout, or deploy this experiment to iron-X.
@@ -106,6 +113,39 @@ eight delay experiments passed in 1.71 seconds, including assertions that displa
 reuse changes neither the ownership deadline nor the cached acquisition time.
 Ruff passed on both Python files. This is offline evidence only, not physical
 validation or proof of robustness on the university network.
+
+## Ownership-only two-second experiment
+
+The gateway previously used one constant both for ownership and nonce timestamps.
+These are now separate; the nonce issue-time calculation also retains the 300 ms
+constant. Acquisition and successful drive set a 2 s ownership deadline. State
+reads, reacquisition by the same owner, and failed drive do not renew it. Explicit
+release, disconnect, E-stop and failed-drive stopping remain unchanged.
+
+Additional checks:
+
+- With the injected clock, ownership survives 1.999 s and expires exactly at 2 s;
+  another client cannot acquire it before expiry.
+- After 400 ms or 1.5 s without drive, the same owner can send a **fresh** nonce and
+  command. A real loopback WebSocket test also confirms recovery after a 400 ms gap.
+- An old nonce remains invalid after 300 ms, even while ownership is valid.
+- The actual mailbox writer and command-bridge lease logic (using temporary files
+  and mocked telemetry/stop feedback) produce zero output by 210 ms for a 200 ms
+  command while the gateway still owns control at 400 ms. This is software output
+  validation, not measured wheel stopping.
+- Existing expiry tests now wait for 2 s. Historical 300 ms reproductions explicitly
+  override only the ownership constant within those tests.
+
+A remaining failure is exposed by a 320 ms background state RPC: the old nonce is
+pruned, a queued drive gets `invalid_nonce`, and the existing PC error path still
+classifies it as transport failure. The test characterizes this remaining defect;
+it is not fixed by lengthening ownership. No broader recovery change is included.
+Likewise an expired drive can still revoke ownership through the unchanged error
+path. Two-second ownership does not promise uninterrupted following.
+
+Validation: all 293 server tests passed (38.53 s), including the temporary-mailbox
+watchdog test. Ruff passed for all six touched Python files. No live gateway/server
+restart, remote deployment, E-stop reset or movement was performed in this step.
 
 - These are fixed delay schedules using real wall-clock time, not a seeded
   packet-loss model or exact replay. A heavily loaded test host can affect timing.

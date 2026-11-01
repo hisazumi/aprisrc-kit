@@ -121,7 +121,23 @@ async def test_idle_state_never_uses_owned_motion_cache():
         assert sum(method == "state" for method, _ in gateway.responses) == state_reads + 1
 
 
-async def test_delayed_state_reply_reproduces_ownership_expiry():
+async def test_two_second_owner_survives_400ms_gap_with_fresh_command():
+    async with offline_link() as (adapter, gateway, robot):
+        await adapter.drive(0.10, 0, 0)
+        owner = gateway.owner
+        await asyncio.sleep(0.4)
+        assert gateway.owner is owner
+        await adapter.drive(0.10, 0, 0)
+        assert gateway.owner is owner
+        assert len(robot.drives) == 2
+        assert all(0 < drive[3] <= 200 for drive in robot.drives)
+        assert not adapter.requires_rearm
+        assert not adapter._failed
+        await adapter.stop()
+
+
+async def test_baseline_delayed_state_reply_reproduces_ownership_expiry(monkeypatch):
+    monkeypatch.setattr("apris_server.ironx_gateway.OWNERSHIP_LEASE_SECONDS", 0.3)
     async with offline_link() as (adapter, gateway, robot):
         await adapter.drive(0.10, 0, 0)
         # Invalidate the cached reply, then cross the 300 ms lease while reading state.
@@ -143,7 +159,8 @@ async def test_delayed_state_reply_reproduces_ownership_expiry():
         assert len(robot.drives) == 1
 
 
-async def test_delayed_drive_during_stop_keeps_transport_and_confirms_stop():
+async def test_delayed_drive_during_stop_keeps_transport_and_confirms_stop(monkeypatch):
+    monkeypatch.setattr("apris_server.ironx_gateway.OWNERSHIP_LEASE_SECONDS", 0.3)
     async with offline_link() as (adapter, gateway, robot):
         await adapter.drive(0.10, 0, 0)
         robot.hold_stop = True
