@@ -39,7 +39,7 @@ class FileCommands:
                 or not data["id"]
                 or not all(math.isfinite(v) for v in (sent, ttl))
                 or sent <= self.started
-                or not 0 < ttl <= TIMEOUT
+                or not 0 < ttl <= self.lease.timeout
                 or not 0 <= now - sent < ttl
             ):
                 raise ValueError("expired or invalid command")
@@ -51,7 +51,11 @@ class FileCommands:
 
 
 class CommandLease:
-    def __init__(self):
+    def __init__(self, profile="standard"):
+        if profile not in ("standard", "supervised_low_speed"):
+            raise ValueError("Unknown APRIS_IRONX_PROFILE")
+        self.profile = profile
+        self.timeout = 8.0 if profile == "supervised_low_speed" else TIMEOUT
         self.deadline = float("-inf")
         self.stamp = float("-inf")
         self.velocity = (0.0, 0.0)
@@ -75,14 +79,14 @@ class CommandLease:
             self.stop("invalid_command")
             return False
         age = source_now - stamp
-        if not 0 <= age < TIMEOUT or stamp <= self.stamp:
+        if not 0 <= age < self.timeout or stamp <= self.stamp:
             self.stop("stale_or_replayed_command")
             return False
         if abs(vx) > 0.15 or abs(wz) > 0.2 or any(v != 0 for v in (vy, vz, wx, wy)):
             self.stop("unsupported_velocity")
             return False
         self.stamp = stamp
-        self.deadline = now + TIMEOUT - age
+        self.deadline = now + self.timeout - age
         self.velocity = (float(vx), float(wz))
         self.reason = "command_active"
         return True
@@ -112,7 +116,7 @@ def main():
 
     rclpy.init()
     node = rclpy.create_node("apris_command_bridge")
-    lease = CommandLease()
+    lease = CommandLease(os.environ.get("APRIS_IRONX_PROFILE", "standard"))
     mailbox = FileCommands(args.command_file, lease) if args.command_file else None
     latest = None
     publisher = None
@@ -168,6 +172,7 @@ def main():
                 "vx": vx,
                 "wz": wz,
                 "fault": lease.fault,
+                "profile": lease.profile,
                 "reason": lease.reason,
             }
             temporary = args.status_file.with_suffix(".tmp")

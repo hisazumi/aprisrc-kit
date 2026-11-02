@@ -661,6 +661,8 @@ class RoverRuntime:
                 await self.broadcast(EventMessage(event="forward_motion_stopped", detail=reason))
 
     async def _apply_velocity(self, vx: float, vy: float, wz: float, ttl_ms: int) -> None:
+        # An explicit hardware profile owns the supervised hold-time policy.
+        ttl_ms = getattr(self.adapter, "drive_ttl_override_ms", None) or ttl_ms
         await self.adapter.drive(vx, vy, wz, ttl_ms=ttl_ms)
         if self.log:
             self.log.record(
@@ -1257,7 +1259,11 @@ class RoverRuntime:
                     "max_vx_mps": self.config.max_vx,
                     "max_vy_mps": self.config.max_vy,
                     "max_wz_rad_s": self.config.max_wz,
-                    "motion_ttl_ms": self.config.motion_ttl_ms,
+                    "motion_ttl_ms": (
+                        getattr(self.adapter, "drive_ttl_override_ms", None)
+                        or self.config.motion_ttl_ms
+                    ),
+                    "ironx_profile": getattr(getattr(self.adapter, "profile", None), "name", None),
                 },
             },
             "front_obstacle": (await self.front_obstacle_snapshot()).model_dump(mode="json"),

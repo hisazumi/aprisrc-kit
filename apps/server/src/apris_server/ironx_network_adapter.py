@@ -13,6 +13,7 @@ from contextvars import ContextVar
 from websockets.asyncio.client import connect
 
 from .ironx_adapter import IronXAdapter
+from .ironx_profile import load_profile
 from .models import Capabilities, Pose, PoseEstimateQuality, RoverState, Velocity
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,10 @@ class IronXNetworkAdapter(IronXAdapter):
 
     def __init__(self, url: str, token: str):
         self.url = url
+        self.profile = load_profile()
+        self.drive_ttl_override_ms = (
+            self.profile.command_ms if self.profile.name == "supervised_low_speed" else None
+        )
         self.token = token
         self._socket = None
         self._rpc_lock = asyncio.Lock()
@@ -78,7 +83,7 @@ class IronXNetworkAdapter(IronXAdapter):
             except Exception as exc:
                 self.last_transport_error = f"connect:{type(exc).__name__}"
 
-    async def _rpc(self, method, params=None, *, deadline_s=0.25):
+    async def _rpc(self, method, params=None, *, deadline_s=0.25, prepare_params=None):
         # A caller cancelled while waiting for the lock must not close another RPC.
         queued_at = time.monotonic()
         async with self._rpc_lock:
@@ -90,6 +95,8 @@ class IronXNetworkAdapter(IronXAdapter):
                           "rpc_wait_ms": (started - queued_at) * 1000,
                           "deadline_ms": deadline_s * 1000, "outcome": "pending"}
             try:
+                if prepare_params is not None:
+                    params = prepare_params()
                 async with asyncio.timeout(deadline_s):
                     request_id = uuid.uuid4().hex
                     diagnostic["request_id"] = request_id
@@ -117,7 +124,11 @@ class IronXNetworkAdapter(IronXAdapter):
                             )
                         raise RuntimeError(f"iron-X gateway rejected {method}: {reply['error']}")
                     diagnostic["outcome"] = "ok"
-                    return reply["result"]
+                    result = reply["result"]
+                    if method in ("state", "acquire", "drive") and isinstance(result, dict):
+                        if result.get("profile", "standard") != self.profile.name:
+                            raise RuntimeError("iron-X gateway profile mismatch")
+                    return result
             except OwnershipExpired:
                 diagnostic["outcome"] = "ownership_expired"
                 self._next_drive = None
@@ -187,18 +198,20 @@ class IronXNetworkAdapter(IronXAdapter):
             state.pose_quality.age_ms = (state.pose_quality.age_ms or 0) + (
                 time.monotonic() - self._received_at
             ) * 1000
-            state.connected = state.connected and state.pose_quality.age_ms < 300
+            state.connected = (
+                state.connected and state.pose_quality.age_ms < self.profile.telemetry_ms
+            )
             state.command_age_ms = command_age_ms
             return state
         try:
             started = time.monotonic()
-            result = await self._rpc("state", deadline_s=1)
+            result = await self._rpc("state", deadline_s=max(1, self.profile.state_rpc_s))
             state = RoverState.model_validate(result["state"])
             if "gateway_emergency_stop" in state.pose_quality.anomalies:
                 self.requires_rearm = self._estop = True
             age = (state.pose_quality.age_ms or 0) + (time.monotonic() - started) * 1000
             state.pose_quality.age_ms = age
-            state.connected = state.connected and age < 300
+            state.connected = state.connected and age < self.profile.telemetry_ms
             state.command_age_ms = command_age_ms
             self._last_state = state.model_copy(deep=True)
             self._received_at = time.monotonic()
@@ -271,7 +284,7 @@ class IronXNetworkAdapter(IronXAdapter):
                 trace["used_cached_reply"] = False
             # Drain read-only replies on cancellation; never send the next drive.
             observed_at = time.monotonic()
-            reading = asyncio.create_task(self._rpc("state"))
+            reading = asyncio.create_task(self._rpc("state", deadline_s=self.profile.state_rpc_s))
             try:
                 result = await asyncio.shield(reading)
             except asyncio.CancelledError:
@@ -283,14 +296,15 @@ class IronXNetworkAdapter(IronXAdapter):
         state.pose_quality.age_ms = (state.pose_quality.age_ms or 0) + (
             time.monotonic() - observed_at
         ) * 1000
-        state.connected = state.connected and state.pose_quality.age_ms < 300
+        state.connected = state.connected and state.pose_quality.age_ms < self.profile.telemetry_ms
         self._last_state = state.model_copy(deep=True)
         self._received_at = time.monotonic()
+        validated_at = self._received_at
         if not state.connected:
             await self._rpc("release", deadline_s=3)
             self._owned = False
             raise RuntimeError("iron-X telemetry unavailable")
-        remaining_ms = min(ttl_ms, 200) - (time.monotonic() - started) * 1000
+        remaining_ms = min(ttl_ms, self.profile.command_ms) - (time.monotonic() - started) * 1000
         if trace is not None:
             trace["prepared_at_ms"] = (time.monotonic() - started) * 1000
             trace["remaining_ttl_ms"] = remaining_ms
@@ -299,6 +313,18 @@ class IronXNetworkAdapter(IronXAdapter):
             self._owned = False
             raise RuntimeError("iron-X command expired during network preparation")
         sent_at = time.monotonic()
+        def prepare_drive():
+            nonlocal sent_at
+            sent_at = time.monotonic()
+            remaining = min(ttl_ms, self.profile.command_ms) - (sent_at - started) * 1000
+            if epoch != self._epoch or self._pending_stops or remaining < 1:
+                raise RuntimeError("iron-X drive expired or superseded before send")
+            telemetry_age = state.pose_quality.age_ms + (sent_at - validated_at) * 1000
+            if telemetry_age >= self.profile.telemetry_ms:
+                raise RuntimeError("iron-X telemetry expired before send")
+            return {"vx": vx, "vy": vy, "wz": wz, "ttl_ms": remaining,
+                    "nonce": result["nonce"]}
+
         reply = await self._rpc(
             "drive",
             {
@@ -308,9 +334,9 @@ class IronXNetworkAdapter(IronXAdapter):
                 "ttl_ms": remaining_ms,
                 "nonce": result["nonce"],
             },
-            # Reply latency is not permission to keep moving: the robot still
-            # expires this command within 200 ms and its ownership within 300 ms.
-            deadline_s=1,
+            # Reply latency never extends the robot-side command deadline.
+            deadline_s=self.profile.drive_rpc_s,
+            prepare_params=(prepare_drive if self.profile.name == "supervised_low_speed" else None),
         )
         # A fresh single-use challenge replaces the next telemetry round trip.
         # Old gateways return null; keep their original state/drive sequence.
