@@ -4,6 +4,10 @@
 
 For daily Windows startup, begin with [iron-X / UGV02 startup](startup.md).
 
+For the opt-in [supervised low-speed profile](ironx-supervised.md),
+use its matching PC/gateway/bridge settings. Following has limited physical trial
+evidence; network-loss stop-time validation is pending. Defaults below are unchanged.
+
 The student PC instructions default to **Windows PowerShell**; macOS/Linux alternatives are collapsed.
 Robot-host commands run on iron-X Linux, not on the student's PC. ROS and WSL are not required on the student PC.
 

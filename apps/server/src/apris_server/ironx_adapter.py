@@ -11,12 +11,14 @@ import uuid
 from pathlib import Path
 
 from .adapter import BoundedMotionExecutionError, BoundedMotionGoal, BoundedMotionResult
+from .ironx_profile import load_profile
 from .ros2_readonly_adapter import Ros2ReadOnlyAdapter
 
 
 class IronXAdapter(Ros2ReadOnlyAdapter):
     def __init__(self, state_file: Path, command_file: Path, bridge_state_file: Path):
         super().__init__(state_file)
+        self.profile = load_profile()
         self.command_file = command_file
         self.bridge_state_file = bridge_state_file
         self._epoch = 0
@@ -44,6 +46,8 @@ class IronXAdapter(Ros2ReadOnlyAdapter):
             age = time.monotonic() - data["monotonic"]
             if not 0 <= age < 0.3 or data["fault"]:
                 raise ValueError("stale or faulted bridge")
+            if data.get("profile", "standard") != self.profile.name:
+                raise ValueError("bridge profile mismatch")
             return data
         except (OSError, ValueError, KeyError, TypeError) as exc:
             raise RuntimeError("iron-X command bridge unavailable") from exc
@@ -90,7 +94,8 @@ class IronXAdapter(Ros2ReadOnlyAdapter):
         if self._estop or not state.connected:
             self._write(0, 0, 300)
             raise RuntimeError("iron-X stopped or telemetry unavailable")
-        remaining_ms = min(ttl_ms, 300) - (time.monotonic() - started) * 1000
+        elapsed_ms = (time.monotonic() - started) * 1000
+        remaining_ms = min(ttl_ms, self.profile.local_command_ms) - elapsed_ms
         if remaining_ms < 1:
             self._write(0, 0, 300)
             raise RuntimeError("iron-X command expired during telemetry validation")

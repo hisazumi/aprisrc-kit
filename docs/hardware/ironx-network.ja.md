@@ -4,6 +4,10 @@
 
 毎回のWindows側の起動は[iron-X・UGV02の起動方法](startup.ja.md)から始めてください。
 
+明示選択の[監督付き低速モード](ironx-supervised.ja.md)は限定的な実機追従を確認済みです。
+通信断時の停止時間は未測定です。
+利用時はPC・gateway・bridgeの設定をそろえます。以下の通常設定は変更しません。
+
 学生PCは**Windows・PowerShell**を標準とし、macOS/Linuxは折りたたみ補足を参照します。
 ロボット上の準備コマンドはiron-XのLinuxで実行します。学生PCにROSやWSLは不要です。
 

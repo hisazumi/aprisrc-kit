@@ -2,7 +2,7 @@
 
 JSON RPC: {id, method, params} -> {id, result} or {id, error: {code, message}}.
 acquire returns {nonce}; state and drive return {state, nonce}; other results are null.
-Nonces are opaque, connection/ownership scoped, single-use, and valid for 300 ms.
+Nonces are opaque, connection/ownership scoped, single-use; lifetime is profile-specific.
 Only successful drive renews ownership. Stop failure requires gateway restart.
 """
 
@@ -25,6 +25,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
 from .ironx_adapter import IronXAdapter
+from .ironx_profile import load_profile
 
 LEASE_SECONDS = 0.3
 
@@ -46,6 +47,7 @@ class IronXGateway:
         if not token or token.strip() != token or not token.isascii():
             raise ValueError("A nonempty ASCII bearer token is required")
         self.adapter = adapter
+        self.profile = load_profile()
         self.token = token
         self.clock = clock
         self.owner = None
@@ -96,7 +98,7 @@ class IronXGateway:
         if len(session.nonces) >= 128:
             del session.nonces[next(iter(session.nonces))]
         nonce = secrets.token_urlsafe(24)
-        session.nonces[nonce] = (now + LEASE_SECONDS, self.epoch)
+        session.nonces[nonce] = (now + self.profile.nonce_s, self.epoch)
         return nonce
 
     async def _halt(self, *, revoke=False, emergency=None, clear=False):
@@ -170,7 +172,8 @@ class IronXGateway:
                     }
                 )
                 state = state.model_copy(update={"connected": False, "pose_quality": quality})
-            return {"state": state.model_dump(mode="json"), "nonce": self._nonce(session)}
+            return {"state": state.model_dump(mode="json"), "nonce": self._nonce(session),
+                    "profile": self.profile.name}
         if method == "drive":
             epoch = self.epoch
             try:
@@ -211,8 +214,8 @@ class IronXGateway:
                 else:
                     self.owner = session
                     self.epoch += 1
-                    self.deadline = self.clock() + LEASE_SECONDS
-                return {"nonce": self._nonce(session)}
+                    self.deadline = self.clock() + self.profile.ownership_s
+                return {"nonce": self._nonce(session), "profile": self.profile.name}
         raise GatewayError("method_not_found", "Unknown method")
 
     async def _drive(self, session, params, epoch):
@@ -236,7 +239,8 @@ class IronXGateway:
             if vy != 0 or abs(vx) > 0.15 or abs(wz) > 0.2 or ttl <= 0:
                 raise GatewayError("invalid_params", "Invalid differential drive or speed limit")
             # Charge transport time since the challenge was issued to command TTL too.
-            issued = challenge[0] - LEASE_SECONDS
+            issued = challenge[0] - self.profile.nonce_s
+            ttl = min(ttl, self.profile.local_command_ms)
             ttl = math.floor(min(challenge[0], issued + ttl / 1000) * 1000 - self.clock() * 1000)
             if ttl < 1:
                 raise GatewayError("expired_nonce", "Insufficient nonce lifetime")
@@ -247,7 +251,7 @@ class IronXGateway:
                 self._owned(session)
                 if epoch != self.epoch:
                     raise GatewayError("superseded", "Command superseded by stop")
-                self.deadline = self.clock() + LEASE_SECONDS
+                self.deadline = self.clock() + self.profile.ownership_s
             except asyncio.CancelledError:
                 raise GatewayError("superseded", "Command cancelled by stop") from None
             finally:
