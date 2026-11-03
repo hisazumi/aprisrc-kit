@@ -2,6 +2,21 @@
 
 [日本語](startup.ja.md)
 
+## Before any robot operation
+
+**Keep the robot on the floor, never on a desk, table, shelf, or other raised surface, including while charging.**
+For setup and non-driving tests, preferably support the chassis securely on a stable stand
+on the floor with all drive wheels clear of the ground. Do not use an unstable support.
+
+- Before acquiring control, clearing E-stop, starting a service, or using the remote controls,
+  check the server's actual adapter and the target robot's IP with the person beside the robot.
+  A virtual field or the Playground screen does not prove that Simulator is selected.
+  If uncertain, do not enable motion.
+- Charging does not guarantee that movement is disabled. Stop services and keep E-stop
+  latched while charging or leaving the robot unattended; do not leave a remote-control session active.
+- For a floor-driving test, disconnect the charging cable, clear the area, and have someone
+  beside the robot ready to stop it. Only then enable movement.
+
 Daily startup from a **Windows PC / PowerShell**, after the robot has been provisioned.
 Complete [Windows setup](../windows-setup.md) and a Simulator trial first. Run PC commands
 from the repository root. This guide does not flash firmware or command movement.

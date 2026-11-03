@@ -96,6 +96,16 @@ Status: **Waiting** for independent trials
 Try and change the Simulator samples, then report setup, editing and recovery friction.
 Use [Contributing](../CONTRIBUTING.md). Individual evaluation records and internal pilot plans are not published here.
 
+Classroom feedback (2026-11-02):
+
+- [ ] Clearly display the actual connection target in Service, Playground, and Console:
+  Simulator versus physical robot, and the robot address/identifier for hardware.
+  Keep it visible near motion-enabling controls so a virtual field cannot be mistaken
+  for Simulator mode. Show an unknown target explicitly until verified; never display tokens.
+- [ ] Support service triggers for objects other than people. For example, a student wants the rover to say something when its camera detects a bottle.
+- [ ] "Startup is too complicated." Observe a first-time user going from a fresh terminal to a running service; identify which steps can be combined or removed.
+- [ ] Having to press the button to mark the path ahead as clear interrupts operation. Review when manual confirmation is needed and how to reduce unnecessary presses without treating unknown or blocked space as clear.
+
 ## M5: Event-ready local distribution
 
 Status: **In progress**
@@ -157,6 +167,19 @@ Then qualify perception/ownership handoff, Live Playground, network-loss recover
 and independent protection against bridge/OS/serial failure. Software recovery
 tests are not physical fault qualification. LiDAR clearance remains unimplemented.
 Start with [iron-X person following](hardware/ironx-follow.md).
+
+### TODO: Explain stop recovery to students
+
+- [ ] Distinguish an ordinary E-stop, which the control owner can clear after checking
+  the surroundings, from faults requiring an operator to restart the robot-side service.
+- [ ] Show the cause and the next action in Console, Service, and Playground. For
+  `control_loop_delayed_restart_required` or `stop_unconfirmed`, explain why clearing
+  E-stop is unavailable and direct students to the instructor instead of repeated retries.
+- [ ] Document student versus instructor recovery steps in English and Japanese;
+  verify fresh telemetry and confirmed stop after recovery, and never resume motion automatically.
+
+Recorded 2026-11-02 following a robot-side control-loop delay that prevented E-stop clearing.
+This is a usability/recovery task, not a proposal to bypass the stop protections.
 
 ## M10: LiDAR and advanced autonomy
 

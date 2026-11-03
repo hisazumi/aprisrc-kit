@@ -83,6 +83,12 @@ AIには[開発ガイド](ai-assisted-development.ja.md)、[技術メモ](ai-ser
 
 ## 実機へ進むとき
 
+**充電中も含め実機は床に置き、机の上には置かないでください。**
+走行しない準備では、できれば床の安定した台に車体を固定して駆動輪を浮かせます。
+動作を許可する前に実際のAdapterと機体IPを確認してください。
+Playgroundの仮想フィールド表示だけではSimulator接続と判断できません。
+[操作前の注意](hardware/startup.ja.md#ロボットを操作する前の注意)も確認してください。
+
 [UGV02自己試験](hardware/ugv02-self-test.ja.md)または[iron-X人追従](hardware/ironx-follow.ja.md)へ進みます。
 共通実機UIは操作権取得、**Confirm clear path · 30 s**、**Start service**が別です。
 旧Carry専用UIの許可自動更新は引き継いでいません。

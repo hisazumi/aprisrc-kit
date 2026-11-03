@@ -82,6 +82,12 @@ For AI-assisted changes, provide [the development guide](ai-assisted-development
 
 ## Hardware later
 
+**Keep physical robots on the floor, including while charging; never leave one on a desk.**
+For setup without driving, preferably secure the chassis on a stable floor-level stand with
+all drive wheels raised. Before enabling motion, verify the actual adapter and robot IP;
+the Playground field is not proof of Simulator mode.
+Read the [operation precautions](hardware/startup.md#before-any-robot-operation).
+
 Use [UGV02 self-test](hardware/ugv02-self-test.md) or [iron-X following](hardware/ironx-follow.md).
 The shared hardware UI requires separate control acquisition, **Confirm clear path · 30 s**,
 and **Start service**; it does not inherit automatic consent renewal from the old Carry UI.
