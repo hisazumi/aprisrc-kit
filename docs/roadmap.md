@@ -98,6 +98,10 @@ Use [Contributing](../CONTRIBUTING.md). Individual evaluation records and intern
 
 Classroom feedback (2026-11-02):
 
+- [ ] Add a Simulator field editor: place and move the rover, people, and markers
+  directly on the field, and save/load the initial layout for repeatable trials.
+  Build on existing scene settings and marker coordinate inputs; keep layout editing
+  separate from scenario execution, and never send physical motion commands while editing.
 - [ ] Clearly display the actual connection target in Service, Playground, and Console:
   Simulator versus physical robot, and the robot address/identifier for hardware.
   Keep it visible near motion-enabling controls so a virtual field cannot be mistaken
