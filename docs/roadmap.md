@@ -108,6 +108,12 @@ Classroom feedback (2026-11-02):
   for Simulator mode. Show an unknown target explicitly until verified; never display tokens.
 - [ ] Support service triggers for objects other than people. For example, a student wants the rover to say something when its camera detects a bottle.
 - [ ] "Startup is too complicated." Observe a first-time user going from a fresh terminal to a running service; identify which steps can be combined or removed.
+- [ ] Refine the Windows installation instructions using Prof. Miwa's report
+  (2026-11-03): explain the OpenSSL prerequisite and `spawnSync openssl ENOENT`,
+  WinGet installation, executable-path verification and the `OPENSSL` setting,
+  then retry certificate generation. Separate PC-only Simulator setup from phone
+  HTTPS setup, and validate the revised steps on a fresh Windows environment.
+  The suggested installation commands have not yet been verified on that PC.
 - [ ] Having to press the button to mark the path ahead as clear interrupts operation. Review when manual confirmation is needed and how to reduce unnecessary presses without treating unknown or blocked space as clear.
 
 ## M5: Event-ready local distribution
