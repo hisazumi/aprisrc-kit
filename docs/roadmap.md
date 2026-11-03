@@ -11,10 +11,10 @@ occupying the main roadmap.
 This roadmap covers the Kit, not APRISRC event deadlines, required tasks or judging criteria.
 Participants create their own services using the Kit; see [Purpose and scope](positioning.md).
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-03
 
-Current focus: hand over editable Simulator samples so other developers can try and extend
-services independently. Hardware-dependent validation remains open rather than blocking this handoff.
+Current focus: post-challenge safety, setup/recovery, and a repeatable development environment.
+Physical qualification and next-fleet selection remain open.
 
 ## Status definitions
 
@@ -25,17 +25,130 @@ services independently. Hardware-dependent validation remains open rather than b
 - **Optional**: outside the core platform path
 - **Completed**: summarized once under Completed foundation; detailed task lists are removed
 
-## Near-term order
+## Post-challenge priorities
 
-1. Use the [handoff guide](handoff.md) and Playground workshop to try, change and contribute
-   services without hardware; record first-time setup and modification friction.
-2. Run M7B with one first-time teacher when available, then expand to three to five people
-   after removing any blocking friction.
-3. Apply pilot findings to Mission API usability and the M5 setup/distribution path.
-4. When hardware is available, verify the experimental live Playground greeting/following
-   flow, complete the M7A Service App/UGV02 marker trials, and continue M6B qualification.
-5. Defer production speech choices until the pilot demonstrates a concrete need beyond the
-   current M8 browser and structured-intent path.
+These are proposed priorities after the 2026-11-03 challenge, not release commitments.
+They supersede the previous pilot-first order. Detailed milestone contracts remain below.
+
+### Lessons and evidence
+
+- Students tried services in the Simulator and on shared iron-X robots. This is useful
+  field feedback, not a completed independent usability or hardware qualification study.
+- An operator reported a robot falling from a desk while charging after remote operation
+  was mistaken for simulation. Bilingual floor/raised-wheel precautions are documented;
+  a warning alone does not resolve target confusion.
+- Startup complexity, repeated clear-path confirmation, and unclear E-stop recovery caused
+  friction. A phone interaction required repeated presses; browser versus network causes
+  have not been isolated.
+- Network command delays, ownership/nonce expiry, and a robot-side control-loop fault were
+  observed during development/trials. Treat these as separate failure modes, not all "Wi-Fi".
+- A startup race was fixed on one robot and reboot startup checked. Telemetry after a
+  subsequent clock synchronization remains unverified: NTP was not responding.
+- Presentation feedback adds needs for simulation time, rooms, custom phone UI, coordinate
+  navigation, optional 3D, and more recognition categories. These are requests, not shipped features.
+
+### P0: Make physical operation unmistakable
+
+- [ ] Display the verified actual adapter and robot address/identity in Service, Playground,
+  and Console, including beside motion-enabling controls; show unknown targets explicitly.
+  Never expose tokens. A virtual field must not imply Simulator mode.
+- [ ] Provide a concise pre-motion check: floor placement, secure raised wheels for non-driving
+  tests, clear area, charging cable disconnected for driving, and an operator ready to stop.
+- [ ] Distinguish ordinary E-stop, control ownership conflicts, and restart-required faults
+  such as `control_loop_delayed_restart_required` / `stop_unconfirmed`.
+  Show pending/success/failure and student versus instructor recovery actions.
+- [ ] Review repeated clear-path confirmation without silently treating unknown/blocked
+  space as clear. Recovery must not automatically resume motion.
+
+Exit: a first-time user identifies the target and correct recovery action without guessing;
+automated tests cover unknown/reconnected targets and no automatic motion resumption.
+
+### P1: Make setup and everyday use reproducible
+
+- [ ] Prepare a fixed next-event release with a tested compatibility table covering
+  PC/PWA, firmware, robot bridges, and supported phone/browser environments.
+  Reconcile current guides and platform status with verified changes; label old
+  private-fork plans and historical trials so they cannot be mistaken for setup instructions.
+- [ ] Refine Windows installation from reported failures: OpenSSL prerequisite,
+  `spawnSync openssl ENOENT`, WinGet, executable-path/`OPENSSL` checks, and certificate retry.
+  Separate PC-only simulation from phone HTTPS setup; installation advice still needs
+  fresh-Windows verification.
+- [ ] Reduce startup steps and clearly label Simulator versus hardware launch paths.
+  Document credentials, phone URL, duplicate-server/control-owner checks, and shutdown.
+- [ ] Qualify robot boot order, E-stopped autostart, fresh telemetry, and clock changes;
+  do not mark a system ready solely because its processes are running.
+- [ ] Reproduce phone interaction delays and measure click-to-acknowledgement separately
+  from browser rendering and robot/network response time.
+- [ ] Export a credential-redacted diagnostic bundle with target identity, component
+  versions, stop reason, and recent command/observation latency. Make it usable without
+  SSH; test that tokens, keys, passwords, and private configuration are excluded.
+- [ ] Make shared-robot handoff explicit: identifiable robot, availability/owner status,
+  control release, and instructions for conflicting tabs or a wrong target.
+  Keep this useful even when most teams have their own robot.
+
+Exit: another teacher/student starts, connects, stops, and recovers using the bilingual
+instructions on a fresh Windows PC without developer intervention.
+
+### P2: Handle jitter and trial one onboard UGV02 setup
+
+- [ ] Decide where student service code executes. Missions currently run in the owning
+  browser; test tab closure, backgrounding, phone sleep, disconnection, and recovery.
+  Moving only the server onboard does not make browser-owned service execution local.
+  Compare a documented foreground-only contract with an onboard runner using the same API;
+  require explicit restart after interruption rather than automatic motion resumption.
+- [ ] Reproduce bursty delay, loss, duplicates, reordering, and reconnection in simulation;
+  distinguish ownership expiry, stale commands, stale observations, and local loop stalls.
+  Compare command cadence/latest-command handling and recovery using latency/stop logs.
+- [ ] Define speed-dependent slowdown/stop limits and qualify measured stop times/distances.
+  Simulation and operator supervision do not substitute for physical fault testing.
+- [ ] Prototype one UGV02 with an onboard computer (Raspberry Pi is a candidate, not selected).
+  Compare phone recognition over a robot-local connection with onboard camera recognition;
+  simply moving the server does not remove a remote perception/control dependency.
+- [ ] Retain PC development/Simulator use; choose power, mounting, compute, and cost only
+  after the one-robot trial. Aim for one kit per team. Borrowed shared iron-X remains a
+  valid option, not the assumed next-event fleet.
+
+Exit: repeatable jitter tests and one physical prototype demonstrate usable following and
+bounded stopping before fleet procurement or relaxed limits.
+
+### P3: Make Simulator environments editable and repeatable
+
+- [ ] Provide a staged test path: virtual observations + Simulator, real camera +
+  Simulator, then supervised hardware. Expose which observations are real versus
+  simulated so recognition errors can be isolated from motion/transport errors.
+- [ ] Add explicit simulation time, pause/resume, reset, and controllable time progression.
+  Decide which mission timers, observations, and motion use that clock; keep real hardware
+  watchdogs on real monotonic time. Rendering speed must not change trial outcomes.
+- [ ] Add a top-down field/room editor for walls, obstacles, rover, people, and markers,
+  with initial-layout save/load. Keep editing separate from scenario execution.
+- [ ] Define collision, room bounds, and occlusion semantics before calling rooms a tested
+  environment; visual walls alone are not simulated sensing or physical safety.
+- [ ] Explore an optional 3D environment after the 2D model is useful, reusing the same
+  service API and scene definitions rather than creating simulation-only services.
+
+Exit: save a room and initial state, replay the same trial with reproducible timing,
+and edit without ever sending physical motion commands. 3D is optional, not a core dependency.
+
+### P4: Broaden what students can build
+
+- [ ] Visualize current behavior, received observations, waiting conditions, and stop
+  reasons alongside editable service code. Validate that students can relate one code
+  change to behavior; source-line highlighting is optional, not a prerequisite.
+- [ ] Document a minimal "go to coordinates" example, coordinate frame/units, localization
+  assumptions, cancellation, arrival stop, and failure behavior. First check the existing
+  Mission API; separate relative motion from navigation/path planning. Do not present
+  straight-line movement as obstacle-avoiding navigation.
+- [ ] Provide a minimal editable user-facing phone app template using the same mission API;
+  separate service-specific buttons/status from operator and development controls.
+  Test whether a student can change the screen and behavior together.
+- [ ] Support more recognition categories, for example a bottle triggering speech.
+  Define validated object observations, confidence/freshness/loss behavior and Simulator
+  inputs. Detection is not distance estimation or identity tracking.
+- [ ] Improve editable samples and use first-time feedback to assess API affordances;
+  finish marker-guidance hardware work only when required by the selected service.
+
+Exit: an independent student changes a phone UI and service behavior, tests it in the
+Simulator, and can explain what remains to validate on hardware.
 
 ## M7: Reference service prototypes
 
@@ -91,30 +204,13 @@ Exit criteria:
 
 ### M7B: Independent developer feedback
 
-Status: **Waiting** for independent trials
+Status: **In progress** — challenge feedback received; structured follow-up pending
 
 Try and change the Simulator samples, then report setup, editing and recovery friction.
 Use [Contributing](../CONTRIBUTING.md). Individual evaluation records and internal pilot plans are not published here.
 
-Classroom feedback (2026-11-02):
-
-- [ ] Add a Simulator field editor: place and move the rover, people, and markers
-  directly on the field, and save/load the initial layout for repeatable trials.
-  Build on existing scene settings and marker coordinate inputs; keep layout editing
-  separate from scenario execution, and never send physical motion commands while editing.
-- [ ] Clearly display the actual connection target in Service, Playground, and Console:
-  Simulator versus physical robot, and the robot address/identifier for hardware.
-  Keep it visible near motion-enabling controls so a virtual field cannot be mistaken
-  for Simulator mode. Show an unknown target explicitly until verified; never display tokens.
-- [ ] Support service triggers for objects other than people. For example, a student wants the rover to say something when its camera detects a bottle.
-- [ ] "Startup is too complicated." Observe a first-time user going from a fresh terminal to a running service; identify which steps can be combined or removed.
-- [ ] Refine the Windows installation instructions using Prof. Miwa's report
-  (2026-11-03): explain the OpenSSL prerequisite and `spawnSync openssl ENOENT`,
-  WinGet installation, executable-path verification and the `OPENSSL` setting,
-  then retry certificate generation. Separate PC-only Simulator setup from phone
-  HTTPS setup, and validate the revised steps on a fresh Windows environment.
-  The suggested installation commands have not yet been verified on that PC.
-- [ ] Having to press the button to mark the path ahead as clear interrupts operation. Review when manual confirmation is needed and how to reduce unnecessary presses without treating unknown or blocked space as clear.
+Challenge feedback is consolidated under P0–P4 above; M7B now collects follow-up
+validation rather than waiting for the first independent trial.
 
 ## M5: Event-ready local distribution
 
@@ -178,18 +274,8 @@ and independent protection against bridge/OS/serial failure. Software recovery
 tests are not physical fault qualification. LiDAR clearance remains unimplemented.
 Start with [iron-X person following](hardware/ironx-follow.md).
 
-### TODO: Explain stop recovery to students
-
-- [ ] Distinguish an ordinary E-stop, which the control owner can clear after checking
-  the surroundings, from faults requiring an operator to restart the robot-side service.
-- [ ] Show the cause and the next action in Console, Service, and Playground. For
-  `control_loop_delayed_restart_required` or `stop_unconfirmed`, explain why clearing
-  E-stop is unavailable and direct students to the instructor instead of repeated retries.
-- [ ] Document student versus instructor recovery steps in English and Japanese;
-  verify fresh telemetry and confirmed stop after recovery, and never resume motion automatically.
-
-Recorded 2026-11-02 following a robot-side control-loop delay that prevented E-stop clearing.
-This is a usability/recovery task, not a proposal to bypass the stop protections.
+Stop-recovery UI and instructions are tracked under P0; jitter and boot/clock
+qualification under P1–P2. The dated milestone evidence above is not a current fleet health check.
 
 ## M10: LiDAR and advanced autonomy
 
