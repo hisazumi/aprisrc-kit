@@ -87,6 +87,11 @@ PWA/server suites are not exercised by this isolated experiment.
 
 ## Next experiment
 
+The [separate-process experiment](process-experiment.md) now exercises the unchanged
+existing service through a fake facade, runner loss and stop-evidence failures.
+The following is the original next-step plan; Python integration remains outstanding.
+
+
 Adapt one existing sequential service through injected motion/interaction/clock ports,
 keeping its mission/config paths. Move the fake safety gateway into a **separate process**
 and inject runner death, blocked event loop, control loss, delayed stop evidence and

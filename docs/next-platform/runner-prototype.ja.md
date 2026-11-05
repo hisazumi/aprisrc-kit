@@ -74,6 +74,10 @@ FakeMotionの公開メソッドはテスト用で、認可境界ではない。g
 
 ## 次の検証と未実装事項
 
+[第2段階のプロセス分離実験](process-experiment.ja.md)で既存サービスの実行、runner喪失、
+停止確認の失敗を扱った。以下は当初の計画で、Python接続は引き続き未実施。
+
+
 次は既存の逐次サービス1つにmotion/interaction/clockのportを注入して実行する。
 fake安全ゲートウェイを別プロセスへ分離し、runner停止、イベントループ停止、通信断、
 停止確認の遅延・失敗を注入する。その段階で実時間のlease/progress期限とTTLを定め、
