@@ -148,6 +148,15 @@ controller to stop and release before the new one acquires. Competing requests a
 rejected initially, not blended. Operator takeover cancels the service's motion scope;
 E-stop remains available without ownership and bypasses the runner.
 
+Normal motion commands, renewals, cancellation and stop requests are scoped to a
+run/operation and a generation of motion authorization. The motion gateway validates
+the current owner and generation on every request. Revocation fences off the old
+generation before granting another owner; requests from an invalidated run cannot
+reacquire motion authorization without a new explicitly admitted run. A delayed
+normal stop or cleanup from an old activity must not stop a different owner's motion.
+Operator global stop and E-stop use separate global-stop authority, independent of
+the service's token; stale service requests cannot suppress those stops.
+
 The safety gateway remains the final authorizer. Preserve TTL, hardware limits,
 clearance and device watchdogs. A process heartbeat alone must not keep an obsolete
 command alive. Define operation-progress deadlines and bound command renewal.
@@ -159,6 +168,16 @@ prompt and sends a correlated answer; the service determines subsequent behavior
 New prompts need not always stop every activity: a handover prompt requires a stationary
 robot, while new-order input may coexist with a different delivery job. The capability
 must make this distinction explicit.
+
+A stationary handover interaction acquires a robot-wide motion-inhibition guard
+before presenting the loading/receipt prompt, after active motion has stopped.
+The guard remains held throughout human access and blocks movement by other
+activities/runs. Ordinary new-order input does not acquire this guard. Completion
+may release it only after the configured clear-to-move confirmation; cancelling
+the prompt, losing its UI, or timing out does not itself prove that the person has
+finished. If that cannot be established, retain the inhibition until explicit
+operator recovery. Global stop/E-stop remain available. The implementation may
+represent the guard as a motion-token state or a separate interlock.
 
 Service-owned tables resolve books/items/orders to destinations and arrival messages.
 Unknown items, declined assistance and unavailable destinations remain business branches.
@@ -213,6 +232,21 @@ Trial controls cannot select or reset physical hardware implicitly.
 Simulation time governs simulated motion and mission timers; real monotonic time
 governs host health, stop deadlines and physical watchdogs. Replay injects observations
 only into simulation; it never resends historical motion to hardware.
+
+Pause is an explicit simulator state, distinct from failed progress. During an
+acknowledged pause, simulated operation-progress deadlines and simulated observation
+freshness follow the paused simulation clock; lack of virtual progress is not a
+runner fault. Host-health monitoring, control-channel availability and physical
+watchdogs continue on real time. Loss of a host/control connection is still a fault,
+even during pause.
+
+The simulator control path must process cancel/reset without waiting for a physics
+step. It invalidates pending actuation and confirms that the cancelled virtual
+operation cannot resume; this is simulation stop evidence, not physical standstill
+evidence. Reset completes cancellation/invalidation before starting a new epoch.
+An unresponsive control path still fails within the real-time stop deadline.
+Resuming a paused trial never revives cancelled operations, and pause never suspends
+a physical robot's watchdog or operator authorization.
 
 | Variation | First option to evaluate | Decision criterion |
 | --- | --- | --- |
@@ -305,6 +339,12 @@ Relevant sources:
 [adapter](../../apps/server/src/apris_server/adapter.py),
 [Mission API](../mission-api.md).
 
+The current student facade calls an unscoped stop before questions and in service
+cleanup. Do not reuse those calls unchanged for concurrent runs: route normal cleanup
+through operation-scoped cancellation, and use a stationary-interaction guard only
+where needed. For example, cancelling a nonmoving question activity must not stop
+another run's delivery.
+
 The current documented stop API sends a stop; it is not proof of physical standstill.
 Do not turn its Promise resolution into the new stop-confirmed result without adapter
 evidence. Existing physical marker guidance is unverified/disabled in current shared
@@ -336,6 +376,15 @@ Migration sequence:
 | Q04, Q06 | Ports, manifests and provenance | Backend substitution; truth/estimate/source labels |
 | Q08 | Timestamped diagnostics and capability profiles | Measure latency, precision, resource and stop budgets |
 | Q09 | Access, job/media retention and redaction | Role access and credential-redacted diagnostic review |
+
+Additional contract checks before physical trials and simulator acceptance:
+- Delay an old run's drive/renew/stop until after takeover; reject all stale scoped
+  effects while global stop remains effective.
+- Attempt motion from another run during loading/receipt. Verify inhibition, including
+  prompt cancellation, timeout and UI loss; only confirmed clearance permits release.
+- Pause during route execution, then cancel/reset without physics stepping. Verify
+  no false progress timeout, host-loss detection, epoch isolation and no cancelled
+  command on resume.
 
 Before implementation, resolve: motion stop evidence per adapter; operator/runner lease
 timeouts; camera/pose timestamp alignment; event queue sizes; persistence boundary;
