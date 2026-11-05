@@ -38,7 +38,8 @@ represents a cleaning task. Runtime motion protections cannot be overridden by s
 
 ### S1: Patrol and report
 
-1. An operator starts a configured patrol.
+1. An operator starts a configured patrol, or a configured periodic trigger requests it.
+   If a patrol is already running, the service applies an explicit overlap policy.
 2. The rover visits registered locations while object observations are monitored.
 3. A service-selected condition creates a report with an image, observation time and
    location context, such as a room and patrol point.
@@ -64,7 +65,8 @@ not required.
 
 ### S3: Guidance with companion awareness
 
-1. A visitor selects a destination.
+1. A request or a person observation starts an interaction. The visitor confirms that
+   assistance is wanted and selects a destination, directly or through an item selection.
 2. The rover leads along a registered route while checking whether the visitor is following.
 3. It waits when the visitor falls behind and resumes only under an explicit policy.
 4. It announces arrival or reports that guidance was interrupted.
@@ -72,6 +74,33 @@ not required.
 Leading and following are different capabilities. Companion checking may initially
 use explicit confirmation; automatic visual checking is a replaceable option.
 Loss of the companion must not be treated as successful guidance.
+
+If assistance is declined, an item is not found or a destination is unsupported,
+the service can ask for another selection, refer the user to staff, or return to a
+base. These are business branches, distinct from a motion fault. Any return uses
+the normal movement contract and must not bypass a stop or unsafe condition.
+
+### Composition and existing following behavior
+
+Retain person following as a supported reference capability alongside leading.
+A composition example is: follow a customer to a table, confirm and record the
+selected table, accept and confirm an order, then deliver from the kitchen to that
+table. This exercises S2/S3 capabilities without introducing a fourth scenario.
+Define target-loss, cancellation and transitions between following and route
+movement; neither mode may retain motion ownership after its activity ends.
+
+### Origin of the scenario conditions
+
+Patrol/reporting, periodic patrol, delivery/handover, item or shelf selection,
+person-triggered assistance, following, ordering and referral to staff are grounded
+in the 2026 presentation scenarios. They are reported intentions or workflows,
+not independently verified implementations.
+
+Waiting for a lagging companion, registering cleaning-task completion in a screen,
+and accepting new delivery requests while one runs are proposed next-platform
+conditions for exercising coordination and state management. They are not claimed
+as explicit requirements from those presentations. Their initial implementation
+scope remains subject to review.
 
 ## 4. Functional requirements
 
@@ -86,12 +115,19 @@ later capability. Core does not mean every implementation variant is required.
 | F04 | Core | Supply validated person, marker and selected object observations, including source, time and confidence/quality where available | Synthetic, recorded or live inputs use the same documented observation contract; invalid/stale inputs are distinguishable |
 | F05 | Core | Combine sequences with concurrent activities and directed events, with defined task lifetimes | Patrol monitoring and S3 waiting behavior work; ending a service ends its subordinate activities |
 | F06 | Core | Define long-running operation start, progress where meaningful, completion, failure and cancellation | Cancelling motion distinguishes request acceptance from confirmed stop; late results cannot restart a cancelled operation |
-| F07 | Core | Support editable service-facing requests, confirmations and notifications across roles/screens | S2 handover and S1 staff notification work without exposing operator controls to service users |
+| F07 | Core | Support editable structured requests, input validation/reconfirmation and notifications across roles/screens, using screen or voice interaction as appropriate | S2 handover and S1 staff notification work without exposing operator controls to service users |
 | F08 | Core | Provide job identity and state mechanisms; allow service-defined transitions and duplicate handling | Repeated observations and repeated acknowledgements follow an explicit policy; interruption is not recorded as success |
 | F09 | Core | Run the same service logic against compatible simulated and physical capabilities | Switching the supported backend requires configuration/adapters, not a simulation-only service rewrite |
 | F10 | Core | Support saved initial conditions, simulated time, pause/resume/reset and fault scenarios | Repeat a trial under declared inputs and timing; label uncontrolled sources of variability |
 | F11 | Core | Expose active behavior, observations, waiting conditions, target, stop/failure reason and relevant timing | A developer can explain why a reference service is waiting or stopped |
 | F12 | Extension | Support free path planning, advanced autonomy and additional sensing | Evaluate separately after registered-route services work |
+| F13 | Core | Make manual requests, observations and periodic timers explicit start-condition variation points; declare initially supported modes and overlap behavior | A configured start request is admitted, queued or rejected according to policy when a service is already active; repeated observations cannot silently create duplicate runs |
+| F14 | Core | Preserve person following and compose it with interaction and route-based movement | The following/order/delivery example switches activities without concurrent motion owners; target loss and cancellation have explicit outcomes |
+
+F13 requires explicit start-condition contracts and declared initial coverage, not
+immediate implementation of every trigger mechanism or a general scheduler.
+Screen/button alternatives are acceptable for interaction; F07 does not mandate
+a specific speech provider or natural-language understanding.
 
 A map is not a planner; localization is not obstacle avoidance. Wall graphics are not
 evidence of collision or sensing behavior. Specify those semantics for each simulator.
@@ -129,15 +165,21 @@ and measure them. A single successful demo is insufficient evidence of repeatabi
 | Movement | Localization, route execution, progress and stopping contracts | Destinations, patrol order and actions on arrival |
 | Perception | Input adapters, validated observations and replaceable recognizers | Target categories, service conditions and response |
 | Interaction | Request/confirmation/notification mechanisms and UI examples | Roles, wording, screen flow and completion criteria |
-| Execution | Concurrent activity lifetime, event delivery and operation control | Service sequencing, event reactions and business recovery policy |
+| Execution | Start-condition mechanisms, overlap control, concurrent activity lifetime, event delivery and operation control | Trigger conditions, service sequencing, event reactions and business recovery policy |
+| Service data | Selection/form input, validation, reconfirmation and passing structured values to service logic | Book-to-shelf or item-to-box mappings, menus/orders, seat availability and destination/response resolution |
 | Jobs | Identity, state and duplicate-handling mechanisms | Meaning of states and allowed business transitions |
 | Trials | Inputs, simulator adapters, diagnostics and repeatable scenarios | Expected outcomes, experiments and evaluation of user value |
+
+Fixed lists and mappings are sufficient for the initial scenarios. A general search
+engine, library database or fixed cleaning/order/loan state machine is not required
+of the platform. Item-to-destination resolution, arrival information such as shelf
+level, and not-found/referral behavior remain service-owned.
 
 Instructor configuration covers the venue map, marker placement, camera calibration,
 robot profile and operating limits. These should not be rediscovered by every team.
 
 Variation points include robot, recognition provider/input, localization/movement method,
-completion confirmation, UI/notification endpoint, execution host, middleware and simulator.
+completion confirmation, start conditions, UI/notification endpoint, execution host, middleware and simulator.
 Implement one representative configuration first. Identify required capabilities and
 fallback behavior explicitly; do not promise every combination or silently substitute
 physical capabilities with simulated ones.
