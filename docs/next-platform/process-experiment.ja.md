@@ -105,3 +105,5 @@ fake adapterで接続する。既存の速度制限・安全確認・E-stop・�
 未実装：Python接続、本番facade/時計抽象化、UI再接続・役割認証、実機停止確認・TTL・速度／安全制限、
 永続ジョブ、地図・自己位置・認識、mailbox統合、ゲートウェイ停止の安全性検証、
 WSL配布、ROS/箱庭。停止結果は合成動作の無効化だけを表す。
+
+続編：[Python runtime接続実験](python-port.ja.md)では、既存サービスをRoverRuntimeと固定のfake adapterへ接続した。

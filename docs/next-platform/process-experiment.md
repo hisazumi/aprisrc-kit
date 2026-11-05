@@ -113,3 +113,5 @@ Still absent: Python integration, production facade/clock abstraction, UI reconn
 role authorization, physical stop evidence/TTL/speed/clearance verification, persistent
 jobs, map/localization/perception, mailbox integration, gateway-crash qualification,
 WSL packaging and ROS/Hakoniwa. Stop evidence refers only to synthetic actuation invalidation.
+
+Follow-up: [Python runtime port experiment](python-port.md) connects the unchanged service through RoverRuntime with a fixed fake adapter.
