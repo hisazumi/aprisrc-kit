@@ -1,0 +1,7 @@
+{
+  "name": "@apris/runner-prototype",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": { "test": "node --test runtime.test.ts", "start": "node runner.ts" }
+}
