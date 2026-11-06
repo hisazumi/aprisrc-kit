@@ -391,3 +391,8 @@ timeouts; camera/pose timestamp alignment; event queue sizes; persistence bounda
 minimum PC/GPU profile; service-to-runtime packaging; and ROS/Hakoniwa selection.
 Record adopted choices in focused ADRs after experiments. This draft changes no runtime
 code, current capability claims or qualification status.
+
+## Consolidation plan
+
+See the [runner/server integration plan](integration-plan.md) for responsibilities,
+operation contracts and the next Simulator acceptance gates.

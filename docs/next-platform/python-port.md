@@ -137,3 +137,8 @@ Python tests live in tests/test_runner_port_experiment.py; Node review regressio
 apps/runner-prototype/review-regressions.test.ts and run in the existing CI test commands.
 The missing-executable and batched-stream cases require no installed Python. The executable
 stream fixture uses a POSIX shebang and is explicitly skipped on Windows; Linux CI runs it.
+
+## Consolidation plan
+
+See the [runner/server integration plan](integration-plan.md) for responsibilities,
+operation contracts and the next Simulator acceptance gates.
