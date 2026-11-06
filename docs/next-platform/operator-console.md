@@ -66,3 +66,5 @@ student-service questions, ordinary `/app` reconnect independent of run lifetime
 and Node-host attachment to this persistent authority remain next integration work.
 Guard state is in memory; restarting requires explicit recovery and is not proof that
 people are clear. No persistent guard store or real-device qualification is added.
+
+See [Attached service host](connected-service.md) for subsequent Node attachment and service questions.

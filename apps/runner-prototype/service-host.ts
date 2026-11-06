@@ -14,6 +14,10 @@ export interface ServiceInputs {
   prompt(question: HostQuestion, signal: AbortSignal): Promise<{ value: string; humanClear?: boolean }>;
   say(message: string): void;
 }
+export interface HostConnection {
+  rpc: Pick<JsonLineRpc, 'request' | 'onEvent' | 'signal' | 'close'>;
+  controlEpoch: string; operatorId: string; runId: string; runEpoch: string;
+}
 export interface HostReport { messages: string[]; snapshot?: Record<string, unknown>; closed: boolean }
 function object(v: unknown): Record<string, unknown> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('invalid-server-object');
@@ -21,22 +25,22 @@ function object(v: unknown): Record<string, unknown> {
 }
 /** Single host for the consolidated runner; launches only local synthetic or planar simulator backends. */
 export async function runFakeService(definition: StudentService, inputs: ServiceInputs,
-  options: { backend?: 'fake' | 'simulator'; python?: string; serviceMs?: number; evidenceDelay?: number | 'missing'; signal?: AbortSignal } = {}): Promise<HostReport> {
+  options: { connection?: HostConnection; backend?: 'fake' | 'simulator'; python?: string; serviceMs?: number; evidenceDelay?: number | 'missing'; signal?: AbortSignal } = {}): Promise<HostReport> {
   const backend = options.backend ?? 'fake';
   if (backend !== 'fake' && backend !== 'simulator') throw new Error('invalid-backend');
   const serviceMs = options.serviceMs ?? 5000;
   if (!Number.isSafeInteger(serviceMs) || serviceMs < 1) throw new Error('invalid-service-timeout');
   if (inputs.recoveryClearance !== true) throw new Error('initial-human-clearance-required');
-  const child = spawn(options.python ?? process.env.APRIS_PYTHON ?? 'python3', ['-m', 'apris_server.runner_port_experiment', '--backend', backend], {
+  const child = options.connection ? undefined : spawn(options.python ?? process.env.APRIS_PYTHON ?? 'python3', ['-m', 'apris_server.runner_port_experiment', '--backend', backend], {
     env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const report: HostReport = { messages: [], closed: false };
-  const closed = new Promise<void>(resolve => child.once('close', () => { report.closed = true; resolve(); }));
-  const rpc = new JsonLineRpc(child.stdout, child.stdin);
-  let stderr = ''; child.stderr.on('data', b => { stderr = (stderr + b).slice(-4096); });
-  child.on('error', e => rpc.fail(e));
-  child.on('close', () => rpc.fail(new Error('Python closed: ' + stderr)));
+  const closed = child ? new Promise<void>(resolve => child.once('close', () => { report.closed = true; resolve(); })) : Promise.resolve();
+  const rpc = options.connection?.rpc ?? new JsonLineRpc(child!.stdout, child!.stdin);
+  let stderr = ''; child?.stderr.on('data', b => { stderr = (stderr + b).slice(-4096); });
+  child?.on('error', e => { if (rpc instanceof JsonLineRpc) rpc.fail(e); });
+  child?.on('close', () => { if (rpc instanceof JsonLineRpc) rpc.fail(new Error('Python closed: ' + stderr)); });
   const lifecycle = new AbortController();
   const stop = (reason: unknown) => { if (!lifecycle.signal.aborted) lifecycle.abort(reason instanceof Error ? reason : new Error(String(reason))); };
   const aborted = new Promise<never>((_, reject) => lifecycle.signal.addEventListener('abort', () => reject(lifecycle.signal.reason), { once: true }));
@@ -55,7 +59,7 @@ export async function runFakeService(definition: StudentService, inputs: Service
   let error: unknown;
   let controlEpoch = '';
   let runEpoch = '';
-  const runId = randomUUID();
+  const runId = options.connection?.runId ?? randomUUID();
   const control = async (kind: string, fields: object = {}): Promise<ControlReply> => {
     const response = parseControlMessage(await rpc.request('control', { message: {
       protocolVersion: 1, connectionEpoch: controlEpoch, requestId: randomUUID(), robotId: 'fake-only', kind, ...fields,
@@ -69,13 +73,20 @@ export async function runFakeService(definition: StudentService, inputs: Service
     const bootstrap = object(await rpc.request('snapshot'));
     if (typeof bootstrap.controlEpoch !== 'string') throw new Error('missing-control-epoch');
     controlEpoch = bootstrap.controlEpoch;
-    // Explicit synthetic test input. This host cannot select a physical adapter.
-    await rpc.request('fixture', { front: 'CLEAR', ...(options.evidenceDelay !== undefined ? { evidenceDelay: options.evidenceDelay } : {}) });
-    const operatorId = (await control('openOperator')).operatorId;
-    await control('recover', { operatorId, guardId: null, confirmed: inputs.recoveryClearance });
-    const admitted = await control('openRun', { operatorId, runId });
-    if (!admitted.runEpoch) throw new Error('missing-run-epoch');
-    runEpoch = admitted.runEpoch;
+    let operatorId: string | null;
+    if (options.connection) {
+      if (controlEpoch !== options.connection.controlEpoch) throw new Error('stale-attachment');
+      operatorId = options.connection.operatorId;
+      runEpoch = options.connection.runEpoch;
+      await control('runnerHeartbeat', { runId, runEpoch, sequence: 1 });
+    } else {
+      await rpc.request('fixture', { front: 'CLEAR', ...(options.evidenceDelay !== undefined ? { evidenceDelay: options.evidenceDelay } : {}) });
+      operatorId = (await control('openOperator')).operatorId;
+      await control('recover', { operatorId, guardId: null, confirmed: inputs.recoveryClearance });
+      const admitted = await control('openRun', { operatorId, runId });
+      if (!admitted.runEpoch) throw new Error('missing-run-epoch');
+      runEpoch = admitted.runEpoch;
+    }
     const transport: MotionTransport = {
       send(m) { void rpc.request('motion', { session: runEpoch, message: m }).then(v => receive(v), e => { if (!motion || motion.rejectCommand(m, e)) { disconnect(String(e)); stop(e); } }); },
       subscribe(message, close) { receive = message; disconnect = close;
@@ -88,14 +99,14 @@ export async function runFakeService(definition: StudentService, inputs: Service
     motion = new MotionClient(transport, runEpoch);
     runner = new ActivityRunner(runId, runEpoch, motionCapability(motion, 'fake-only'));
     const active = runner;
-    let sequence = 0; let ticking = false;
+    let sequence = 1; let ticking = false;
     heartbeat = setInterval(() => {
       if (closing || ticking) return;
       if (active.failure) { stop(active.failure); return; }
       ticking = true; sequence++;
       void (async () => {
         // Operator presence is independent of runner health, even in this scripted host.
-        if (inputs.operatorPresent()) await control('operatorHeartbeat', { operatorId, sequence });
+        if (!options.connection && inputs.operatorPresent()) await control('operatorHeartbeat', { operatorId, sequence });
         await control('runnerHeartbeat', { runId, runEpoch, sequence });
       })().catch(stop).finally(() => { ticking = false; });
     }, 40);
@@ -113,7 +124,11 @@ export async function runFakeService(definition: StudentService, inputs: Service
         check(); active.answer(prompt.id, answer.value); await prompt.result;
         if (stationary) {
           if (!guardId || answer.humanClear !== true) throw new Error('human-clearance-required');
-          await control('clearHandover', { operatorId, guardId, confirmed: true });
+          if (!options.connection) await control('clearHandover', { operatorId, guardId, confirmed: true });
+          else {
+            const current = await control('snapshot');
+            if (current.guardId || current.runEpoch !== runEpoch) throw new Error('operator-clearance-pending');
+          }
         }
         return answer.value;
       } finally { await active.cancel(scope); }
@@ -161,19 +176,20 @@ export async function runFakeService(definition: StudentService, inputs: Service
       try { await control('closeRun', { runId, runEpoch }); }
       catch (e) {
         if (!error) error = e;
-        try { await control('globalStop'); } catch { /* EOF below is the remaining port stop path. */ }
+        try { if (!options.connection) await control('globalStop'); } catch { /* EOF below is the remaining port stop path. */ }
       }
     }
     if (!rpc.signal.aborted) {
       try { report.snapshot = object(await rpc.request('snapshot')); } catch (e) { error ??= e; }
     }
-    off(); motion?.close(); rpc.close(); child.stdin.end();
-    const kill = setTimeout(() => child.kill('SIGKILL'), 700);
+    off(); motion?.close(); rpc.close(); child?.stdin.end();
+    const kill = setTimeout(() => child?.kill('SIGKILL'), 700);
     let finalDeadline: ReturnType<typeof setTimeout> | undefined;
     try { await Promise.race([closed, new Promise<never>((_, reject) => { finalDeadline = setTimeout(() => reject(new Error('child-cleanup-timeout')), 1500); })]); }
     catch (e) { error ??= e; }
     finally { clearTimeout(kill); clearTimeout(finalDeadline); }
   }
+  if (options.connection) report.closed = true; // Detached transport; shared Python runtime stays alive.
   if (error) throw Object.assign(new Error(String(error)), { report });
   return report;
 }

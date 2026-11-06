@@ -151,3 +151,45 @@ def test_motion_uses_runtime_and_global_stop_then_recovery_never_replays():
         recovered = client.get("/api/state").json()
         assert recovered["session"] is None
         assert recovered["state"]["pose"] == stopped["state"]["pose"]
+
+
+def test_service_questions_reject_invalid_choices_and_do_not_clear_guard():
+    with client_for(create_console(TOKEN)) as client:
+        state = client.get("/api/state").json()
+        operator = control(client, state, "openOperator").json()["operatorId"]
+        control(client, state, "recover", operatorId=operator, guardId=None, confirmed=True)
+        run = client.post(
+            "/api/service/start", json=dict(controlEpoch=state["controlEpoch"], operatorId=operator)
+        ).json()
+        prompt = dict(id="q", message="Load?", choices=["Done"], stationary=True)
+        bad = client.post(
+            "/api/service/prompt",
+            json=dict(runEpoch=run["runEpoch"], prompt={**prompt, "choices": ["Done", "Done"]}),
+        )
+        assert bad.status_code == 400
+        control(client, state, "acquireHandover", runId=run["runId"], runEpoch=run["runEpoch"])
+        assert (
+            client.post(
+                "/api/service/prompt", json=dict(runEpoch=run["runEpoch"], prompt=prompt)
+            ).status_code
+            == 200
+        )
+        view = client.post("/api/service/view", json={}).json()["viewId"]
+        answer = dict(viewId=view, runEpoch=run["runEpoch"], questionId="q", value="Done")
+        assert (
+            client.post("/api/service/answer", json={**answer, "value": "Other"}).status_code == 409
+        )
+        assert (
+            client.post("/api/service/answer", json={**answer, "humanClear": True}).status_code
+            == 409
+        )
+        assert client.post("/api/service/answer", json=answer).status_code == 200
+        assert client.get("/api/service/state").json()["guardId"]
+        assert (
+            client.post(
+                "/api/service/consume", json=dict(runEpoch=run["runEpoch"], questionId="q")
+            ).status_code
+            == 409
+        )
+        assert client.get("/app").status_code == 200
+        assert client.get("/console/service.js").status_code == 200

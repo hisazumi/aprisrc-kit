@@ -3,6 +3,7 @@
 import asyncio
 import json
 import secrets
+import time
 import uuid
 from collections import deque
 from contextlib import asynccontextmanager
@@ -22,7 +23,18 @@ def create_console(token: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         events = deque(maxlen=64)
-        port = RunnerPort(events.append, backend="simulator")
+        numbered = deque(maxlen=128)
+
+        def emit(event):
+            events.append(event)
+            app.state.event_cursor += 1
+            numbered.append({"cursor": app.state.event_cursor, "event": event})
+
+        app.state.event_cursor = 0
+        app.state.numbered = numbered
+        app.state.service = None
+        app.state.view_id = None
+        port = RunnerPort(emit, backend="simulator")
         port.inhibited = True
         app.state.port, app.state.events = port, events
         await port.start()
@@ -78,13 +90,17 @@ def create_console(token: str) -> FastAPI:
         except (ValueError, KeyError, TypeError) as error:
             raise HTTPException(409, str(error)) from error
 
+    @app.get("/app")
+    async def service_page():
+        return FileResponse(STATIC / "service.html")
+
     @app.get("/console")
     async def page():
         return FileResponse(STATIC / "index.html")
 
     @app.get("/console/{asset}")
     async def asset(asset: str):
-        if asset not in {"console.js", "console.css"}:
+        if asset not in {"console.js", "console.css", "service.js"}:
             raise HTTPException(404)
         return FileResponse(STATIC / asset)
 
@@ -93,8 +109,6 @@ def create_console(token: str) -> FastAPI:
         port = request.app.state.port
         async with port.lock:
             # Snapshot does not renew any lease; expiry also applies to read-only reconnects.
-            import time
-
             port._expire(time.monotonic())
             snapshot = await port._dispatch({"action": "snapshot"})
             snapshot["control"] = port._control_reply(
@@ -102,6 +116,11 @@ def create_console(token: str) -> FastAPI:
             )
             snapshot["interlock"] = port.runtime.motion_interlock.snapshot()
             snapshot["events"] = list(request.app.state.events)
+            snapshot["eventCursor"] = request.app.state.event_cursor
+            snapshot["eventLog"] = list(request.app.state.numbered)
+            snapshot["serviceAttached"] = bool(
+                request.app.state.service and request.app.state.service["runEpoch"] == port.session
+            )
             return snapshot
 
     @app.post("/api/control")
@@ -124,12 +143,165 @@ def create_console(token: str) -> FastAPI:
             request, {"action": "fixture", "front": "CLEAR" if value["clear"] else "UNKNOWN"}
         )
 
+    @app.post("/api/service/start")
+    async def service_start(request: Request):
+        value = await body(request)
+        port = request.app.state.port
+        async with port.lock:
+            port._expire(time.monotonic())
+            if value != {"controlEpoch": port.control_epoch, "operatorId": port.operator_id}:
+                raise HTTPException(409, "stale-operator")
+            if port.session or not port.operator_id:
+                raise HTTPException(409, "service-busy-or-no-operator")
+            run_id = uuid.uuid4().hex
+            try:
+                opened = await port._control(
+                    dict(
+                        protocolVersion=1,
+                        connectionEpoch=port.control_epoch,
+                        requestId=uuid.uuid4().hex,
+                        robotId="fake-only",
+                        kind="openRun",
+                        operatorId=port.operator_id,
+                        runId=run_id,
+                    )
+                )
+            except ValueError as error:
+                raise HTTPException(409, str(error)) from error
+            request.app.state.service = dict(
+                runId=run_id,
+                runEpoch=opened["runEpoch"],
+                prompt=None,
+                answered=None,
+                used=[],
+                messages=[],
+            )
+            return dict(
+                controlEpoch=port.control_epoch,
+                operatorId=port.operator_id,
+                runId=run_id,
+                runEpoch=opened["runEpoch"],
+            )
+
+    def live_service(request):
+        service = request.app.state.service
+        port = request.app.state.port
+        port._expire(time.monotonic())
+        if not service or service["runEpoch"] != port.session:
+            raise HTTPException(409, "service-ended")
+        return service
+
+    @app.post("/api/service/prompt")
+    async def publish_prompt(request: Request):
+        value = await body(request)
+        async with request.app.state.port.lock:
+            service = live_service(request)
+            prompt = value.get("prompt")
+            if value.get("runEpoch") != service["runEpoch"] or not isinstance(prompt, dict):
+                raise HTTPException(409, "stale-run")
+            if (
+                set(prompt) != {"id", "message", "choices", "stationary"}
+                or not isinstance(prompt["id"], str)
+                or not 1 <= len(prompt["id"]) <= 128
+                or not isinstance(prompt["message"], str)
+                or len(prompt["message"]) > 4096
+                or type(prompt["stationary"]) is not bool
+                or not isinstance(prompt["choices"], list)
+                or not 1 <= len(prompt["choices"]) <= 16
+                or any(not isinstance(c, str) or not 1 <= len(c) <= 256 for c in prompt["choices"])
+                or len(set(prompt["choices"])) != len(prompt["choices"])
+            ):
+                raise HTTPException(400, "invalid-question")
+            if service["prompt"] or prompt["id"] in service["used"] or len(service["used"]) >= 128:
+                raise HTTPException(409, "question-busy-or-reused")
+            service["prompt"] = prompt
+            service["answered"] = None
+            service["used"].append(prompt["id"])
+            return {"ok": True}
+
+    @app.post("/api/service/view")
+    async def attach_view(request: Request):
+        if await body(request) != {}:
+            raise HTTPException(400, "empty-view-request-required")
+        # A new page invalidates old page answers without changing run or operator leases.
+        request.app.state.view_id = uuid.uuid4().hex
+        return {"viewId": request.app.state.view_id}
+
+    @app.get("/api/service/state")
+    async def service_state(request: Request):
+        async with request.app.state.port.lock:
+            service = request.app.state.service
+            request.app.state.port._expire(time.monotonic())
+            live = bool(service and service["runEpoch"] == request.app.state.port.session)
+            return dict(
+                live=live,
+                runEpoch=service["runEpoch"] if live else None,
+                prompt=service["prompt"] if live else None,
+                answered=service["answered"] if live else None,
+                guardId=request.app.state.port.guard_id,
+                messages=service["messages"] if service else [],
+            )
+
+    @app.post("/api/service/answer")
+    async def answer(request: Request):
+        value = await body(request)
+        async with request.app.state.port.lock:
+            service = live_service(request)
+            prompt = service["prompt"]
+            if (
+                set(value) != {"viewId", "runEpoch", "questionId", "value"}
+                or not request.app.state.view_id
+                or value["viewId"] != request.app.state.view_id
+                or value["runEpoch"] != service["runEpoch"]
+                or not prompt
+                or value["questionId"] != prompt["id"]
+                or service["answered"] is not None
+                or value["value"] not in prompt["choices"]
+            ):
+                raise HTTPException(409, "stale-or-invalid-answer")
+            service["answered"] = {"questionId": prompt["id"], "value": value["value"]}
+            return {"ok": True}
+
+    @app.post("/api/service/consume")
+    async def consume(request: Request):
+        value = await body(request)
+        async with request.app.state.port.lock:
+            service = live_service(request)
+            prompt = service["prompt"]
+            if (
+                value.get("runEpoch") != service["runEpoch"]
+                or not prompt
+                or value.get("questionId") != prompt["id"]
+                or service["answered"] is None
+                or (prompt["stationary"] and request.app.state.port.guard_id is not None)
+            ):
+                raise HTTPException(409, "question-not-ready")
+            result = service["answered"]
+            service["prompt"] = service["answered"] = None
+            return result
+
+    @app.post("/api/service/say")
+    async def say(request: Request):
+        value = await body(request)
+        async with request.app.state.port.lock:
+            service = live_service(request)
+            if (
+                value.get("runEpoch") != service["runEpoch"]
+                or not isinstance(value.get("message"), str)
+                or len(value["message"]) > 4096
+                or len(service["messages"]) >= 128
+            ):
+                raise HTTPException(409, "invalid-message-or-capacity")
+            service["messages"].append(value["message"])
+            return {"ok": True}
+
     return app
 
 
 def main():
     token = secrets.token_urlsafe(32)
     print(f"Operator console (simulator only): {ORIGIN}/console#{token}", flush=True)
+    print(f"Service page: {ORIGIN}/app#{token}", flush=True)
     uvicorn.run(create_console(token), host="127.0.0.1", port=8766, access_log=False)
 
 

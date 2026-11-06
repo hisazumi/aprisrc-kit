@@ -30,9 +30,9 @@ function render() {
   $('start').disabled = busy || !owned || !!c.runEpoch || !!c.guardId || c.inhibited || !stopped;
   $('close').disabled = busy || !owned || !c.runEpoch;
   $('recover').disabled = busy || !owned || !!c.runEpoch || !stopped || !$('clearance').checked;
-  $('hold').disabled = busy || !owned || !c.runEpoch || !!c.guardId || c.inhibited || !stopped;
+  $('hold').disabled = state.serviceAttached || busy || !owned || !c.runEpoch || !!c.guardId || c.inhibited || !stopped;
   $('clear').disabled = busy || !owned || !c.guardId || !stopped || !$('clearance').checked;
-  for (const k of ['move', 'turn']) $(k).disabled = busy || !owned || !c.runEpoch || c.inhibited || !!c.guardId || !stopped || !!active;
+  for (const k of ['move', 'turn']) $(k).disabled = state.serviceAttached || busy || !owned || !c.runEpoch || c.inhibited || !!c.guardId || !stopped || !!active;
   $('events').textContent = state.events.slice(-8).map(e => e.kind === 'terminal' ? `${e.outcome}: ${e.reason} / 証拠: ${e.evidence?.kind}` : `${e.kind}: ${e.reason || ''}`).join('\n') || 'まだ操作はありません';
 }
 async function refresh() {
@@ -89,7 +89,7 @@ async function tick() {
     await refresh();
     if (operatorId) {
       await control('operatorHeartbeat', { operatorId, sequence: ++sequence });
-      if (state.control.runEpoch) await control('runnerHeartbeat', { ...runFields(), sequence });
+      if (state.control.runEpoch && !state.serviceAttached) await control('runnerHeartbeat', { ...runFields(), sequence });
       await api('front', { clear: $('front').checked });
       if (active && state.operation && !state.operation.finishing)
         await api('motion', { ...active, kind: 'renewMotion', requestId: id() });
