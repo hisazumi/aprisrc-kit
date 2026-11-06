@@ -50,3 +50,5 @@ completion, rerun with new epochs/questions, stale answer/stop rejection, and re
 guard preventing restart after a handover stop. API coverage includes missing Node;
 DOM coverage includes button eligibility and startup failures after a prior success.
 These are not new physical-stop or real-browser visual qualification claims.
+
+See [Service scenarios and traces](service-scenarios.md) for repeatable acceptance cases.

@@ -54,6 +54,13 @@ jobs:
       - run: node --test apps/runner-prototype/*.test.ts
         env:
           APRIS_PYTHON: ${{ github.workspace }}/apps/server/.venv/bin/python
+          APRIS_SCENARIO_TRACE_DIR: ${{ runner.temp }}/aprisrc-scenario-traces
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: service-scenario-traces
+          path: ${{ runner.temp }}/aprisrc-scenario-traces/*.json
+          retention-days: 14
       - run: node apps/runner-prototype/python-demo.ts
         env:
           APRIS_PYTHON: ${{ github.workspace }}/apps/server/.venv/bin/python

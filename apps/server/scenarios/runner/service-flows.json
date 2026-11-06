@@ -1,0 +1,6 @@
+[
+  {"version":1,"id":"normal","description":"Accept, load, stop and wait for delayed arrival","flow":"accept","operatorLossAt":null,"reconnectAt":null,"arrivalDelayMs":1800,"expected":{"status":"completed","guard":false,"minX":0.02,"maxX":0.13,"questions":4,"message":"Please take your belongings"}},
+  {"version":1,"id":"decline","description":"Decline the offer; no loading or following","flow":"decline","operatorLossAt":null,"reconnectAt":null,"arrivalDelayMs":0,"expected":{"status":"completed","guard":false,"minX":0.02,"maxX":0.05,"questions":2,"message":"No problem"}},
+  {"version":1,"id":"operator-disconnect","description":"Stop operator updates during loading; keep guard","flow":"accept","operatorLossAt":"handover","reconnectAt":null,"arrivalDelayMs":0,"expected":{"status":"interrupted","guard":true,"minX":0.02,"maxX":0.05,"questions":3,"message":null}},
+  {"version":1,"id":"service-reconnect","description":"Reopen service view, reject stale answer, continue same run","flow":"accept","operatorLossAt":null,"reconnectAt":"offer","arrivalDelayMs":1800,"expected":{"status":"completed","guard":false,"minX":0.02,"maxX":0.13,"questions":4,"message":"Please take your belongings"}}
+]
