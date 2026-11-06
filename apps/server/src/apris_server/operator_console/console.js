@@ -83,7 +83,7 @@ async function move(goal) {
 action('move', () => move({ kind: 'move', distanceM: .04, speedMps: .1 }));
 action('turn', () => move({ kind: 'turn', angleRad: .1, speedRadS: .7 }));
 async function tick() {
-  if (updating || document.hidden) return;
+  if (updating) return; // Visibility is not operator disconnection.
   updating = true;
   try {
     await refresh();

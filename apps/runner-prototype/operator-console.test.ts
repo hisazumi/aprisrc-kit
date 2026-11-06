@@ -48,13 +48,16 @@ test('operator page starts read-only; recovery needs fresh explicit clearance', 
     assert.equal(h.el('clear').disabled, true);
   } finally { h.dom.window.close(); }
 });
-test('hidden page does not renew; restart does not reacquire operator or replay motion', async () => {
+test('hidden page renews acquired authority; restart does not reacquire or replay', async () => {
   const h = await screen();
   try {
     await h.el('connect').onclick();
     h.requests.length = 0;
     Object.defineProperty(h.w.document, 'hidden', { value: true, configurable: true });
-    await h.tick(); assert.equal(h.requests.length, 0);
+    await h.tick();
+    assert.ok(h.requests.some(r => r.body?.kind === 'operatorHeartbeat'));
+    assert.ok(!h.requests.some(r => r.path === '/api/motion'));
+    h.requests.length = 0;
     Object.defineProperty(h.w.document, 'hidden', { value: false, configurable: true });
     h.state.controlEpoch = 'new-epoch'; h.state.control.operatorId = null;
     await h.tick();

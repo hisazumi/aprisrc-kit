@@ -18,6 +18,6 @@
 <section><h2>Simulatorの動作確認</h2>
 <label><input type="checkbox" id="front">試験入力：前方が安全という合成観測を送る</label>
 <div class="buttons"><button disabled id="move">4 cm 前進</button><button disabled id="turn">0.1 rad 左旋回</button></div>
-<p>前方観測は合成入力です。画面を隠す・閉じると操作許可の更新が止まります。</p></section>
+<p>前方観測は合成入力です。タブを切り替えても操作許可を更新します。画面を閉じる・通信が途切れると失効します。</p></section>
 <section><h2>操作結果</h2><p id="error" role="alert"></p><pre id="events">まだ操作はありません</pre></section>
 </main><script type="module" src="/console/console.js"></script></body></html>

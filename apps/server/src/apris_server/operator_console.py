@@ -35,6 +35,8 @@ def create_console(token: str) -> FastAPI:
         app.state.service = None
         app.state.view_id = None
         port = RunnerPort(emit, backend="simulator")
+        # Browser connection liveness has a different budget from runner/motion safety.
+        port.operator_lease_s = 3.0
         port.inhibited = True
         app.state.port, app.state.events = port, events
         await port.start()
@@ -116,6 +118,7 @@ def create_console(token: str) -> FastAPI:
             )
             snapshot["interlock"] = port.runtime.motion_interlock.snapshot()
             snapshot["events"] = list(request.app.state.events)
+            snapshot["operatorLeaseMs"] = round(port.operator_lease_s * 1000)
             snapshot["eventCursor"] = request.app.state.event_cursor
             snapshot["eventLog"] = list(request.app.state.numbered)
             snapshot["serviceAttached"] = bool(

@@ -28,13 +28,13 @@ open the new printed URL. The server has no remote-bind option or hardware backe
 5. Try global stop. It revokes the run and inhibits motion, even during handover.
    Once stop is confirmed, explicitly recover with the current guard ID and clearance.
    A new run and new movement request are necessary to move again.
-6. Reload or hide the page during handover. The guard remains. After operator lease
+6. Reload or close the page during handover. The guard remains. After operator lease
    expiry, acquire authority again and recover explicitly. No movement is replayed.
 
-The operator page refreshes at 100 ms while visible. An explicitly acquired operator
-renews its 400 ms lease; a test run separately renews its run lease and active motion
+The operator page attempts refreshes at 100 ms even when hidden. An explicitly acquired operator
+renews its three-second console lease; a test run separately renews its run lease and active motion
 TTL through existing typed messages. Read-only state requests do not renew anything.
-Hiding/closing the page stops renewal. These are experimental timing values, so browser
+Closing the page or losing communication stops renewal. These are experimental timing values, so browser
 throttling or a slow machine may revoke the operator. The authority stays in Python.
 This page is deliberately the operator/test driver; it is not the ordinary service UI.
 
@@ -50,7 +50,7 @@ Four HTTP integration tests cover token/origin/host/body validation, explicit re
 stale guard replies, read-only reconnect with lease expiry, guard retention, server
 restart epochs, actual motion/global stop and no replay after recovery. Two DOM tests
 exercise the shipped HTML/JavaScript: read-only startup, fresh clearance, hidden-page
-renewal suppression and no automatic authority reacquisition after restart.
+renewal continuation (subsequent revision) and no automatic authority reacquisition after restart.
 
 Local checks passed: 397 server tests, 140 Node tests, strict TypeScript and Ruff.
 A pre-existing simulator assertion was corrected to allow only 1e-12 absolute numerical

@@ -75,7 +75,7 @@ def test_explicit_recovery_and_guard_survive_browser_lease_loss():
             == 409
         )
         # Read-only reconnect/polling must not renew operator or runner leases.
-        for _ in range(7):
+        for _ in range(41):
             time.sleep(0.08)
             snapshot = client.get("/api/state").json()
         assert snapshot["session"] is None
@@ -219,3 +219,41 @@ def test_service_result_is_scoped_and_retained_after_run_end():
             client.post("/api/service/finish", json={**result, "status": "failed"}).status_code
             == 409
         )
+
+
+def test_browser_lease_tolerates_one_second_heartbeats_but_motion_ttl_stays_short():
+    app = create_console(TOKEN)
+    with client_for(app) as client:
+        state = client.get("/api/state").json()
+        operator = control(client, state, "openOperator").json()["operatorId"]
+        for sequence in (1, 2):
+            time.sleep(1)
+            assert (
+                control(
+                    client, state, "operatorHeartbeat", operatorId=operator, sequence=sequence
+                ).status_code
+                == 200
+            )
+        assert app.state.port.command_ttl_s == 0.25
+        assert app.state.port.lease_s == 0.4
+        control(client, state, "recover", operatorId=operator, guardId=None, confirmed=True)
+        run = control(client, state, "openRun", operatorId=operator, runId="ttl-test").json()
+        client.post("/api/front", json={"clear": True})
+        command = dict(
+            protocolVersion=1,
+            connectionEpoch=run["runEpoch"],
+            requestId="m",
+            robotId="fake-only",
+            runId="ttl-test",
+            activityId="a",
+            operationId="m",
+            kind="startMotion",
+            goal=dict(kind="move", distanceM=0.3, speedMps=0.1),
+        )
+        assert client.post("/api/motion", json=command).json()["kind"] == "accepted"
+        time.sleep(0.35)
+        snapshot = client.get("/api/state").json()
+        assert snapshot["control"]["operatorId"] == operator
+        assert snapshot["session"] is None
+        assert snapshot["state"]["velocity"]["vx"] == 0
+        assert any(e.get("reason") == "command-ttl" for e in snapshot["events"])

@@ -18,8 +18,7 @@ uv run --directory apps/server python -m apris_server.operator_console
 
 Open the printed console URL. Acquire operator authority, explicitly confirm people
 are clear, and recover. Enable synthetic front-clear observations. Do **not** start
-a manual test run: the Node attachment will create its own run. Keep the console
-visible in a separate window; a hidden operator tab stops operator renewal.
+a manual test run: the Node attachment will create its own run. Keep the console open; switching to the service tab no longer suppresses renewal.
 
 In a second terminal, set the token to the fragment after `#` in the printed URL:
 
@@ -28,7 +27,7 @@ export APRIS_CONSOLE_TOKEN='paste-the-current-token-here'
 node apps/runner-prototype/console-service.ts
 ```
 
-Open the printed `/app` URL in another visible window. Confirm the synthetic person
+Open the printed `/app` URL in another tab or window. Confirm the synthetic person
 input, answer the existing service questions, and complete loading. A loading answer
 alone does not release handover: use the **console** clearance checkbox and complete
 handover there. Node waits for both the answer and operator clearance.
@@ -92,3 +91,17 @@ This is real-process/HTTP plus DOM testing, not a real browser visual qualificat
 physical stop certification. CI picks up the new tests; local checks do not claim a CI result.
 Persistent guard storage, role-specific credentials, long-running tracking, and full
 integration with the existing PWA remain follow-up work.
+
+## Browser lease revision
+
+The separate operator/service views remain. Hidden operator tabs continue heartbeat
+attempts. Only the console simulator's operator lease changes to three seconds;
+the Node run lease remains 400 ms and motion command TTL 250 ms. Visibility alone
+is not disconnection. Heartbeats indicate a previously authorized connection's liveness,
+not proof of a human's physical presence. Browser suspension or communication loss
+still expires authority after three seconds, with no automatic recovery.
+Standalone fake-port defaults are unchanged.
+
+Validation: all 146 Node tests, seven Python operator API tests, TypeScript and Ruff
+passed. Tests cover hidden-tab heartbeat, one-second updates, guard retention after
+update loss, and independent 250 ms command-TTL stopping.
