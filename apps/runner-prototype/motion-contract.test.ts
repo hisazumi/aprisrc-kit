@@ -136,3 +136,34 @@ test('canonical decoding detaches caller values and ledger ignores JSON key orde
   const reordered = Object.fromEntries(Object.entries(start()).reverse());
   assert.equal(ledger.admit(reordered).duplicate, true);
 });
+
+test('cancel before acceptance waits for generation and sends once', async () => {
+  const h = harness(); const result = h.client.start(start());
+  h.client.cancel('op', 'cancel'); assert.equal(h.sent.length, 1);
+  h.emit(accepted()); h.emit({ ...accepted(), kind: 'running' });
+  assert.equal(h.sent.length, 2);
+  assert.deepEqual(h.sent[1], { ...scope, kind: 'cancelMotion', requestId: 'cancel', generation: 1 });
+  h.emit({ ...terminal(), outcome: 'cancelled' }); await result;
+  h.client.cancel('op', 'late'); assert.equal(h.sent.length, 2);
+});
+
+test('terminal before acceptance suppresses a queued cancel', async () => {
+  const h = harness(); const result = h.client.start(start());
+  h.client.cancel('op', 'cancel'); h.emit(terminal()); h.emit(accepted());
+  await result; assert.equal(h.sent.length, 1);
+});
+
+test('renew is scoped, stops after cancel, and has a bounded request budget', async () => {
+  const h = harness(1); const result = h.client.start(start());
+  h.client.renew('op', 'before'); assert.equal(h.sent.length, 1);
+  h.emit(accepted());
+  h.client.renew('op', 'renew1');
+  assert.deepEqual(h.sent[1], { ...scope, kind: 'renewMotion', generation: 1, requestId: 'renew1' });
+  h.client.renew('op', 'renew2'); h.client.renew('op', 'renew3'); h.client.renew('op', 'full');
+  await assert.rejects(result, /uncertain.*capacity/);
+  const n = h.sent.length; h.client.renew('op', 'late'); assert.equal(h.sent.length, n);
+  const other = harness(); const next = other.client.start(start()); other.emit(accepted());
+  other.client.cancel('op', 'cancel'); const count = other.sent.length;
+  other.client.renew('op', 'after-cancel'); assert.equal(other.sent.length, count);
+  other.emit({ ...terminal(), outcome: 'cancelled' }); await next;
+});

@@ -103,6 +103,8 @@ interface Pending {
   start: StartMotion;
   generation?: number;
   settled: boolean;
+  cancelRequest?: string;
+  cancelSent?: boolean;
   resolve: (result: MotionResult) => void;
   reject: (error: Error) => void;
 }
@@ -133,6 +135,32 @@ export class MotionClient {
       try { this.transport.send(start); } catch (e) { this.close(String(e)); }
     });
   }
+  renew(operationId: string, requestId: string): void {
+    const p = this.records.get(operationId);
+    if (this.closed || !p || p.settled || p.cancelRequest || p.generation === undefined) return;
+    text(requestId);
+    if (this.requests.has(requestId)) throw new Error('duplicate-request');
+    if (this.requests.size >= this.limit * 4) { this.close('request-capacity-exhausted'); return; }
+    this.requests.add(requestId);
+    const { goal: _goal, ...scope } = p.start;
+    try { this.transport.send({ ...scope, kind: 'renewMotion', requestId, generation: p.generation }); }
+    catch (e) { this.close(String(e)); }
+  }
+  cancel(operationId: string, requestId: string): void {
+    const p = this.records.get(operationId);
+    if (this.closed || !p || p.settled || p.cancelRequest) return;
+    text(requestId);
+    if (this.requests.has(requestId)) throw new Error('duplicate-request');
+    this.requests.add(requestId); p.cancelRequest = requestId;
+    this.sendCancel(p);
+  }
+  private sendCancel(p: Pending) {
+    if (!p.cancelRequest || p.cancelSent || p.settled || p.generation === undefined) return;
+    p.cancelSent = true;
+    const { goal: _goal, ...scope } = p.start;
+    try { this.transport.send({ ...scope, kind: 'cancelMotion', requestId: p.cancelRequest, generation: p.generation }); }
+    catch (e) { this.close(String(e)); }
+  }
   private receive(value: unknown) {
     if (this.closed) return;
     let m: MotionMessage;
@@ -147,6 +175,7 @@ export class MotionClient {
     if (p.generation !== undefined && p.generation !== m.generation) return;
     p.generation = m.generation;
     if (m.kind === 'terminal') { p.settled = true; p.resolve(m); }
+    else this.sendCancel(p);
   }
   close(reason = 'client-disposed') {
     if (this.closed) return;

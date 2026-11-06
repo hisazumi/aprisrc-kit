@@ -94,3 +94,7 @@ openOperator で型付き制御を有効にすると、既存の admit／heartbe
 実際の位置変化を伴う Simulator（D）へ進む。
 guard の永続化、認証付き UI 復帰、実機停止の検証は別途必要である。
 今回の型付き制御経路では、再起動後も明示復帰までは移動を禁止する。
+
+## runner コア
+
+[activity runner コア](activity-runner.ja.md)に親子 scope・mailbox・移動 capability を統合し、Python port に接続した。

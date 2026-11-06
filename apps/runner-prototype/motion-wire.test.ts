@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { ActivityRunner, motionCapability } from './activity-runner.ts';
 import { parseControlMessage } from './control-contract.ts';
 import { MotionClient, parseMotionMessage, type MotionTransport, type StartMotion } from './motion-contract.ts';
 
@@ -16,7 +17,7 @@ for (const fixture of fixtures) {
 }
 
 // Test-only harness for the existing trusted JSON-lines experiment; not a production transport.
-for (const mode of ['complete', 'cancel', 'missing-evidence', 'control'] as const) {
+for (const mode of ['complete', 'cancel', 'missing-evidence', 'control', 'runner', 'runner-cancel', 'runner-loss'] as const) {
   test('typed client to Python port: ' + mode, { skip: !process.env.APRIS_PYTHON, timeout: 6000 }, async () => {
     const child = spawn(process.env.APRIS_PYTHON!, ['-m', 'apris_server.runner_port_experiment'], {
       env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) },
@@ -48,11 +49,12 @@ for (const mode of ['complete', 'cancel', 'missing-evidence', 'control'] as cons
     });
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     let client: MotionClient | undefined;
+    let closeRun: (() => Promise<unknown>) | undefined;
     try {
       await rpc('fixture', { front: 'CLEAR', ...(mode === 'missing-evidence' ? { evidenceDelay: 'missing' } : {}) });
       let session: string;
       let controlSequence = 0;
-      if (mode === 'control') {
+      if (mode === 'control' || mode.startsWith('runner')) {
         const epoch = (await rpc('snapshot')).controlEpoch;
         const control = async (kind: string, fields: object = {}) => {
           const value = parseControlMessage(await rpc('control', { message: { protocolVersion: 1, connectionEpoch: epoch, requestId: 'c' + (++controlSequence), robotId: 'fake-only', kind, ...fields } }));
@@ -62,6 +64,7 @@ for (const mode of ['complete', 'cancel', 'missing-evidence', 'control'] as cons
         const operatorId = (await control('openOperator')).operatorId;
         await control('recover', { operatorId, guardId: null, confirmed: true });
         session = (await control('openRun', { operatorId, runId: 'run' })).runEpoch!;
+        closeRun = () => control('closeRun', { runId: 'run', runEpoch: session });
         let sequence = 0;
         heartbeat = setInterval(() => {
           sequence++;
@@ -80,6 +83,32 @@ for (const mode of ['complete', 'cancel', 'missing-evidence', 'control'] as cons
         subscribe(message, close) { receive = message; disconnect = close; return () => { receive = () => {}; disconnect = () => {}; }; },
       };
       client = new MotionClient(transport, session);
+      if (mode.startsWith('runner')) {
+        const runner = new ActivityRunner('run', session, motionCapability(client, 'fake-only'));
+        const parent = runner.activity(runner.root);
+        const moving = runner.capabilities(parent).spawn();
+        const question = runner.activity(runner.root);
+        const prompt = runner.capabilities(question).prompt(['yes', 'no']);
+        const promptRejected = assert.rejects(prompt.result, /cancelled/);
+        const result = runner.capabilities(moving).move({ kind: 'move', distanceM: mode === 'runner' ? .03 : .04, speedMps: .1 });
+        await runner.cancel(question); await promptRejected;
+        if (mode === 'runner-loss') {
+          const rejected = assert.rejects(result, /uncertain/);
+          child.kill('SIGKILL'); await rejected;
+          await assert.rejects(runner.cancel(runner.root), /cleanup-failed/);
+          assert.ok(runner.failure); return;
+        }
+        if (mode === 'runner-cancel') await runner.cancel(parent);
+        const done = await result;
+        assert.equal(done.kind, 'terminal');
+        if (done.kind !== 'terminal') throw new Error('unexpected-rejection');
+        assert.equal(done.outcome, mode === 'runner' ? 'completed' : 'cancelled');
+        await runner.cancel(runner.root);
+        assert.equal(runner.snapshot().pending, 0);
+        await closeRun?.();
+        assert.equal((await rpc('snapshot')).moving, false);
+        return;
+      }
       const command: StartMotion = { protocolVersion: 1, connectionEpoch: session, requestId: 'start', robotId: 'fake-only', runId: 'run', activityId: 'activity', operationId: 'op', kind: 'startMotion', goal: { kind: 'move', distanceM: mode === 'cancel' ? .04 : .005, speedMps: .1 } };
       const result = client.start(command);
       if (mode === 'cancel') {

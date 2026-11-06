@@ -101,3 +101,8 @@ and replace the test stream harness with a bounded production transport. Then en
 shared authority/guard across server clients (C), followed by actual Simulator pose changes
 (D). Persistent guard state, authenticated UI recovery and physical stop qualification
 remain separate work; the fresh typed-control path starts inhibited after every restart.
+
+## Runner core
+
+The [activity runner core](activity-runner.md) now integrates nested scopes,
+mailboxes and motion capabilities with the Python port.
