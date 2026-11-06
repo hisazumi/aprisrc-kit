@@ -4,8 +4,8 @@
 
 apps/runner-prototype/motion-contract.ts と16件のテストを追加した。
 段階 A の移動部分であり、再利用する契約コードとして実装している。
-既存起動経路と通信形式は変更していない。
-Python 側への採用、run・guard・運用者の契約は引き続き統合作業で扱う。
+現行アプリの起動経路と既存通信形式は維持する。Python の実験用 port へ
+motion action を追加して移動契約を接続した。run・guard・運用者の契約は引き続き扱う。
 
 ## メッセージの規則
 
@@ -13,7 +13,7 @@ Python 側への採用、run・guard・運用者の契約は引き続き統合�
 activityId、operationId を付ける。ID は空白だけでない64文字以下の文字列。
 accepted／running／rejected／terminal は start の識別情報全体を引き継ぐ。
 renewMotion／cancelMotion は自身の requestId を持ち、元の operationId と generation を
-参照する。その要求への受付応答は今回の移動結果ストリームの対象外である。
+参照する。その要求には commandAck で受付を返す。停止確認を意味しない。
 未知の項目・version は拒否する。
 
 runner が送信前に operationId を生成し、Python が generation を付与する設計とする。
@@ -24,7 +24,7 @@ generation は正の安全な整数で、epoch との組合せに意味がある
 | --- | --- |
 | startMotion | move(distanceM, speedMps) または turn(angleRad, speedRadS) の goal |
 | renewMotion、cancelMotion | generation |
-| accepted、running | generation |
+| accepted、running、commandAck | generation |
 | rejected | reason |
 | terminal | generation、outcome、reason、evidence |
 
@@ -79,7 +79,39 @@ duplicate=false の場合だけ新しい仕事を開始できる。
 既存の Node 33件（Python subprocess 7件を含む）と厳密な TypeScript 検査も成功した。
 既存 CI の wildcard で、新規テストも Node 22／24 と Python 統合 job の対象になる。
 
-次に Python 境界へ採用し、共通のシリアライズ済み fixture で言語間の一致を検証する。
-run・guard・運用者契約と要求受付応答も追加する。
-両端が契約を使用するまで段階 A 完了とはしない。
-その後に activity runner 統合（B）、共通操作権（C）、実際の位置変化を伴う Simulator（D）へ進む。
+## Python 接続（2026-11-06）
+
+既存 RunnerPort に {action: "motion", session, message: <motion-v1>} を追加した。
+接続受付・heartbeat は引き続き実験用の既存 envelope を使う。
+server が発行した session を connectionEpoch とし、robotId は fake-only に限定する。
+最初の start で runId を固定する。
+共通 JSON fixture（apps/runner-prototype/fixtures/motion-v1.json）の正常・異常32ケースを
+TypeScript と Python がそれぞれ検証する。UTF-16 の ID 長、空白、真偽値と数値の区別、
+有限の SI 値について両言語を合わせた。
+
+Python は既存 TurnCommand 境界で rad を度に変換し、runtime の安全検査と
+TTL・進捗・停止期限を維持する。PortFakeAdapter の疑似時間待ちを回転にも対応させたが、
+実際の位置変化はまだ検証していない。simulated 停止証拠の epoch は fake- で始め、
+実機接続は引き続き許可しない。
+
+受付・拒否した start と最終結果を Python が保持する。同一要求の再送には同じ受付・結果を
+返し、二度動かさない。同じ ID の異なる内容は拒否する。
+renew／cancel は自身の requestId と commandAck を持ち、再送で TTL の再延長・取消の再発行をしない。
+記録容量（既定では session あたり256要求）が満杯なら、新しい移動 protocol の要求は
+renew／cancel を含め拒否する。独立した既存 revoke／global-stop と TTL／lease 期限は有効。
+暗黙の記録破棄・接続切替はしない。不正・失効済みの要求は外側のエラー応答にする。
+本番の長時間実行には記録保持・接続切替の方針が必要になる。
+session 失効後の再送も拒否し、古い動作の再許可にはしない。
+
+Python decoder／接続の前にテストを追加した。decoder 実装後は共通32ケースが成功し、
+port の3件は unsupported-action で失敗した。接続後に3件も成功した。
+さらに古い scope／epoch、拒否の保持、容量、回転の単位変換、非有限値、更新前期限切れを検証した。
+別プロセスの Python に MotionClient を接続する3件では、完了・取消・停止証拠欠落を確認した。
+stream 接続はテスト用であり、本番の framing・認証・queue 上限は別途実装する。
+
+ローカルでは Node 84件、既存 port／runtime 回帰を含む Python 67件、厳密な TypeScript 検査、Ruff が成功。
+Node suite に共通 fixture と新しい subprocess 3件を加え、CI に Python の契約テストと lint を組み込んだ。
+
+次は run・guard・運用者の契約と本番 transport、その後に activity runner（B）と
+共通操作権（C）を統合する。FastAPI／手動操作を含む guard、実際の位置変化を伴う Simulator（D）は未完了。
+今回の到達点は既存 fake port への移動契約の接続であり、段階 A 全体の完了ではない。

@@ -1,0 +1,597 @@
+[
+  {
+    "name": "move",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "turn",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "turn",
+        "angleRad": 0.1,
+        "speedRadS": 0.7
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "accepted",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "accepted",
+      "generation": 1
+    },
+    "valid": true
+  },
+  {
+    "name": "running",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "running",
+      "generation": 1
+    },
+    "valid": true
+  },
+  {
+    "name": "renewMotion",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "renewMotion",
+      "generation": 1
+    },
+    "valid": true
+  },
+  {
+    "name": "cancelMotion",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "cancelMotion",
+      "generation": 1
+    },
+    "valid": true
+  },
+  {
+    "name": "rejected",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "rejected",
+      "reason": "inhibited"
+    },
+    "valid": true
+  },
+  {
+    "name": "completed",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "completed",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "simulated",
+        "epoch": "fake-1",
+        "observedAt": 2
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "cancelled",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "cancelled",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "simulated",
+        "epoch": "fake-1",
+        "observedAt": 2
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "interrupted",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "interrupted",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "simulated",
+        "epoch": "fake-1",
+        "observedAt": 2
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "failed",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "failed",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "simulated",
+        "epoch": "fake-1",
+        "observedAt": 2
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "not-started",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "failed",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "not-started"
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "unknown-stop",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "stop-unconfirmed",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "unknown"
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "command-ack",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "commandAck",
+      "generation": 1
+    },
+    "valid": true
+  },
+  {
+    "name": "bad-protocolVersionTrue",
+    "message": {
+      "protocolVersion": true,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-protocolVersion2",
+    "message": {
+      "protocolVersion": 2,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-requestId",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-requestId\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-robotId2",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": 2,
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-kinddrive",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "drive",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-extra1",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1
+      },
+      "extra": 1
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-distance-0",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-distance-1e-12",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 1e-12,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-distance-5.1",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 5.1,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-distance-0.1",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": "0.1",
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bad-distance-True",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": true,
+        "speedMps": 0.1
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "missing-evidence",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "completed",
+      "reason": "goal-reached",
+      "evidence": null
+    },
+    "valid": false
+  },
+  {
+    "name": "unproven-cancel",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "cancelled",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "not-started"
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "false-unknown",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "terminal",
+      "generation": 1,
+      "outcome": "stop-unconfirmed",
+      "reason": "goal-reached",
+      "evidence": {
+        "kind": "simulated",
+        "epoch": "fake-1",
+        "observedAt": 2
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "bool-generation",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "accepted",
+      "generation": true
+    },
+    "valid": false
+  },
+  {
+    "name": "fraction-generation",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "accepted",
+      "generation": 1.5
+    },
+    "valid": false
+  },
+  {
+    "name": "extra-goal",
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "epoch-1",
+      "requestId": "req-1",
+      "robotId": "robot",
+      "runId": "run",
+      "activityId": "activity",
+      "operationId": "op",
+      "kind": "startMotion",
+      "goal": {
+        "kind": "move",
+        "distanceM": 0.02,
+        "speedMps": 0.1,
+        "duration": 1
+      }
+    },
+    "valid": false
+  }
+]

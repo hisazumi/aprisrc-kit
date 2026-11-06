@@ -12,6 +12,7 @@ export type MotionGoal = { kind: 'move'; distanceM: number; speedMps: number }
   | { kind: 'turn'; angleRad: number; speedRadS: number };
 export type StartMotion = Scope & { kind: 'startMotion'; goal: MotionGoal };
 export type ScopedCommand = Scope & { kind: 'renewMotion' | 'cancelMotion'; generation: number };
+export type CommandAck = Scope & { kind: 'commandAck'; generation: number };
 export type Progress = Scope & { kind: 'accepted' | 'running'; generation: number };
 export type Rejected = Scope & { kind: 'rejected'; reason: string };
 export type StopEvidence = { kind: 'simulated' | 'physical'; epoch: string; observedAt: number };
@@ -20,7 +21,7 @@ export type Terminal = Scope & { kind: 'terminal'; generation: number; reason: s
   | { outcome: 'failed'; evidence: StopEvidence | { kind: 'not-started' } }
   | { outcome: 'stop-unconfirmed'; evidence: { kind: 'unknown' } }
 );
-export type MotionMessage = StartMotion | ScopedCommand | Progress | Rejected | Terminal;
+export type MotionMessage = StartMotion | ScopedCommand | CommandAck | Progress | Rejected | Terminal;
 export type MotionResult = Rejected | Terminal;
 
 const scopeKeys = ['protocolVersion', 'connectionEpoch', 'requestId', 'robotId', 'runId', 'activityId', 'operationId'] as const;
@@ -75,7 +76,7 @@ export function parseMotionMessage(value: unknown): MotionMessage {
   const s: Scope = { protocolVersion: 1, connectionEpoch: text(v.connectionEpoch), requestId: text(v.requestId), robotId: text(v.robotId), runId: text(v.runId), activityId: text(v.activityId), operationId: text(v.operationId) };
   switch (v.kind) {
     case 'startMotion': keys(v, [...scopeKeys, 'kind', 'goal']); return { ...s, kind: v.kind, goal: goal(v.goal) };
-    case 'renewMotion': case 'cancelMotion': case 'accepted': case 'running':
+    case 'renewMotion': case 'cancelMotion': case 'accepted': case 'running': case 'commandAck':
       keys(v, [...scopeKeys, 'kind', 'generation']); return { ...s, kind: v.kind, generation: generation(v.generation) };
     case 'rejected': keys(v, [...scopeKeys, 'kind', 'reason']); return { ...s, kind: v.kind, reason: text(v.reason, 256) };
     case 'terminal': {
@@ -138,7 +139,7 @@ export class MotionClient {
     try { m = parseMotionMessage(value); } catch { this.close('invalid-message'); return; }
     const p = this.records.get(m.operationId);
     if (!p || !sameScope(p.start, m) || p.settled) return;
-    if (m.kind === 'startMotion' || m.kind === 'renewMotion' || m.kind === 'cancelMotion') { this.close('wrong-direction'); return; }
+    if (m.kind === 'startMotion' || m.kind === 'renewMotion' || m.kind === 'cancelMotion' || m.kind === 'commandAck') { this.close('wrong-direction'); return; }
     if (m.kind === 'rejected') {
       if (p.generation !== undefined) { this.close('rejected-after-acceptance'); return; }
       p.settled = true; p.resolve(m); return;

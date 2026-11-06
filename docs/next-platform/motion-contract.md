@@ -4,8 +4,8 @@
 
 Implemented in apps/runner-prototype/motion-contract.ts, with 16 cases in
 motion-contract.test.ts. This is the motion portion of step A. It is reusable contract
-code, not another executable experiment. Existing startup and wire protocols are
-unchanged; Python adoption and run/guard/operator messages remain integration work.
+code, not another executable experiment. Existing startup and legacy wire protocols are unchanged. The Python experiment now
+accepts motion-v1 through an explicit motion action; run/guard/operator messages remain integration work.
 
 ## Wire rules
 
@@ -13,8 +13,7 @@ All messages carry protocolVersion=1, connectionEpoch, requestId, robotId, runId
 activityId and operationId. IDs are nonblank strings of at most 64 characters.
 The complete scope of a start is echoed by its accepted/running/rejected/terminal
 messages. renewMotion/cancelMotion have their own requestId and reference the original
-operationId plus generation; their command acknowledgements are outside this first
-motion-result stream. Unknown fields and versions are rejected.
+operationId plus generation; commandAck acknowledges command admission, never confirmed stopping. Unknown fields and versions are rejected.
 
 The runner allocates operationId before sending. Python will assign generation;
 connectionEpoch must be fresh per connection, including after server restart.
@@ -25,7 +24,7 @@ No globally unique generation across restarts is claimed.
 | --- | --- |
 | startMotion | goal: move(distanceM, speedMps) or turn(angleRad, speedRadS) |
 | renewMotion, cancelMotion | generation |
-| accepted, running | generation |
+| accepted, running, commandAck | generation |
 | rejected | reason |
 | terminal | generation, outcome, reason, evidence |
 
@@ -84,7 +83,43 @@ that a previous production bug was reproduced. The existing 33 Node tests, inclu
 7 Python subprocess trials, also passed. Strict TypeScript checking passed.
 The existing CI wildcard includes these tests on Node 22/24 and the Python integration job.
 
-Next adopt this contract at the Python boundary, with shared serialized fixtures to check
-cross-language agreement; add run/guard/operator contracts and command acknowledgements.
-Then consolidate the activity runner (B) and common authority (C). Step A is not complete
-until both ends use the contract. Actual Simulator pose integration remains step D.
+## Python integration (2026-11-06)
+
+The existing RunnerPort now accepts {action: "motion", session, message: <motion-v1>}.
+Admission and heartbeat still use the legacy trusted experiment envelope. Its server-issued
+session is the connectionEpoch; robotId must be fake-only and the first start binds runId.
+A shared JSON fixture under apps/runner-prototype/fixtures/motion-v1.json has 32 valid/invalid
+cases, consumed independently by TypeScript and Python. UTF-16 ID length, whitespace,
+boolean-versus-number behavior and finite SI values follow the same rules.
+
+Python converts radians at the existing TurnCommand boundary, retaining runtime safety
+checks and operation TTL/progress/stop deadlines. This extends PortFakeAdapter's synthetic
+goal timing to turns; it still proves no actual pose change. Terminal simulated evidence
+is explicitly tagged with a fake-prefixed epoch. The backend remains fake-only.
+
+Python records accepted and rejected starts and their latest terminal results. Exact retries
+return the same admission/result without starting another goal. Conflicting ID reuse rejects.
+Renew/cancel carry their own request IDs and return commandAck on admission; retries do not
+renew twice or issue another cancel. Full records (default 256 requests per session) reject
+new motion-protocol requests, including renew/cancel; independent legacy revoke/global-stop
+and TTL/lease expiry remain available. No silent eviction or automatic session rotation.
+Malformed/stale commands use the outer error reply, not fabricated successful acknowledgements.
+The capacity is an experimental bound; long-running production operation needs an explicit
+retention/session policy. A replay after session revocation is rejected, not an authorization
+of old work.
+
+Tests were added before the Python decoder/bridge. After adding the decoder, all 32 fixtures
+passed while three port tests still failed with unsupported-action; these passed after wiring.
+Additional tests cover stale scopes/epochs, rejection tombstones, capacity, turn conversion,
+nonfinite values and expiry before renewal. Three subprocess tests connect MotionClient to
+Python for completion, cancellation and missing evidence. The stream harness is test-only;
+production framing, authentication and bounded transport queues remain to implement.
+
+Local validation: 84 Node tests and 67 Python tests (including existing port/runtime regressions), strict
+TypeScript and Ruff. The full Node suite includes the shared fixtures and three new Python
+subprocess cases; CI now runs the Python contract tests and lints the new module too.
+
+Next add run/guard/operator contracts and the production transport, then consolidate the
+activity runner (B) and common authority (C). The shared FastAPI/manual-client guard and
+actual Simulator pose integration (D) are still outstanding. This is motion-contract
+integration into the existing fake port, not completion of all step-A control contracts.

@@ -14,7 +14,8 @@ from typing import Any
 
 from .adapter import BoundedMotionGoal, BoundedMotionResult, DeviceBoundedMotionAdapter
 from .front_obstacle import FrontObstacleObservationInput
-from .models import MoveCommand
+from .models import MoveCommand, TurnCommand
+from .motion_contract import SCOPE_KEYS, parse_motion_message
 from .runtime import RoverRuntime
 from .simulator import DifferentialDriveSimulator
 
@@ -38,7 +39,11 @@ class PortFakeAdapter(DifferentialDriveSimulator, DeviceBoundedMotionAdapter):
         self.evidence_at = math.inf
         self.evidence.clear()
         # Fake time is derived from the SI bounded goal, not a hardware timing model.
-        duration = abs(goal.distance_m or 0) / goal.max_linear_speed_mps
+        duration = (
+            abs(goal.distance_m or 0) / goal.max_linear_speed_mps
+            if goal.kind == "linear"
+            else abs(goal.angle_rad or 0) / goal.max_angular_speed_rad_s
+        )
         try:
             await asyncio.sleep(duration)
             await self.stop()
@@ -75,6 +80,7 @@ class Inbox:
 
 
 class RunnerPort:
+    motion_capacity = 256
     lease_s = 0.4
     command_ttl_s = 0.25
     progress_s = 1.2
@@ -97,6 +103,9 @@ class RunnerPort:
         self.finishing: asyncio.Task[None] | None = None
         self.io_tasks: set[asyncio.Task[None]] = set()
         self.operation_io: list[asyncio.Task[None]] = []
+        self.motion_records: dict[str, dict[str, Any]] = {}
+        self.motion_requests: dict[str, tuple[dict, dict]] = {}
+        self.motion_run: str | None = None
 
     async def start(self) -> None:
         await self.runtime.start()
@@ -141,6 +150,9 @@ class RunnerPort:
                     await self.runtime.remove_client(self.client)
                     self.client = None
                     raise ValueError("control-busy")
+                self.motion_records.clear()
+                self.motion_requests.clear()
+                self.motion_run = None
                 self.session = session
                 self.lease = time.monotonic() + self.lease_s
                 return session
@@ -191,6 +203,8 @@ class RunnerPort:
                     )
                 return None
             self._valid(message.get("session"))
+            if action == "motion":
+                return await self._motion(message["message"])
             if action == "heartbeat":
                 if message.get("token"):
                     self._token(message["token"])
@@ -253,6 +267,91 @@ class RunnerPort:
                 self.guard = None
                 return None
             raise ValueError("unsupported-action")
+
+    async def _motion(self, value: Any) -> dict:
+        """Called under the port lock after expiry/session checks; fake-only bridge."""
+        m = parse_motion_message(value)
+        kind = m["kind"]
+        if kind not in {"startMotion", "renewMotion", "cancelMotion"}:
+            raise ValueError("wrong-direction")
+        if m["connectionEpoch"] != self.session:
+            raise ValueError("stale-epoch")
+        if m["robotId"] != "fake-only" or (
+            self.motion_run is not None and m["runId"] != self.motion_run
+        ):
+            raise ValueError("wrong-run-or-robot")
+        old_request = self.motion_requests.get(m["requestId"])
+        if old_request:
+            if old_request[0] != m:
+                raise ValueError("id-conflict")
+            if kind == "startMotion":
+                return self.motion_records[m["operationId"]]["result"].copy()
+            return old_request[1].copy()  # A retry does not extend a TTL.
+        if kind == "startMotion" and m["operationId"] in self.motion_records:
+            raise ValueError("id-conflict")
+        if len(self.motion_requests) >= self.motion_capacity:
+            raise ValueError("capacity-exhausted")
+        scope = {k: m[k] for k in SCOPE_KEYS}
+        if kind != "startMotion":
+            op = self.operation
+            if op is None or "wire" not in op:
+                raise ValueError("stale-motion")
+            if any(m[k] != op["wire"][k] for k in SCOPE_KEYS if k != "requestId"):
+                raise ValueError("stale-motion")
+            if m["generation"] != op["token"]["generation"]:
+                raise ValueError("stale-motion")
+            if kind == "renewMotion":
+                if op["finishing"]:
+                    raise ValueError("motion-finishing")
+                op["ttl"] = time.monotonic() + self.command_ttl_s
+            else:
+                op["override"] = "cancelled"
+                job = self._start_io(
+                    self.runtime.handle_text(self.client, json.dumps({"type": "cancel_motion"}))
+                )
+                self.operation_io.append(job)
+                self._finish("cancelled", "scoped-stop")
+            ack = dict(scope, kind="commandAck", generation=m["generation"])
+            self.motion_requests[m["requestId"]] = (m, ack)
+            return ack.copy()
+        # Rejected starts also get tombstones: a retry must not become a new movement.
+        self.motion_run = m["runId"]
+        if self.operation or self.guard or self.inhibited or self.io_tasks:
+            rejected = dict(scope, kind="rejected", reason="motion-inhibited")
+            self.motion_records[m["operationId"]] = {"result": rejected}
+            self.motion_requests[m["requestId"]] = (m, rejected)
+            return rejected.copy()
+        generation = self.generation + 1
+        common = dict(request_id=str(generation), run_id=m["runId"], effect_id=m["operationId"])
+        g = m["goal"]
+        if g["kind"] == "move":
+            command = MoveCommand(
+                type="move", distance_m=g["distanceM"], speed_mps=g["speedMps"], **common
+            )
+        else:
+            command = TurnCommand(
+                type="turn",
+                angle_deg=g["angleRad"] * 180 / math.pi,
+                speed_rad_s=g["speedRadS"],
+                **common,
+            )
+        self.generation = generation
+        now = time.monotonic()
+        accepted = dict(scope, kind="accepted", generation=generation)
+        self.motion_records[m["operationId"]] = {"result": accepted}
+        self.motion_requests[m["requestId"]] = (m, accepted)
+        self.operation_io = []
+        self.operation = {
+            "token": {"session": self.session, "generation": generation},
+            "request": str(generation),
+            "wire": scope,
+            "ttl": now + self.command_ttl_s,
+            "deadline": now + self.progress_s,
+            "finishing": False,
+            "override": None,
+        }
+        await self._send(command.model_dump(mode="json"))
+        return accepted.copy()
 
     def _start_io(self, operation: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
         task = asyncio.create_task(operation)
@@ -350,6 +449,29 @@ class RunnerPort:
             status, reason = "stop-unconfirmed", "stop-evidence-timeout"
             self.inhibited = True
             self._revoke(reason)
+        if "wire" in op:
+            evidence = (
+                {
+                    "kind": "simulated",
+                    "epoch": "fake-" + op["token"]["session"],
+                    "observedAt": time.monotonic(),
+                }
+                if confirmed
+                else {"kind": "unknown"}
+            )
+            result = parse_motion_message(
+                dict(
+                    op["wire"],
+                    kind="terminal",
+                    generation=op["token"]["generation"],
+                    outcome=status,
+                    reason=reason[:256],
+                    evidence=evidence,
+                )
+            )
+            self.motion_records[op["wire"]["operationId"]]["result"] = result
+            self.emit(result)
+            return
         self.emit(
             {
                 "kind": "terminal",
@@ -371,7 +493,12 @@ class RunnerPort:
                     continue
                 status = message.get("status")
                 if status == "started":
-                    self.emit({"kind": "running", "token": op["token"]})
+                    if "wire" in op:
+                        self.emit(
+                            dict(op["wire"], kind="running", generation=op["token"]["generation"])
+                        )
+                    else:
+                        self.emit({"kind": "running", "token": op["token"]})
                 elif status in {"completed", "failed", "cancelled"}:
                     self._finish(status, message.get("detail") or "runtime-" + status)
 
