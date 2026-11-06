@@ -73,3 +73,5 @@ Leases and progress/stop deadlines are unchanged experimental bounds, including 
 making progress. Deadline policy, feedback quality gating, and fault scenarios remain
 explicit follow-up work. The next planned integration is the minimal operator UI (E),
 including recovery/guard visibility; real-device enablement remains separate.
+
+See [Minimal operator console](operator-console.md) for the operator UI binding.

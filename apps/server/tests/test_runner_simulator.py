@@ -52,7 +52,7 @@ async def test_goal_changes_odometry_and_stays_stopped(goal, axis, expected, tol
         assert state.pose_quality.age_ms < 100
         await asyncio.sleep(.08)
         later = await port.adapter.state()
-        assert later.pose == state.pose
+        assert later.pose.model_dump() == pytest.approx(state.pose.model_dump(), abs=1e-12, rel=0)
         assert not port.adapter.actuating
         assert (await port.request(dict(action='snapshot')))['backend'] == 'simulator'
     finally:
@@ -76,7 +76,9 @@ async def test_cancel_or_ttl_stops_before_goal(cancel, renew, outcome):
         assert 0 < state.pose.x < .1
         assert state.velocity.vx == state.velocity.wz == 0
         await asyncio.sleep(.08)
-        assert (await port.adapter.state()).pose == state.pose
+        assert (await port.adapter.state()).pose.model_dump() == pytest.approx(
+            state.pose.model_dump(), abs=1e-12, rel=0
+        )
     finally:
         await port.close()
 

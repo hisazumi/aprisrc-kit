@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APRISRC — 運用コンソール</title><link rel="stylesheet" href="/console/console.css"></head>
+<body><main><header><span>APRISRC / SIMULATOR</span><h1>運用コンソール</h1>
+<p>平面Simulator専用。位置・操作権・受け渡し状態を確認します。</p></header>
+<div id="connection" role="status">接続を確認しています</div>
+<section class="status"><article><h2>操作権</h2><p id="owner">不明</p></article>
+<article><h2>移動状態</h2><p id="motion">不明</p></article>
+<article><h2>受け渡し</h2><p id="guard">不明</p></article>
+<article><h2>位置・角度</h2><p id="pose">不明</p></article></section>
+<section><h2>運用操作</h2><div class="buttons">
+<button disabled id="connect">操作権を取得</button><button disabled id="stop" class="danger">停止・移動禁止</button>
+<button disabled id="start">試験runを開始</button><button disabled id="close">試験runを終了</button></div>
+<label><input type="checkbox" id="clearance">人が機体から離れていることを確認した</label>
+<div class="buttons"><button disabled id="recover">明示復帰</button><button disabled id="hold">受け渡しを開始</button>
+<button disabled id="clear">受け渡しを完了</button></div>
+<p>停止・run終了・接続切れだけでは受け渡し状態を解除しません。復帰後も移動は自動再開しません。</p></section>
+<section><h2>Simulatorの動作確認</h2>
+<label><input type="checkbox" id="front">試験入力：前方が安全という合成観測を送る</label>
+<div class="buttons"><button disabled id="move">4 cm 前進</button><button disabled id="turn">0.1 rad 左旋回</button></div>
+<p>前方観測は合成入力です。画面を隠す・閉じると操作許可の更新が止まります。</p></section>
+<section><h2>操作結果</h2><p id="error" role="alert"></p><pre id="events">まだ操作はありません</pre></section>
+</main><script type="module" src="/console/console.js"></script></body></html>
