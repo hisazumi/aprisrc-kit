@@ -167,3 +167,12 @@ test('renew is scoped, stops after cancel, and has a bounded request budget', as
   other.client.renew('op', 'after-cancel'); assert.equal(other.sent.length, count);
   other.emit({ ...terminal(), outcome: 'cancelled' }); await next;
 });
+
+test('late renewal error after terminal cannot invalidate a newer operation', async () => {
+  const h = harness(); const first = h.client.start(start()); h.emit(terminal()); await first;
+  const newer = { ...start(), operationId: 'new', requestId: 'new' };
+  const second = h.client.start(newer);
+  assert.equal(h.client.rejectCommand({ ...scope, kind: 'renewMotion', requestId: 'old-renew', generation: 1 }, new Error('stale-motion')), false);
+  h.emit({ ...terminal(), operationId: 'new', requestId: 'new', generation: 2 });
+  await second;
+});

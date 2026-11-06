@@ -85,3 +85,8 @@ failures to run closure, and adapts the student service onto this core. Then mov
 guard/authority into the shared server boundary (C), and qualify actual Simulator
 pose changes (D). No hardware, authenticated multi-user UI or rich simulation support
 is claimed by these fake-port tests.
+
+## Host integration
+
+The [service host](service-host.md) now owns bounded transport, admission, heartbeats
+and shutdown and executes the existing student service through this core.

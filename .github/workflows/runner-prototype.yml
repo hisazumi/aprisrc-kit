@@ -56,3 +56,6 @@ jobs:
       - run: node apps/runner-prototype/python-demo.ts
         env:
           APRIS_PYTHON: ${{ github.workspace }}/apps/server/.venv/bin/python
+      - run: node apps/runner-prototype/host-demo.ts
+        env:
+          APRIS_PYTHON: ${{ github.workspace }}/apps/server/.venv/bin/python

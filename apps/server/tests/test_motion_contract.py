@@ -164,3 +164,48 @@ async def test_expiry_before_renew_and_old_epoch_rejection():
         assert (await result(events))["outcome"] == "interrupted"
     finally:
         await port.close()
+
+
+@pytest.mark.asyncio
+async def test_renew_while_finishing_acknowledges_without_extending_ttl():
+    port = RunnerPort(lambda _: None)
+    await port.start()
+    try:
+        session = await port.request(dict(action="admit"))
+        await port.request(dict(action="fixture", front="CLEAR", evidenceDelay=0.1))
+        command = start(session)
+        accepted = await wire(port, session, command)
+        port._finish("cancelled", "test-finishing")
+        ttl = port.operation["ttl"]
+        renew = {k: v for k, v in command.items() if k != "goal"}
+        renew.update(kind="renewMotion", requestId="late-renew", generation=accepted["generation"])
+        assert (await wire(port, session, renew))["kind"] == "commandAck"
+        assert port.operation["ttl"] == ttl
+    finally:
+        await port.close()
+
+
+@pytest.mark.asyncio
+async def test_oversized_stdin_frame_closes_without_parsing_remaining_commands():
+    import sys
+
+    child = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-m",
+        "apris_server.runner_port_experiment",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            child.communicate(b"x" * 70000 + b'\n{"id":1,"action":"admit"}\n'),
+            timeout=3,
+        )
+        messages = [json.loads(line) for line in stdout.splitlines()]
+        assert messages == [dict(kind="reply", id=None, ok=False, error="invalid-frame-size")]
+        assert child.returncode == 0, stderr.decode()
+    finally:
+        if child.returncode is None:
+            child.kill()
+            await child.wait()

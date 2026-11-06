@@ -447,9 +447,9 @@ class RunnerPort:
             if m["generation"] != op["token"]["generation"]:
                 raise ValueError("stale-motion")
             if kind == "renewMotion":
-                if op["finishing"]:
-                    raise ValueError("motion-finishing")
-                op["ttl"] = time.monotonic() + self.command_ttl_s
+                if not op["finishing"]:
+                    op["ttl"] = time.monotonic() + self.command_ttl_s
+                # A renewal can race with completion: acknowledge without prolonging stop.
             else:
                 op["override"] = "cancelled"
                 job = self._start_io(
@@ -685,7 +685,10 @@ async def main() -> None:
     port = RunnerPort(emit)
     await port.start()
     try:
-        while line := await asyncio.to_thread(sys.stdin.readline):
+        while line := await asyncio.to_thread(sys.stdin.readline, 65_537):
+            if len(line.encode("utf-8")) > 65_536 or not line.endswith("\n"):
+                emit({"kind": "reply", "id": None, "ok": False, "error": "invalid-frame-size"})
+                break  # Never reinterpret the remainder of an oversized frame as a command.
             request: dict[str, Any] = {}
             try:
                 request = json.loads(line)

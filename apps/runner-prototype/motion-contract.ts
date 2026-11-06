@@ -135,6 +135,13 @@ export class MotionClient {
       try { this.transport.send(start); } catch (e) { this.close(String(e)); }
     });
   }
+  /** Ignore only an obsolete scoped renewal/cancel rejection after a known terminal. */
+  rejectCommand(message: MotionMessage, error: unknown): boolean {
+    const p = this.records.get(message.operationId);
+    if ((message.kind === 'renewMotion' || message.kind === 'cancelMotion') && p?.settled &&
+      p.generation === message.generation && scopeKeys.every(k => k === 'requestId' || p.start[k] === message[k])) return false;
+    this.close(String(error)); return true;
+  }
   renew(operationId: string, requestId: string): void {
     const p = this.records.get(operationId);
     if (this.closed || !p || p.settled || p.cancelRequest || p.generation === undefined) return;

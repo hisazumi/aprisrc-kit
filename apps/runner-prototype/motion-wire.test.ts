@@ -79,7 +79,7 @@ for (const mode of ['complete', 'cancel', 'missing-evidence', 'control', 'runner
         heartbeat = setInterval(() => { void rpc('heartbeat', { session }).catch(() => {}); }, 50);
       }
       const transport: MotionTransport = {
-        send(m) { void rpc('motion', { session, message: m }).then(v => receive(v), e => disconnect(e.message)); },
+        send(m) { void rpc('motion', { session, message: m }).then(v => receive(v), e => { if (!client || client.rejectCommand(m, e)) disconnect(e.message); }); },
         subscribe(message, close) { receive = message; disconnect = close; return () => { receive = () => {}; disconnect = () => {}; }; },
       };
       client = new MotionClient(transport, session);

@@ -61,6 +61,7 @@ export class ActivityRunner {
     const scope = Object.freeze({ ...this.root, activityId: randomUUID() });
     this.add(scope, parent.activityId, handler); return scope;
   }
+  signal(scope: ActivityScope): AbortSignal { return this.live(scope).abort.signal; }
   /** Small high-level facade; no raw transport or unscoped stop is exposed. */
   capabilities(s: ActivityScope) {
     this.live(s);
