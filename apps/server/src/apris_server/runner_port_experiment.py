@@ -89,10 +89,19 @@ class RunnerPort:
     progress_s = 1.2
     stop_s = 0.2
 
-    def __init__(self, emit: Callable[[dict[str, Any]], None]) -> None:
+    def __init__(
+        self, emit: Callable[[dict[str, Any]], None], *, runtime: RoverRuntime | None = None
+    ) -> None:
         self.emit = emit
-        self.adapter = PortFakeAdapter()
-        self.runtime = RoverRuntime(self.adapter)
+        if runtime is not None and type(runtime.adapter) is not PortFakeAdapter:
+            raise ValueError("runner-port-requires-fake-adapter")
+        self._owns_runtime = runtime is None
+        self.adapter = runtime.adapter if runtime is not None else PortFakeAdapter()
+        self.runtime = runtime or RoverRuntime(self.adapter)
+        self._guard_hold: str | None = None
+        self._inhibit_hold: str | None = None
+        self._guard: str | None = None
+        self._inhibited = False
         self.inbox = Inbox()
         self.session: str | None = None
         self.client: str | None = None
@@ -119,8 +128,36 @@ class RunnerPort:
         self.guard_id: str | None = None
         self.used_runs: set[str] = set()
 
+    @property
+    def guard(self) -> str | None:
+        return self._guard
+
+    @guard.setter
+    def guard(self, value: str | None) -> None:
+        if value is not None and self._guard_hold is None:
+            self.runtime.require_stationary_handover()
+            self._guard_hold = self.runtime.motion_interlock.hold("runner-handover")
+        elif value is None and self._guard_hold is not None:
+            self.runtime.motion_interlock.release(self._guard_hold)
+            self._guard_hold = None
+        self._guard = value
+
+    @property
+    def inhibited(self) -> bool:
+        return self._inhibited
+
+    @inhibited.setter
+    def inhibited(self, value: bool) -> None:
+        if value and self._inhibit_hold is None:
+            self._inhibit_hold = self.runtime.motion_interlock.hold("runner-inhibited")
+        elif not value and self._inhibit_hold is not None:
+            self.runtime.motion_interlock.release(self._inhibit_hold)
+            self._inhibit_hold = None
+        self._inhibited = value
+
     async def start(self) -> None:
-        await self.runtime.start()
+        if self._owns_runtime:
+            await self.runtime.start()
         self.tasks = [asyncio.create_task(self._watch()), asyncio.create_task(self._events())]
 
     async def _send(self, message: dict[str, Any]) -> None:
@@ -319,6 +356,7 @@ class RunnerPort:
             raise ValueError("revoked-run")
 
     def _stationary_evidence(self) -> None:
+        self.runtime.require_stationary_handover()
         if self.operation or self.io_tasks or self.adapter.actuating:
             raise ValueError("stop-pending")
         if not self.adapter.evidence.is_set() or self.adapter.evidence_at > time.monotonic():
@@ -500,14 +538,16 @@ class RunnerPort:
         return accepted.copy()
 
     def _start_io(self, operation: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+        hold = self.runtime.motion_interlock.hold("runner-stop-io")
         task = asyncio.create_task(operation)
         self.io_tasks.add(task)
 
         def done(job: asyncio.Task[None]) -> None:
             self.io_tasks.discard(job)
             # Consume exceptions; errors never silently reopen admission.
-            if not job.cancelled() and job.exception() is not None:
+            if job.cancelled() or job.exception() is not None:
                 self.inhibited = True
+            self.runtime.motion_interlock.release(hold)
 
         task.add_done_callback(done)
         return task
@@ -669,8 +709,11 @@ class RunnerPort:
                 await task
         # Bound shutdown waits as well. The owner process remains responsible for
         # terminating a backend that cannot respond even to task cancellation.
-        close = self._start_io(self.runtime.close())
-        jobs = {*self.io_tasks, close}
+        if self._owns_runtime:
+            self._start_io(self.runtime.close())
+        jobs = set(self.io_tasks)
+        if not jobs:
+            return
         _, pending = await asyncio.wait(jobs, timeout=self.stop_s)
         for task in pending:
             task.cancel()

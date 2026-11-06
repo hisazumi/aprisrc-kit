@@ -46,6 +46,7 @@ from .models import (
     TurnCommand,
     client_message_adapter,
 )
+from .motion_interlock import MotionInterlock
 from .perception import (
     MarkerCorrectionResult,
     MarkerPayload,
@@ -111,6 +112,7 @@ class RoverRuntime:
         metadata: RuntimeMetadata | None = None,
     ) -> None:
         self.adapter = adapter
+        self.motion_interlock = MotionInterlock()
         self.config = config or RuntimeConfig()
         self.log = structured_log
         self.pose_fusion = pose_fusion or PoseFusion({})
@@ -211,6 +213,17 @@ class RoverRuntime:
         return client_id
 
     async def remove_client(self, client_id: str) -> None:
+        hold = (
+            self.motion_interlock.hold("runtime-stop-io")
+            if self.owner_client_id == client_id else None
+        )
+        try:
+            return await self._remove_client_impl(client_id)
+        finally:
+            if hold is not None:
+                self.motion_interlock.release(hold)
+
+    async def _remove_client_impl(self, client_id: str) -> None:
         owner_disconnected = False
         async with self._lock:
             self.clients.pop(client_id, None)
@@ -331,6 +344,17 @@ class RoverRuntime:
         await self._broadcast_control()
 
     async def _release_control(self, client_id: str) -> None:
+        hold = (
+            self.motion_interlock.hold("runtime-stop-io")
+            if self.owner_client_id == client_id else None
+        )
+        try:
+            return await self._release_control_impl(client_id)
+        finally:
+            if hold is not None:
+                self.motion_interlock.release(hold)
+
+    async def _release_control_impl(self, client_id: str) -> None:
         if not await self._require_owner(client_id):
             return
         await self._cancel_motion("control released")
@@ -406,7 +430,11 @@ class RoverRuntime:
         )
 
     async def _drive(self, client_id: str, command: DriveCommand) -> None:
+        motion_epoch = self.motion_interlock.epoch
         if not await self._require_owner(client_id):
+            return
+        if self.motion_interlock.blocked:
+            await self._error(client_id, "motion_inhibited", "Shared motion interlock is held")
             return
         if self.estop_latched:
             await self._error(client_id, "estop_latched", "Clear emergency stop before driving")
@@ -438,26 +466,41 @@ class RoverRuntime:
         wz = max(-self.config.max_wz, min(self.config.max_wz, command.wz))
         self.last_sequence = command.seq
         try:
-            await self._apply_velocity(vx, vy, wz, command.ttl_ms)
+            await self._apply_velocity(vx, vy, wz, command.ttl_ms, motion_epoch=motion_epoch)
         except Exception as exc:
-            with contextlib.suppress(Exception):
-                await self._stop_adapter("drive command failed")
-            await self._clear_command_deadline()
-            if self.log:
-                self.log.record(
-                    "adapter_command",
-                    "drive_failed",
-                    {"error": type(exc).__name__, "detail": str(exc)[:500],
-                     "seq": command.seq,
-                     "transport": getattr(self.adapter, "last_drive_diagnostics", None)},
+            hold = self.motion_interlock.hold("failed-drive-stop")
+            try:
+                with contextlib.suppress(Exception):
+                    await self._stop_adapter("drive command failed")
+                await self._clear_command_deadline()
+                if self.log:
+                    self.log.record(
+                        "adapter_command",
+                        "drive_failed",
+                        {"error": type(exc).__name__, "detail": str(exc)[:500],
+                         "seq": command.seq,
+                         "transport": getattr(self.adapter, "last_drive_diagnostics", None)},
+                    )
+                await self._error(
+                    client_id,
+                    "adapter_command_failed",
+                    "Drive command failed and a stop was attempted",
                 )
-            await self._error(
-                client_id,
-                "adapter_command_failed",
-                "Drive command failed and a stop was attempted",
-            )
+            finally:
+                self.motion_interlock.release(hold)
 
     async def _stop(self, client_id: str, reason: str) -> None:
+        hold = (
+            self.motion_interlock.hold("runtime-stop-io")
+            if self.owner_client_id == client_id else None
+        )
+        try:
+            return await self._stop_impl(client_id, reason)
+        finally:
+            if hold is not None:
+                self.motion_interlock.release(hold)
+
+    async def _stop_impl(self, client_id: str, reason: str) -> None:
         if not await self._require_owner(client_id):
             return
         await self._cancel_motion(reason)
@@ -469,6 +512,14 @@ class RoverRuntime:
             await self.broadcast(EventMessage(event="stopped", detail=reason))
 
     async def _estop(self, reason: str) -> None:
+        hold = self.motion_interlock.hold("runtime-stop-io")
+        try:
+            return await self._estop_impl(reason)
+        finally:
+            if hold is not None:
+                self.motion_interlock.release(hold)
+
+    async def _estop_impl(self, reason: str) -> None:
         async with self._lock:
             self.estop_latched = True
             self.command_deadline = None
@@ -660,24 +711,35 @@ class RoverRuntime:
             if confirmed:
                 await self.broadcast(EventMessage(event="forward_motion_stopped", detail=reason))
 
-    async def _apply_velocity(self, vx: float, vy: float, wz: float, ttl_ms: int) -> None:
-        # An explicit hardware profile owns the supervised hold-time policy.
-        ttl_ms = getattr(self.adapter, "drive_ttl_override_ms", None) or ttl_ms
-        await self.adapter.drive(vx, vy, wz, ttl_ms=ttl_ms)
-        if self.log:
-            self.log.record(
-                "adapter_command",
-                "drive_requested",
-                {"vx": vx, "vy": vy, "wz": wz, "ttl_ms": ttl_ms,
-                 "transport": getattr(self.adapter, "last_drive_diagnostics", None)},
-            )
-        now = time.monotonic()
-        async with self._lock:
-            self._commanded_vx = vx
-            self.last_command_at = now
-            self.command_deadline = now + ttl_ms / 1000.0
+    def require_stationary_handover(self) -> None:
+        if (self.motion_interlock.pending_effects or self.command_deadline is not None
+                or (self._motion_task is not None and not self._motion_task.done())):
+            raise ValueError("shared-motion-pending: not stationary")
+
+    async def _apply_velocity(
+        self, vx: float, vy: float, wz: float, ttl_ms: int, *, motion_epoch: int | None = None
+    ) -> None:
+        epoch = self.motion_interlock.epoch if motion_epoch is None else motion_epoch
+        with self.motion_interlock.effect(epoch):
+            # An explicit hardware profile owns the supervised hold-time policy.
+            ttl_ms = getattr(self.adapter, "drive_ttl_override_ms", None) or ttl_ms
+            await self.adapter.drive(vx, vy, wz, ttl_ms=ttl_ms)
+            self.motion_interlock.require(epoch, own_effect=True)
+            if self.log:
+                self.log.record(
+                    "adapter_command",
+                    "drive_requested",
+                    {"vx": vx, "vy": vy, "wz": wz, "ttl_ms": ttl_ms,
+                     "transport": getattr(self.adapter, "last_drive_diagnostics", None)},
+                )
+            now = time.monotonic()
+            async with self._lock:
+                self._commanded_vx = vx
+                self.last_command_at = now
+                self.command_deadline = now + ttl_ms / 1000.0
 
     async def _start_move(self, client_id: str, command: MoveCommand) -> None:
+        motion_epoch = self.motion_interlock.epoch
         if not await self._motion_allowed(
             client_id,
             command.request_id,
@@ -722,11 +784,12 @@ class RoverRuntime:
             "move",
             command.run_id,
             command.effect_id,
-            self._run_move(command),
+            self._run_move(command, motion_epoch),
             forward=command.distance_m > 0,
         )
 
     async def _start_turn(self, client_id: str, command: TurnCommand) -> None:
+        motion_epoch = self.motion_interlock.epoch
         if not await self._motion_allowed(
             client_id,
             command.request_id,
@@ -742,7 +805,7 @@ class RoverRuntime:
             "turn",
             command.run_id,
             command.effect_id,
-            self._run_turn(command),
+            self._run_turn(command, motion_epoch),
         )
 
     async def _motion_allowed(
@@ -765,6 +828,12 @@ class RoverRuntime:
                     detail="Acquire control before starting a motion",
                 ),
             )
+            return False
+        if self.motion_interlock.blocked:
+            await self._send(client_id, MotionMessage(
+                request_id=request_id, run_id=run_id, effect_id=effect_id,
+                motion=kind, status="failed", detail="motion_inhibited: shared interlock held",
+            ))
             return False
         if self.estop_latched:
             await self._send(
@@ -894,23 +963,26 @@ class RoverRuntime:
                 self._motion_effect_id = None
                 self._motion_forward = False
 
-    async def _run_move(self, command: MoveCommand) -> None:
+    async def _run_move(self, command: MoveCommand, motion_epoch: int | None = None) -> None:
+        epoch = self.motion_interlock.epoch if motion_epoch is None else motion_epoch
+        self.motion_interlock.require(epoch)
         if isinstance(self.adapter, DeviceBoundedMotionAdapter):
             timeout_s = max(3.0, abs(command.distance_m) / command.speed_mps * 2.5 + 2.0)
-            await self.adapter.execute_bounded_motion(
-                BoundedMotionGoal(
-                    motion_id=self._bounded_motion_id(command.request_id),
-                    kind="linear",
-                    distance_m=command.distance_m,
-                    angle_rad=None,
-                    max_linear_speed_mps=command.speed_mps,
-                    max_angular_speed_rad_s=self.config.max_wz,
-                    max_duration_ms=round(timeout_s * 1000.0),
-                    run_id=command.run_id,
-                    effect_id=command.effect_id,
-                    request_id=command.request_id,
+            with self.motion_interlock.effect(epoch):
+                await self.adapter.execute_bounded_motion(
+                    BoundedMotionGoal(
+                        motion_id=self._bounded_motion_id(command.request_id),
+                        kind="linear",
+                        distance_m=command.distance_m,
+                        angle_rad=None,
+                        max_linear_speed_mps=command.speed_mps,
+                        max_angular_speed_rad_s=self.config.max_wz,
+                        max_duration_ms=round(timeout_s * 1000.0),
+                        run_id=command.run_id,
+                        effect_id=command.effect_id,
+                        request_id=command.request_id,
+                    )
                 )
-            )
             return
         initial = await self.adapter.state()
         start_x = initial.pose.x
@@ -935,27 +1007,31 @@ class RoverRuntime:
                 0.0,
                 0.0,
                 self.config.motion_ttl_ms,
+                motion_epoch=epoch,
             )
             await asyncio.sleep(period)
 
-    async def _run_turn(self, command: TurnCommand) -> None:
+    async def _run_turn(self, command: TurnCommand, motion_epoch: int | None = None) -> None:
+        epoch = self.motion_interlock.epoch if motion_epoch is None else motion_epoch
+        self.motion_interlock.require(epoch)
         if isinstance(self.adapter, DeviceBoundedMotionAdapter):
             angle_rad = math.radians(command.angle_deg)
             timeout_s = max(3.0, abs(angle_rad) / command.speed_rad_s * 2.5 + 2.0)
-            await self.adapter.execute_bounded_motion(
-                BoundedMotionGoal(
-                    motion_id=self._bounded_motion_id(command.request_id),
-                    kind="rotate",
-                    distance_m=None,
-                    angle_rad=angle_rad,
-                    max_linear_speed_mps=self.config.max_vx,
-                    max_angular_speed_rad_s=command.speed_rad_s,
-                    max_duration_ms=round(timeout_s * 1000.0),
-                    run_id=command.run_id,
-                    effect_id=command.effect_id,
-                    request_id=command.request_id,
+            with self.motion_interlock.effect(epoch):
+                await self.adapter.execute_bounded_motion(
+                    BoundedMotionGoal(
+                        motion_id=self._bounded_motion_id(command.request_id),
+                        kind="rotate",
+                        distance_m=None,
+                        angle_rad=angle_rad,
+                        max_linear_speed_mps=self.config.max_vx,
+                        max_angular_speed_rad_s=command.speed_rad_s,
+                        max_duration_ms=round(timeout_s * 1000.0),
+                        run_id=command.run_id,
+                        effect_id=command.effect_id,
+                        request_id=command.request_id,
+                    )
                 )
-            )
             return
         state = await self.adapter.state()
         previous_yaw = state.pose.yaw
@@ -985,6 +1061,7 @@ class RoverRuntime:
                 0.0,
                 direction * speed,
                 self.config.motion_ttl_ms,
+                motion_epoch=epoch,
             )
             await asyncio.sleep(period)
 
@@ -1288,6 +1365,7 @@ class RoverRuntime:
                 "owner_client_id": owner_client_id,
                 "estop_latched": estop_latched,
                 "command_deadline_remaining_ms": command_deadline_remaining_ms,
+                "motion_interlock": self.motion_interlock.snapshot(),
             },
             "recent_fault": recent_fault,
             "active_execution": {
@@ -1304,6 +1382,14 @@ class RoverRuntime:
         }
 
     async def _operator_stop(self, reason: str) -> bool:
+        hold = self.motion_interlock.hold("runtime-stop-io")
+        try:
+            return await self._operator_stop_impl(reason)
+        finally:
+            if hold is not None:
+                self.motion_interlock.release(hold)
+
+    async def _operator_stop_impl(self, reason: str) -> bool:
         try:
             await self._stop_adapter(reason)
             return True

@@ -92,3 +92,5 @@ Next is shared-server authority/guard integration (C): legacy/manual and runner 
 must enforce the same interlock. Then replace PortFakeAdapter with actual Simulator
 pose/odometry execution (D). Current PWA startup is unchanged; this host is a reusable
 fake-backed integration entrypoint, not a released deployment profile.
+
+See [Shared runtime motion authority](shared-authority.md) for the subsequent runtime-boundary implementation.
