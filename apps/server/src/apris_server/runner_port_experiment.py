@@ -9,11 +9,12 @@ import math
 import sys
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 from .adapter import BoundedMotionGoal, BoundedMotionResult, DeviceBoundedMotionAdapter
 from .front_obstacle import FrontObstacleObservationInput
+from .models import MoveCommand
 from .runtime import RoverRuntime
 from .simulator import DifferentialDriveSimulator
 
@@ -94,6 +95,8 @@ class RunnerPort:
         self.lock = asyncio.Lock()
         self.tasks: list[asyncio.Task[None]] = []
         self.finishing: asyncio.Task[None] | None = None
+        self.io_tasks: set[asyncio.Task[None]] = set()
+        self.operation_io: list[asyncio.Task[None]] = []
 
     async def start(self) -> None:
         await self.runtime.start()
@@ -115,9 +118,11 @@ class RunnerPort:
 
     async def request(self, message: dict[str, Any]) -> Any:
         async with self.lock:
+            # Enforce expiry here too: a delayed renewal must not beat the watchdog.
+            self._expire(time.monotonic())
             action = message["action"]
             if action == "admit":
-                if self.session or self.operation or self.guard or self.inhibited:
+                if self.session or self.operation or self.guard or self.inhibited or self.io_tasks:
                     raise ValueError("admission-inhibited")
                 self.client = await self.runtime.add_client(self.inbox)  # type: ignore[arg-type]
                 session = uuid.uuid4().hex
@@ -148,9 +153,10 @@ class RunnerPort:
                     "moving": self.adapter.actuating,
                     "owner": self.runtime.owner_client_id,
                     "operation": self.operation,
+                    "pendingIo": len(self.io_tasks),
                 }
             if action == "revoke":
-                await self._revoke(message.get("reason", "operator-stop"))
+                self._revoke(message.get("reason", "operator-stop"))
                 return None
             if action == "recover":
                 if (
@@ -158,6 +164,7 @@ class RunnerPort:
                     or self.session
                     or self.operation
                     or self.adapter.actuating
+                    or self.io_tasks
                 ):
                     raise ValueError("recovery-not-ready")
                 self.guard = None
@@ -185,11 +192,11 @@ class RunnerPort:
                 return None
             self._valid(message.get("session"))
             if action == "heartbeat":
-                self.lease = time.monotonic() + self.lease_s
                 if message.get("token"):
                     self._token(message["token"])
                     if not self.operation["finishing"]:
                         self.operation["ttl"] = time.monotonic() + self.command_ttl_s
+                self.lease = time.monotonic() + self.lease_s
                 return None
             if action == "move":
                 if self.operation or self.guard or self.inhibited:
@@ -201,32 +208,38 @@ class RunnerPort:
                     or not 0 < duration <= 1
                 ):
                     raise ValueError("invalid-duration")
-                self.generation += 1
-                token = {"session": self.session, "generation": self.generation}
+                # Validate the converted SI request before allocating an operation.
+                generation = self.generation + 1
+                command = MoveCommand(
+                    type="move",
+                    request_id=str(generation),
+                    run_id=self.session,
+                    effect_id=str(generation),
+                    distance_m=duration * 0.1,
+                    speed_mps=0.1,
+                )
+                self.generation = generation
+                token = {"session": self.session, "generation": generation}
                 now = time.monotonic()
+                self.operation_io = []
                 self.operation = {
                     "token": token,
-                    "request": str(self.generation),
+                    "request": str(generation),
                     "ttl": now + self.command_ttl_s,
                     "deadline": now + self.progress_s,
                     "finishing": False,
                     "override": None,
                 }
-                await self._send(
-                    {
-                        "type": "move",
-                        "request_id": str(self.generation),
-                        "run_id": self.session,
-                        "effect_id": str(self.generation),
-                        "distance_m": duration * 0.1,
-                        "speed_mps": 0.1,
-                    }
-                )
+                await self._send(command.model_dump(mode="json"))
                 return token  # Accepted by port; runtime may still reject with a terminal result.
             if action == "stop":
                 self._token(message["token"])
                 self.operation["override"] = "cancelled"
-                await self._send({"type": "cancel_motion"})
+                # Capture the client now; revocation may clear self.client before I/O runs.
+                job = self._start_io(
+                    self.runtime.handle_text(self.client, json.dumps({"type": "cancel_motion"}))
+                )
+                self.operation_io.append(job)
                 self._finish("cancelled", "scoped-stop")
                 return None
             if action == "hold":
@@ -241,13 +254,37 @@ class RunnerPort:
                 return None
             raise ValueError("unsupported-action")
 
-    async def _revoke(self, reason: str) -> None:
-        session, self.session = self.session, None  # Fence before awaiting runtime stop.
+    def _start_io(self, operation: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+        task = asyncio.create_task(operation)
+        self.io_tasks.add(task)
+
+        def done(job: asyncio.Task[None]) -> None:
+            self.io_tasks.discard(job)
+            # Consume exceptions; errors never silently reopen admission.
+            if not job.cancelled() and job.exception() is not None:
+                self.inhibited = True
+
+        task.add_done_callback(done)
+        return task
+
+    def _expire(self, now: float) -> None:
+        if self.session and now >= self.lease:
+            self._revoke("lease-expired")
+        elif self.operation and not self.operation["finishing"]:
+            if now >= self.operation["ttl"]:
+                self._revoke("command-ttl")
+            elif now >= self.operation["deadline"]:
+                self._revoke("progress-deadline")
+
+    def _revoke(self, reason: str) -> None:
+        session, self.session = self.session, None
         if self.operation:
             self.operation["override"] = "interrupted"
         if self.client:
             client, self.client = self.client, None
-            await self.runtime.remove_client(client)
+            job = self._start_io(self.runtime.remove_client(client))
+            if self.operation:
+                self.operation_io.append(job)
         self._finish("interrupted", reason)
         if session:
             self.emit({"kind": "revoked", "reason": reason})
@@ -257,35 +294,73 @@ class RunnerPort:
         if op is None or op["finishing"]:
             return
         op["finishing"] = True
+        # Start at the request, not after adapter.stop or disconnect returns.
+        op["stopDeadline"] = time.monotonic() + self.stop_s
         self.finishing = asyncio.create_task(self._evidence(op, status, reason))
 
     async def _evidence(self, op: dict[str, Any], status: str, reason: str) -> None:
-        deadline = time.monotonic() + self.stop_s
-        try:
-            await asyncio.wait_for(self.adapter.evidence.wait(), timeout=self.stop_s)
-        except TimeoutError:
-            pass
-        async with self.lock:
-            if self.operation is not op:
+        deadline = op["stopDeadline"]
+        jobs = self.operation_io
+        confirmed = False
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            pending = [job for job in jobs if not job.done()]
+            if pending:
+                # wait() does not await cancellation of a non-cooperative I/O task.
+                await asyncio.wait(pending, timeout=remaining)
+            else:
+                try:
+                    await asyncio.wait_for(self.adapter.evidence.wait(), timeout=remaining)
+                except TimeoutError:
+                    break
+            async with self.lock:
+                if self.operation is not op:
+                    return
+                self._expire(time.monotonic())
+                # Revocation can append another I/O task during the wait.
+                if any(not job.done() for job in jobs):
+                    continue
+                failed = any(job.cancelled() or job.exception() is not None for job in jobs)
+                if not failed and not self.adapter.evidence.is_set():
+                    # I/O returned; the remaining deadline still belongs to evidence.
+                    continue
+                confirmed = (
+                    not failed
+                    and self.adapter.evidence.is_set()
+                    and self.adapter.evidence_at <= deadline
+                    and time.monotonic() <= deadline
+                    and not self.adapter.actuating
+                )
+                # Check and publish atomically: no revoke may add I/O between them.
+                self._complete_evidence(op, status, reason, confirmed)
                 return
-            confirmed = self.adapter.evidence_at <= deadline and not self.adapter.actuating
-            status = op["override"] or status
-            self.operation = None
-            if not confirmed:
-                status, reason = "stop-unconfirmed", "stop-evidence-timeout"
-                self.inhibited = True
-                await self._revoke(reason)
-            self.emit(
-                {
-                    "kind": "terminal",
-                    "event": {
-                        "token": op["token"],
-                        "status": status,
-                        "reason": reason,
-                        "evidence": "fake-stop" if confirmed else None,
-                    },
-                }
-            )
+        async with self.lock:
+            self._complete_evidence(op, status, reason, False)
+
+    def _complete_evidence(
+        self, op: dict[str, Any], status: str, reason: str, confirmed: bool
+    ) -> None:
+        if self.operation is not op:
+            return
+        status = op["override"] or status
+        self.operation = None
+        if not confirmed:
+            status, reason = "stop-unconfirmed", "stop-evidence-timeout"
+            self.inhibited = True
+            self._revoke(reason)
+        self.emit(
+            {
+                "kind": "terminal",
+                "event": {
+                    "token": op["token"],
+                    "status": status,
+                    "reason": reason,
+                    "evidence": "fake-stop" if confirmed else None,
+                },
+            }
+        )
 
     async def _events(self) -> None:
         while True:
@@ -304,25 +379,26 @@ class RunnerPort:
         while True:
             await asyncio.sleep(0.01)
             async with self.lock:
-                now = time.monotonic()
-                if self.session and now >= self.lease:
-                    await self._revoke("lease-expired")
-                elif self.operation and not self.operation["finishing"]:
-                    if now >= self.operation["ttl"]:
-                        await self._revoke("command-ttl")
-                    elif now >= self.operation["deadline"]:
-                        await self._revoke("progress-deadline")
+                self._expire(time.monotonic())
 
     async def close(self) -> None:
         async with self.lock:
-            await self._revoke("port-closed")
+            self._revoke("port-closed")
         if self.finishing:
             await self.finishing
         for task in self.tasks:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
-        await self.runtime.close()
+        # Bound shutdown waits as well. The owner process remains responsible for
+        # terminating a backend that cannot respond even to task cancellation.
+        close = self._start_io(self.runtime.close())
+        jobs = {*self.io_tasks, close}
+        _, pending = await asyncio.wait(jobs, timeout=self.stop_s)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.wait(pending, timeout=0.05)
 
 
 async def main() -> None:

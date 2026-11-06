@@ -94,8 +94,8 @@ is still unqualified. No physical adapter may be plugged into this experimental 
 
 ## Evidence and next step
 
-Local verification: 31 Node tests (24 prior + 7 Python subprocess cases), 21 Python tests
-(7 port + 14 existing runtime regressions), strict TypeScript check, Ruff and the Python
+Local verification after review fixes: 33 Node tests (including 7 Python subprocess cases),
+27 Python tests (13 port + 14 existing runtime regressions), strict TypeScript check, Ruff and the Python
 connected service demo passed. Cases include normal/decline, runner kill/block/IPC loss,
 delayed/missing evidence, forward rejection without CLEAR, E-stop rejection, stale tokens,
 handover retention, arrival/revocation race and independent TTL/progress expiry.
@@ -107,3 +107,33 @@ and operator lease enforcement, and specify adapter-specific stop evidence. Then
 an actual simulator adapter with pose and registered movement; retain fault injection.
 Hardware, observation loss, UI recovery, authentication, persistent jobs and packaging
 remain subsequent work. This experiment changes no shipped PWA/server startup path.
+
+## Review regressions fixed (2026-11-06)
+
+Regression tests were added before changing the implementation. The original revision
+failed five Python cases and two Node cases: overdue TTL/progress renewal before the
+watchdog, converted-input validation, blocked stop/disconnect I/O, missing Python
+executable, and batched acceptance/terminal delivery. Each failed for the reviewed cause.
+During correction, the existing delayed-evidence integration case also caught premature
+finalization; a focused failing Python test was added before correcting that path.
+
+| Boundary | Corrected behavior | Regression |
+| --- | --- | --- |
+| Delayed heartbeat | Check lease/TTL/progress under the state lock before dispatch or renewal; expired permission is fenced immediately | Advance the injected port clock without yielding to the watchdog, then renew |
+| Converted move | Validate the SI MoveCommand before allocating a token/operation | duration=1e-12 rejects immediately rather than becoming command-ttl |
+| Blocked stop/disconnect | Stop I/O runs outside the state lock; the 200 ms budget starts at request acceptance and includes I/O plus evidence | Block adapter.stop indefinitely; snapshot stays responsive and terminal becomes stop-unconfirmed |
+| Delayed evidence | After cancel I/O returns, wait for evidence within the same remaining budget | Evidence arrives after 100 ms and returns cancelled, not stop-unconfirmed |
+| Python spawn failure | Observe close, including failed spawn, and bound both subprocess cleanup waits | Nonexistent executable rejects promptly with ENOENT |
+| Early terminal | Buffer a bounded number of session-scoped terminal events while move acceptance is pending; match by generation, ignore duplicates after completion | Valid acceptance and failed terminal arrive in one stdout write; retain the failure rather than a timeout |
+
+Stop/revoke replies acknowledge admission, not completed I/O. snapshot.pendingIo exposes
+outstanding I/O. New admission and recovery are rejected while old I/O remains pending,
+so late cleanup cannot affect a new owner. Timeout emits one terminal result and retains
+inhibition even after late evidence. Shutdown waits are bounded too; the owner process
+must still terminate a backend that ignores task cancellation. No real-time or physical
+stop guarantee is inferred from these fake-only tests.
+
+Python tests live in tests/test_runner_port_experiment.py; Node review regressions are in
+apps/runner-prototype/review-regressions.test.ts and run in the existing CI test commands.
+The missing-executable and batched-stream cases require no installed Python. The executable
+stream fixture uses a POSIX shebang and is explicitly skipped on Windows; Linux CI runs it.

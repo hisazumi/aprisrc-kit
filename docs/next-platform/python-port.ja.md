@@ -83,7 +83,7 @@ Pythonプロセス自体の停止と下流watchdogは未検証。この実験モ
 
 ## 検証結果と次の段階
 
-Node 31件（従来24件＋Python接続7件）、Python 21件（port 7件＋既存runtime回帰14件）、
+レビュー修正後はNode 33件（Python接続7件を含む）、Python 27件（port 13件＋既存runtime回帰14件）、
 strict型チェック、Ruff、Python接続demoが成功した。正常／辞退、runner強制終了・CPU停止・
 IPC切断、停止確認遅延・欠落、CLEARなし前進拒否、E-stop拒否、古いtoken、受け渡し禁止保持、
 到着と失効の競合、TTLと進捗期限を確認した。CIにもserverのlockを使うPython検証jobを追加した。
@@ -93,3 +93,31 @@ mailbox/activityと操作所有権を1つのrunnerへ統合し、共有serverで
 adapter別の停止確認を定める。その後、poseを持つ実際のsimulator adapterで移動を接続する。
 実機、観測消失、UI復旧、認証、永続ジョブ、配布環境は引き続き後段。
 既存PWA/serverの通常起動経路は変更していない。
+
+## レビュー指摘への回帰テストと修正（2026-11-06）
+
+実装を変更する前に回帰テストを追加し、修正前の版でPython 5件・Node 2件が
+指摘どおりに失敗することを確認した。watchdogより先に届く期限切れ更新、
+変換後の入力検証、停止・切断I/Oの停止、Python起動失敗、受付と終了通知の一括受信を扱う。
+修正中には既存の停止確認遅延テストが早すぎる終了処理を検出したため、
+その条件も失敗する単体テストにしてから修正した。
+
+| 境界条件 | 修正後の動作 | 回帰テスト |
+| --- | --- | --- |
+| 遅れたheartbeat | 要求処理の入口でlease/TTL/進捗期限を検証し、更新より先に失効 | watchdogに実行を渡さずportの時計を進め、更新を試す |
+| 変換後の移動入力 | token・操作を確保する前にSI単位のMoveCommandを検証 | duration=1e-12を即時拒否し、TTL切れへ化けない |
+| 停止・切断I/Oが戻らない | I/Oを状態ロック外へ移し、受付からI/Oと証拠待ちを含めて200 msで期限判定 | adapter.stopを待機させたまま、snapshotの応答と停止未確認の終了通知を確認 |
+| 停止確認だけが遅れる | cancel I/Oの復帰後も、同じ期限の残り時間で証拠を待つ | 100 ms後の証拠でcancelledとなる |
+| Python起動失敗 | spawn失敗時にも届くcloseを待ち、両子プロセスの後始末にも上限を設ける | 存在しない実行ファイルで速やかにENOENTを返す |
+| 終了通知が受付より先に届く | 受付待ちの間だけ、session内の終了通知を上限付きで保持しgenerationと照合 | 受付とfailed通知を1回のstdout書込で送り、timeoutに化けない |
+
+stop/revokeの応答は受付であり、I/O完了ではない。snapshot.pendingIoで残るI/Oを示す。
+古いI/Oが残る間は新しい受付と復旧を拒否し、遅い後始末が次の所有者へ干渉しないようにする。
+期限超過では終了通知を一度だけ返し、遅れて停止確認が届いても禁止を自動解除しない。
+終了処理の待ち時間にも上限を設けた。ただしタスクキャンセル自体を無視するバックエンドは、
+所有するプロセス側で終了させる必要がある。実時間保証・実機の停止保証ではない。
+
+Pythonの回帰テストはtests/test_runner_port_experiment.py、Node側は
+apps/runner-prototype/review-regressions.test.tsにあり、既存CIのテスト対象に含まれる。
+起動失敗・一括受信のNodeテストはPython導入不要。一括受信の実行ファイルfixtureは
+POSIXのshebangを使うためWindowsでは明示的にskipし、Linux CIで実行する。

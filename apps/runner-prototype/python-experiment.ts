@@ -4,6 +4,16 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { myService } from '../pwa/src/missions/myService.ts';
 export type TrialMode = 'normal' | 'decline' | 'kill' | 'block' | 'disconnect' | 'missing-evidence' | 'delayed-evidence';
+async function joinBounded(closed: Promise<unknown>, kill: () => void, graceMs: number) {
+  let escalation: ReturnType<typeof setTimeout> | undefined;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([closed, new Promise<never>((_, reject) => {
+      escalation = setTimeout(kill, graceMs);
+      deadline = setTimeout(() => reject(new Error('child-cleanup-timeout')), graceMs + 500);
+    })]);
+  } finally { clearTimeout(escalation); clearTimeout(deadline); }
+}
 export async function runPythonTrial(mode: TrialMode = 'normal') {
   const python = spawn(process.env.APRIS_PYTHON ?? 'python3', ['-m', 'apris_server.runner_port_experiment'], {
     env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) },
@@ -12,16 +22,20 @@ export async function runPythonTrial(mode: TrialMode = 'normal') {
   const events: any[] = [];
   let stderr = '';
   python.stderr.on('data', chunk => { stderr += chunk; });
-  const exited = new Promise(resolve => python.once('exit', resolve));
+  // close is also emitted when spawn fails and no exit event is possible.
+  const exited = new Promise(resolve => python.once('close', resolve));
+  let closing = false;
+  let failure: Error | undefined;
   const pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   let id = 0;
   const command = (action: string, data: object = {}) => new Promise<any>((resolve, reject) => {
+    if (closing || failure) { reject(failure ?? new Error('trial-closed')); return; }
     const key = ++id; pending.set(key, { resolve, reject });
     python.stdin.write(JSON.stringify({ id: key, action, ...data }) + '\n');
   });
   const worker = fork(new URL('./service-worker.ts', import.meta.url), [], { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
   worker.stderr?.on('data', chunk => { stderr += chunk; });
-  const workerExit = new Promise(resolve => worker.once('exit', resolve));
+  const workerExit = new Promise(resolve => worker.once('close', resolve));
   const send = (message: unknown) => { if (worker.connected) worker.send(message as object, () => {}); };
   let settle!: () => void;
   let fail!: (e: Error) => void;
@@ -29,11 +43,14 @@ export async function runPythonTrial(mode: TrialMode = 'normal') {
   // Observe rejection even when a startup request is still pending.
   void finished.catch(() => {});
   const abort = (error: Error) => {
+    if (closing) return;
+    failure ??= error;
     for (const p of pending.values()) p.reject(error);
     pending.clear(); fail(error);
   };
   python.on('error', abort);
-  python.on('exit', code => { if (pending.size) abort(new Error('Python exited: ' + code + ': ' + stderr)); });
+  python.on('close', code => { if (!closing) abort(new Error('Python closed: ' + code + ': ' + stderr)); });
+  python.stdin.on('error', abort);
   worker.on('error', abort);
   const timeout = setTimeout(() => abort(new Error('trial-timeout: ' + stderr)), 6000);
   const lines = createInterface({ input: python.stdout });
@@ -50,7 +67,7 @@ export async function runPythonTrial(mode: TrialMode = 'normal') {
   });
   let session = '';
   worker.on('disconnect', () => {
-    if (!python.stdin.destroyed && session) void command('revoke', { reason: 'runner-disconnected' }).catch(() => {});
+    if (!closing && !failure && !python.stdin.destroyed && session) void command('revoke', { reason: 'runner-disconnected' }).catch(() => {});
   });
   worker.on('message', async (message: any) => {
     try {
@@ -94,9 +111,16 @@ export async function runPythonTrial(mode: TrialMode = 'normal') {
     const state = await command('snapshot');
     return { service: myService.title, mode, events, state };
   } finally {
-    clearTimeout(timeout); worker.kill('SIGKILL'); await workerExit;
-    python.stdin.end();
-    const kill = setTimeout(() => python.kill('SIGKILL'), 1000);
-    await exited; clearTimeout(kill); lines.close();
+    closing = true;
+    clearTimeout(timeout);
+    for (const p of pending.values()) p.reject(failure ?? new Error('trial-closed'));
+    pending.clear();
+    worker.kill('SIGKILL'); python.stdin.end();
+    try {
+      await Promise.all([
+        joinBounded(workerExit, () => { worker.kill('SIGKILL'); }, 500),
+        joinBounded(exited, () => { python.kill('SIGKILL'); }, 1000),
+      ]);
+    } finally { lines.close(); }
   }
 }

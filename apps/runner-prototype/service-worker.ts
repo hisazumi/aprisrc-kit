@@ -11,6 +11,24 @@ const lifecycle = new AbortController();
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
 const motions = new Map<number, { resolve: (event: Terminal) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
 let current: MotionToken | undefined;
+// Acceptance and terminal events may be delivered together or reordered by a relay.
+// Buffer only during an outstanding start, bounded and scoped to this session.
+let pendingStarts = 0;
+const earlyTerminals = new Map<number, Terminal>();
+function settleMotion(event: Terminal) {
+  if (event.token.session !== session) return;
+  const p = motions.get(event.token.generation);
+  if (!p) {
+    if (pendingStarts && !earlyTerminals.has(event.token.generation)) {
+      if (earlyTerminals.size >= 8) abort('terminal-buffer-overflow');
+      else earlyTerminals.set(event.token.generation, event);
+    }
+    return;
+  }
+  clearTimeout(p.timer); motions.delete(event.token.generation);
+  if (current?.generation === event.token.generation) current = undefined;
+  p.resolve(event);
+}
 function rpc<T>(action: string, data: object = {}): Promise<T> {
   lifecycle.signal.throwIfAborted();
   const id = ++serial;
@@ -26,18 +44,30 @@ function abort(reason: string) {
   pending.clear();
 }
 async function begin(duration: number) {
-  const token = await rpc<MotionToken>('move', { duration });
-  current = token;
-  const result = new Promise<Terminal>((resolve, reject) => {
-    const timer = setTimeout(() => { motions.delete(token.generation); reject(new Error('motion-result-timeout')); }, 3000);
-    motions.set(token.generation, { resolve, reject, timer });
-  });
-  void result.catch(() => {});
-  return { token, result };
+  pendingStarts++;
+  try {
+    const token = await rpc<MotionToken>('move', { duration });
+    current = token;
+    const result = new Promise<Terminal>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        motions.delete(token.generation); reject(new Error('motion-result-timeout'));
+      }, 3000);
+      motions.set(token.generation, { resolve, reject, timer });
+    });
+    void result.catch(() => {});
+    const early = earlyTerminals.get(token.generation);
+    earlyTerminals.delete(token.generation);
+    if (early) settleMotion(early);
+    return { token, result };
+  } finally {
+    pendingStarts--;
+    if (!pendingStarts) earlyTerminals.clear();
+  }
 }
+
 async function move(duration: number) {
   const op = await begin(duration); const event = await op.result;
-  if (event.status !== 'completed') throw new Error(event.status);
+  if (event.status !== 'completed') throw new Error(event.status + ': ' + event.reason);
   lifecycle.signal.throwIfAborted();
 }
 async function prompt(message: string, choices: string[], stationary = false) {
@@ -61,7 +91,7 @@ const api: StudentServiceApi = {
     await prompt(options.message ?? 'We have arrived?', [options.buttonLabel ?? 'We have arrived']);
     await rpc('stop', { token: op.token });
     const event = await op.result;
-    if (event.status !== 'cancelled') throw new Error(event.status);
+    if (event.status !== 'cancelled') throw new Error(event.status + ': ' + event.reason);
     lifecycle.signal.throwIfAborted();
   },
   say: message => { lifecycle.signal.throwIfAborted(); send({ kind: 'say', session, message }); },
@@ -77,13 +107,7 @@ process.on('message', async (message: any) => {
     clearTimeout(p.timer); pending.delete(reply.id);
     if (reply.ok) p.resolve(reply.value); else p.reject(new Error(reply.error));
   } else if (message.kind === 'terminal') {
-    const event = message.event as Terminal;
-    if (event.token.session !== session) return;
-    const p = motions.get(event.token.generation);
-    if (!p) return;
-    clearTimeout(p.timer); motions.delete(event.token.generation);
-    if (current?.generation === event.token.generation) current = undefined;
-    p.resolve(event);
+    settleMotion(message.event as Terminal);
   } else if (message.kind === 'revoked') {
     abort(message.reason);
   } else if (message.kind === 'block') {
@@ -104,7 +128,7 @@ process.on('message', async (message: any) => {
       clearInterval(heartbeat);
       for (const p of pending.values()) clearTimeout(p.timer);
       for (const p of motions.values()) clearTimeout(p.timer);
-      pending.clear(); motions.clear();
+      pending.clear(); motions.clear(); earlyTerminals.clear();
       if (process.connected) process.disconnect?.();
     }
   }
