@@ -120,6 +120,9 @@ export async function runConsoleService(definition: StudentService, token: strin
     // Flush final speech before the host closes this run.
     const wrapped: StudentService = { ...definition, run: async api => { await definition.run(api); await output; } };
     return await runFakeService(wrapped, inputs, { backend: 'simulator', connection: attachment,
+      waitForArrivalAfterStop: true,
+      onFinished: result => rpc.http('service/finish', { runEpoch: run.runEpoch, ...result,
+        status: result.status === 'failed' && /revoked|lease-expired|cancelled/.test(result.reason) ? 'interrupted' : result.status }),
       serviceMs: options.serviceMs ?? 120000, signal: options.signal });
   } finally { rpc.close(); }
 }

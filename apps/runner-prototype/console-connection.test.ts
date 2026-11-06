@@ -57,6 +57,14 @@ test('attached student service: reconnect rejects old page, separate clearance, 
       const s = await h.rpc.http('service/state');
       if (s.prompt && s.prompt.id !== last) {
         last = s.prompt.id;
+        if (s.prompt.message.includes('デモ：')) {
+          await delay(1800);
+          const stopped = await h.rpc.http('state');
+          assert.ok(stopped.session); assert.equal(stopped.operation, null);
+          assert.equal(stopped.state.velocity.vx, 0);
+          await delay(100);
+          assert.deepEqual((await h.rpc.http('state')).state.pose, stopped.state.pose);
+        }
         const answer = { viewId: view, runEpoch: s.runEpoch, questionId: s.prompt.id, value: s.prompt.choices[0] };
         if (!checkedReload) {
           view = (await h.rpc.http('service/view', {})).viewId;
@@ -78,6 +86,7 @@ test('attached student service: reconnect rejects old page, separate clearance, 
     const report = await task;
     assert.ok(checkedReload && checkedGuard); assert.equal(report.closed, true);
     const final = await h.rpc.http('state');
+    assert.equal((await h.rpc.http('service/state')).result.status, 'completed');
     assert.equal(final.session, null); assert.equal(final.state.velocity.vx, 0);
     assert.ok(final.state.pose.x > .02);
     assert.ok((await h.rpc.http('service/state')).messages.some((s: string) => s.includes('belongings')));

@@ -175,6 +175,7 @@ def create_console(token: str) -> FastAPI:
                 answered=None,
                 used=[],
                 messages=[],
+                result=None,
             )
             return dict(
                 controlEpoch=port.control_epoch,
@@ -240,6 +241,16 @@ def create_console(token: str) -> FastAPI:
                 answered=service["answered"] if live else None,
                 guardId=request.app.state.port.guard_id,
                 messages=service["messages"] if service else [],
+                result=(
+                    service["result"]
+                    or (
+                        None
+                        if live
+                        else {"status": "interrupted", "reason": "run-ended-without-completion"}
+                    )
+                )
+                if service
+                else None,
             )
 
     @app.post("/api/service/answer")
@@ -293,6 +304,30 @@ def create_console(token: str) -> FastAPI:
             ):
                 raise HTTPException(409, "invalid-message-or-capacity")
             service["messages"].append(value["message"])
+            return {"ok": True}
+
+    @app.post("/api/service/finish")
+    async def finish(request: Request):
+        value = await body(request)
+        async with request.app.state.port.lock:
+            service = request.app.state.service
+            if (
+                not service
+                or set(value) != {"runEpoch", "status", "reason"}
+                or value["runEpoch"] != service["runEpoch"]
+                or value["status"] not in {"completed", "failed", "interrupted"}
+                or not isinstance(value["reason"], str)
+                or len(value["reason"]) > 512
+            ):
+                raise HTTPException(409, "stale-or-invalid-result")
+            port = request.app.state.port
+            if port.session == service["runEpoch"]:
+                raise HTTPException(409, "run-still-active")
+            result = {"status": value["status"], "reason": value["reason"]}
+            if service["result"] is not None and service["result"] != result:
+                raise HTTPException(409, "result-already-recorded")
+            service["result"] = result
+            service["prompt"] = service["answered"] = None
             return {"ok": True}
 
     return app

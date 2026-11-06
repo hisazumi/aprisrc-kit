@@ -25,7 +25,7 @@ function object(v: unknown): Record<string, unknown> {
 }
 /** Single host for the consolidated runner; launches only local synthetic or planar simulator backends. */
 export async function runFakeService(definition: StudentService, inputs: ServiceInputs,
-  options: { connection?: HostConnection; backend?: 'fake' | 'simulator'; python?: string; serviceMs?: number; evidenceDelay?: number | 'missing'; signal?: AbortSignal } = {}): Promise<HostReport> {
+  options: { waitForArrivalAfterStop?: boolean; onFinished?: (result: { status: 'completed' | 'failed'; reason: string }) => Promise<void>; connection?: HostConnection; backend?: 'fake' | 'simulator'; python?: string; serviceMs?: number; evidenceDelay?: number | 'missing'; signal?: AbortSignal } = {}): Promise<HostReport> {
   const backend = options.backend ?? 'fake';
   if (backend !== 'fake' && backend !== 'simulator') throw new Error('invalid-backend');
   const serviceMs = options.serviceMs ?? 5000;
@@ -155,10 +155,23 @@ export async function runFakeService(definition: StudentService, inputs: Service
       followPerson: async (opts = {}) => {
         check(); const scope = active.activity(active.root);
         const movement = active.move(scope, { kind: 'move', distanceM: .08, speedMps: .1 });
-        const arrival = question(opts.message ?? 'We have arrived?', [{ value: opts.buttonLabel ?? 'We have arrived', label: opts.buttonLabel ?? 'We have arrived', phrases: opts.phrases }]);
+        const arrival = question((options.waitForArrivalAfterStop ? 'デモ：短い移動後は停止して待機します。準備ができたら到着を押してください。 ' : '') + (opts.message ?? 'We have arrived?'), [{ value: opts.buttonLabel ?? 'We have arrived', label: opts.buttonLabel ?? 'We have arrived', phrases: opts.phrases }]);
         try {
-          await wait(Promise.race([arrival, movement.then(() => { throw new Error('following-ended-before-arrival'); })]));
-          await active.cancel(scope); completed(await movement, 'cancelled'); check();
+          if (options.waitForArrivalAfterStop) {
+            const first = await wait(Promise.race([
+              arrival.then(() => 'arrival' as const),
+              movement.then(result => { completed(result, 'completed'); return 'stopped' as const; }),
+            ]));
+            if (first === 'stopped') await wait(arrival);
+            await active.cancel(scope);
+            const result = await movement;
+            if (result.kind !== 'terminal' || !['completed', 'cancelled'].includes(result.outcome))
+              throw new Error('demo-motion-did-not-stop');
+            check();
+          } else {
+            await wait(Promise.race([arrival, movement.then(() => { throw new Error('following-ended-before-arrival'); })]));
+            await active.cancel(scope); completed(await movement, 'cancelled'); check();
+          }
         } finally { await active.cancel(scope); }
       },
       say: message => { check(); if (report.messages.length >= 128 || message.length > 4096) throw new Error('speech-limit'); report.messages.push(message); inputs.say(message); },
@@ -182,6 +195,8 @@ export async function runFakeService(definition: StudentService, inputs: Service
     if (!rpc.signal.aborted) {
       try { report.snapshot = object(await rpc.request('snapshot')); } catch (e) { error ??= e; }
     }
+    try { await options.onFinished?.({ status: error ? 'failed' : 'completed', reason: error ? String(error).slice(0, 512) : 'service-completed' }); }
+    catch (e) { error ??= e; }
     off(); motion?.close(); rpc.close(); child?.stdin.end();
     const kill = setTimeout(() => child?.kill('SIGKILL'), 700);
     let finalDeadline: ReturnType<typeof setTimeout> | undefined;

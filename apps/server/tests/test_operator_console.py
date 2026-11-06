@@ -193,3 +193,29 @@ def test_service_questions_reject_invalid_choices_and_do_not_clear_guard():
         )
         assert client.get("/app").status_code == 200
         assert client.get("/console/service.js").status_code == 200
+
+
+def test_service_result_is_scoped_and_retained_after_run_end():
+    with client_for(create_console(TOKEN)) as client:
+        state = client.get("/api/state").json()
+        operator = control(client, state, "openOperator").json()["operatorId"]
+        control(client, state, "recover", operatorId=operator, guardId=None, confirmed=True)
+        run = client.post(
+            "/api/service/start", json=dict(controlEpoch=state["controlEpoch"], operatorId=operator)
+        ).json()
+        result = dict(runEpoch=run["runEpoch"], status="completed", reason="service-completed")
+        assert client.post("/api/service/finish", json=result).status_code == 409
+        control(client, state, "closeRun", runId=run["runId"], runEpoch=run["runEpoch"])
+        assert client.get("/api/service/state").json()["result"]["status"] == "interrupted"
+        assert (
+            client.post("/api/service/finish", json={**result, "runEpoch": "old"}).status_code
+            == 409
+        )
+        assert client.post("/api/service/finish", json=result).status_code == 200
+        snapshot = client.get("/api/service/state").json()
+        assert not snapshot["live"]
+        assert snapshot["result"] == dict(status="completed", reason="service-completed")
+        assert (
+            client.post("/api/service/finish", json={**result, "status": "failed"}).status_code
+            == 409
+        )

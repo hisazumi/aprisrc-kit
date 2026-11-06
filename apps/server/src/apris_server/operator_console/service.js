@@ -13,12 +13,15 @@ async function tick() {
   try {
     const state = await api('state');
     $('messages').textContent = state.messages.join('\n');
-    $('connection').textContent = state.live ? 'サービス実行中' : 'サービス待機／終了';
-    const key = JSON.stringify([state.runEpoch, state.prompt?.id, state.answered]);
+    const ending = state.result;
+    const label = ending?.status === 'completed' ? '正常終了' : ending?.status === 'failed' ? '失敗して終了' : ending ? '中断しました' : '未開始';
+    $('connection').textContent = state.live ? 'サービス実行中' : label;
+    const key = JSON.stringify([state.runEpoch, state.prompt?.id, state.answered, state.result]);
     if (key !== last) {
       last = key; $('answers').replaceChildren(); $('result').textContent = '';
-      $('question').textContent = state.prompt?.message || '質問を待っています';
-      if (state.answered) $('result').textContent = state.prompt.stationary ? '回答済み。運用者の退避確認を待っています。' : '回答済み';
+      $('question').textContent = state.prompt?.message || (state.live ? '処理中です' : ending ? label : '運用コンソールで準備し、サービスを開始してください');
+      if (!state.live && ending) $('result').textContent = ending.status === 'completed' ? 'サービスが最後まで完了しました。' : 'サービスは終了しています。再実行には運用側の操作が必要です。理由: ' + ending.reason;
+      else if (state.answered) $('result').textContent = state.prompt.stationary ? '回答済み。運用者の退避確認を待っています。' : '回答済み';
       else if (state.prompt) for (const choice of state.prompt.choices) {
         const button = document.createElement('button'); button.textContent = choice;
         button.onclick = async () => {
