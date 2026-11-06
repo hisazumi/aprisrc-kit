@@ -15,7 +15,7 @@ export class ConsoleConnection {
   private origin: string;
   constructor(token: string, origin = 'http://127.0.0.1:8766') {
     this.token = token; this.origin = origin;
-    if (origin !== 'http://127.0.0.1:8766') throw new Error('loopback-console-only');
+    if (!/^http:\/\/127\.0\.0\.1:[0-9]{1,5}$/.test(origin) || Number(new URL(origin).port) < 1 || Number(new URL(origin).port) > 65535) throw new Error('loopback-console-only');
   }
   async http(path: string, body?: unknown): Promise<any> {
     this.signal.throwIfAborted();
@@ -82,15 +82,15 @@ export class ConsoleConnection {
 }
 
 export async function runConsoleService(definition: StudentService, token: string,
-  options: { signal?: AbortSignal; serviceMs?: number } = {}) {
-  const rpc = new ConsoleConnection(token);
+  options: { signal?: AbortSignal; serviceMs?: number; launchId?: string; origin?: string } = {}) {
+  const rpc = new ConsoleConnection(token, options.origin);
   let attachment: HostConnection | undefined;
   let output = Promise.resolve();
   try {
     const state = await rpc.initialize();
     if (!state.control.operatorId || state.control.inhibited || state.control.guardId || state.control.runEpoch)
       throw new Error('operator-must-recover-before-service');
-    const run = await rpc.http('service/start', { controlEpoch: state.controlEpoch, operatorId: state.control.operatorId });
+    const run = await rpc.http('service/start', { controlEpoch: state.controlEpoch, operatorId: state.control.operatorId, ...(options.launchId ? { launchId: options.launchId } : {}) });
     attachment = { rpc, ...run };
     const inputs: ServiceInputs = {
       recoveryClearance: true, // Attached mode never invokes recovery; operator did it in /console.

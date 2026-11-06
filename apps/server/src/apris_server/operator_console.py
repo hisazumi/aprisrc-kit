@@ -14,12 +14,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from .runner_port_experiment import RunnerPort
+from .service_process import ServiceProcess
 
 ORIGIN = "http://127.0.0.1:8766"
 STATIC = Path(__file__).with_name("operator_console")
 
 
-def create_console(token: str) -> FastAPI:
+def create_console(token: str, *, node: str | None = None, origin: str = ORIGIN) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         events = deque(maxlen=64)
@@ -39,27 +40,31 @@ def create_console(token: str) -> FastAPI:
         port.operator_lease_s = 3.0
         port.inhibited = True
         app.state.port, app.state.events = port, events
+        app.state.process = ServiceProcess(
+            port, token, lambda: app.state.service, node=node, origin=origin
+        )
         await port.start()
         try:
             yield
         finally:
             await port.close()
+            await app.state.process.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
     async def boundary(request, call_next):
-        if request.headers.get("host") != "127.0.0.1:8766":
+        if request.headers.get("host") != origin.removeprefix("http://"):
             return JSONResponse({"detail": "loopback-host-required"}, status_code=403)
         if request.url.path.startswith("/api/"):
             if not secrets.compare_digest(
                 request.headers.get("authorization", ""), f"Bearer {token}"
             ):
                 return JSONResponse({"detail": "console-token-required"}, status_code=401)
-            origin = request.headers.get("origin")
-            if origin not in (None, ORIGIN):
+            request_origin = request.headers.get("origin")
+            if request_origin not in (None, origin):
                 return JSONResponse({"detail": "same-origin-required"}, status_code=403)
-            if request.method != "GET" and origin != ORIGIN:
+            if request.method != "GET" and request_origin != origin:
                 return JSONResponse({"detail": "same-origin-required"}, status_code=403)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
@@ -118,6 +123,10 @@ def create_console(token: str) -> FastAPI:
             )
             snapshot["interlock"] = port.runtime.motion_interlock.snapshot()
             snapshot["events"] = list(request.app.state.events)
+            snapshot["serviceProcess"] = request.app.state.process.snapshot()
+            service = request.app.state.service
+            snapshot["serviceRunEpoch"] = service["runEpoch"] if service else None
+            snapshot["serviceResult"] = service["result"] if service else None
             snapshot["operatorLeaseMs"] = round(port.operator_lease_s * 1000)
             snapshot["eventCursor"] = request.app.state.event_cursor
             snapshot["eventLog"] = list(request.app.state.numbered)
@@ -128,7 +137,14 @@ def create_console(token: str) -> FastAPI:
 
     @app.post("/api/control")
     async def control(request: Request):
-        return await dispatch(request, {"action": "control", "message": await body(request)})
+        value = await body(request)
+        manager = request.app.state.process
+        if value.get("kind") == "openRun" and manager.active:
+            raise HTTPException(409, "service-process-busy")
+        result = await dispatch(request, {"action": "control", "message": value})
+        if value.get("kind") == "globalStop":
+            manager.request_stop()
+        return result
 
     @app.post("/api/motion")
     async def motion(request: Request):
@@ -146,14 +162,56 @@ def create_console(token: str) -> FastAPI:
             request, {"action": "fixture", "front": "CLEAR" if value["clear"] else "UNKNOWN"}
         )
 
+    @app.post("/api/service/launch")
+    async def launch(request: Request):
+        value = await body(request)
+        port = request.app.state.port
+        async with port.lock:
+            port._expire(time.monotonic())
+            if (
+                value != {"controlEpoch": port.control_epoch, "operatorId": port.operator_id}
+                or not port.operator_id
+            ):
+                raise HTTPException(409, "stale-operator")
+            if port.session or port.guard or port.inhibited or port.operation or port.io_tasks:
+                raise HTTPException(409, "recover-or-clear-guard-before-start")
+            try:
+                return request.app.state.process.launch()
+            except ValueError as error:
+                raise HTTPException(409, str(error)) from error
+
+    @app.post("/api/service/stop")
+    async def stop_service(request: Request):
+        value = await body(request)
+        port = request.app.state.port
+        manager = request.app.state.process
+        async with port.lock:
+            if not manager.job or value != {
+                "controlEpoch": port.control_epoch,
+                "launchId": manager.job["id"],
+            }:
+                raise HTTPException(409, "stale-launch")
+            if manager.active:
+                port.inhibited = True
+                if port.session == manager.job["runEpoch"]:
+                    port._revoke("operator-service-stop")
+                manager.request_stop()
+            return manager.snapshot()
+
     @app.post("/api/service/start")
     async def service_start(request: Request):
         value = await body(request)
         port = request.app.state.port
         async with port.lock:
             port._expire(time.monotonic())
-            if value != {"controlEpoch": port.control_epoch, "operatorId": port.operator_id}:
-                raise HTTPException(409, "stale-operator")
+            expected = {"controlEpoch": port.control_epoch, "operatorId": port.operator_id}
+            manager = request.app.state.process
+            if manager.active:
+                expected["launchId"] = manager.job["id"]
+                if manager.job["stop"].is_set() or manager.job["operatorId"] != port.operator_id:
+                    raise HTTPException(409, "launch-stopped")
+            if value != expected:
+                raise HTTPException(409, "stale-operator-or-launch")
             if port.session or not port.operator_id:
                 raise HTTPException(409, "service-busy-or-no-operator")
             run_id = uuid.uuid4().hex
@@ -171,6 +229,9 @@ def create_console(token: str) -> FastAPI:
                 )
             except ValueError as error:
                 raise HTTPException(409, str(error)) from error
+            if manager.active:
+                manager.job["runEpoch"] = opened["runEpoch"]
+                manager.job["status"] = "running"
             request.app.state.service = dict(
                 runId=run_id,
                 runEpoch=opened["runEpoch"],

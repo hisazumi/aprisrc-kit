@@ -27,7 +27,15 @@ function render() {
   const p = state.state.pose; $('pose').textContent = `x ${p.x.toFixed(3)} m / y ${p.y.toFixed(3)} m / ${p.yaw.toFixed(3)} rad`;
   $('connect').disabled = busy || !!c.operatorId || c.stopPending;
   $('stop').disabled = false;
-  $('start').disabled = busy || !owned || !!c.runEpoch || !!c.guardId || c.inhibited || !stopped;
+  const process = state.serviceProcess;
+  const result = !process || process.runEpoch === state.serviceRunEpoch ? state.serviceResult : null;
+  const labels = {starting:'起動中',running:'実行中',stopping:'停止処理中',completed:'正常終了',interrupted:'中断',failed:'失敗'};
+  const status = process?.active ? process.status : state.serviceAttached ? 'running' : result?.status || process?.status;
+  $('service-status').textContent = (labels[status] || '未開始') + ((result?.reason || process?.reason) ? '：' + (result?.reason || process.reason) : '');
+  $('service-start').textContent = process || result ? '再実行' : 'サービス開始';
+  $('service-start').disabled = busy || !owned || !!c.runEpoch || !!c.guardId || c.inhibited || !stopped || !!process?.active;
+  $('service-stop').disabled = !process?.active;
+  $('start').disabled = !!process?.active || busy || !owned || !!c.runEpoch || !!c.guardId || c.inhibited || !stopped;
   $('close').disabled = busy || !owned || !c.runEpoch;
   $('recover').disabled = busy || !owned || !!c.runEpoch || !stopped || !$('clearance').checked;
   $('hold').disabled = state.serviceAttached || busy || !owned || !c.runEpoch || !!c.guardId || c.inhibited || !stopped;
@@ -60,6 +68,8 @@ function action(name, fn) {
     finally { busy = false; if (state) render(); }
   };
 }
+action('service-start', () => api('service/launch', { controlEpoch: state.controlEpoch, operatorId }));
+action('service-stop', () => api('service/stop', { controlEpoch: state.controlEpoch, launchId: state.serviceProcess.id }));
 action('connect', async () => { operatorId = (await control('openOperator')).operatorId; sequence = 0; });
 action('stop', async () => { active = null; await control('globalStop'); });
 action('recover', async () => {

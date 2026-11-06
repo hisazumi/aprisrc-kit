@@ -9,13 +9,13 @@ import { myService } from '../pwa/src/missions/myService.ts';
 const opts = { skip: !process.env.APRIS_PYTHON, timeout: 12000 };
 async function harness() {
   const token = randomUUID();
-  const child = spawn(process.env.APRIS_PYTHON!, ['-c', 'import sys,uvicorn; from apris_server.operator_console import create_console; uvicorn.run(create_console(sys.argv[1]),host="127.0.0.1",port=8766,access_log=False)', token], {
+  const child = spawn(process.env.APRIS_PYTHON!, ['-c', 'import sys,uvicorn; from apris_server.operator_console import create_console; uvicorn.run(create_console(sys.argv[1],origin="http://127.0.0.1:8767"),host="127.0.0.1",port=8767,access_log=False)', token], {
     env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) }, stdio: ['ignore', 'ignore', 'pipe'],
   });
   let stderr = ''; child.stderr.on('data', b => { stderr = (stderr + b).slice(-2000); });
   let launchError: unknown; child.on('error', e => { launchError = e; });
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()));
-  const rpc = new ConsoleConnection(token);
+  const rpc = new ConsoleConnection(token, 'http://127.0.0.1:8767');
   const cleanup = async () => { rpc.close(); child.kill(); const timer = setTimeout(() => child.kill('SIGKILL'), 800); try { await closed; } finally { clearTimeout(timer); } };
   let state: any;
   try {
@@ -49,7 +49,7 @@ test('attached student service: reconnect rejects old page, separate clearance, 
   const h = await harness(); let task: Promise<any> | undefined;
   try {
     let view = (await h.rpc.http('service/view', {})).viewId;
-    task = runConsoleService(myService, h.token, { serviceMs: 7000 }); void task.catch(() => {});
+    task = runConsoleService(myService, h.token, { serviceMs: 7000, origin: 'http://127.0.0.1:8767' }); void task.catch(() => {});
     let last = ''; let checkedGuard = false; let checkedReload = false;
     let done = false; task.then(() => { done = true; }, () => { done = true; });
     const deadline = Date.now() + 6500;
@@ -95,7 +95,7 @@ test('attached student service: reconnect rejects old page, separate clearance, 
 test('operator lease expires during handover even while attached Node and service page remain alive', opts, async () => {
   const h = await harness(); let task: Promise<any> | undefined;
   try {
-    task = runConsoleService({ title: 'handover', run: async api => { await api.confirm('Load'); } }, h.token, { serviceMs: 5000 });
+    task = runConsoleService({ title: 'handover', run: async api => { await api.confirm('Load'); } }, h.token, { serviceMs: 5000, origin: 'http://127.0.0.1:8767' });
     void task.catch(() => {});
     const s = await until(() => h.rpc.http('service/state'), s => !!s.prompt);
     assert.ok(s.guardId);
@@ -112,7 +112,7 @@ test('killed attached Node loses its run while operator stays present and guard 
   try {
     const moduleUrl = new URL('./console-connection.ts', import.meta.url).href;
     host = spawn(process.execPath, ['--input-type=module', '-e',
-      `import {runConsoleService} from ${JSON.stringify(moduleUrl)}; await runConsoleService({title:'hold',run:async api=>{await api.confirm('Load')}},process.env.APRIS_CONSOLE_TOKEN);`],
+      `import {runConsoleService} from ${JSON.stringify(moduleUrl)}; await runConsoleService({title:'hold',run:async api=>{await api.confirm('Load')}},process.env.APRIS_CONSOLE_TOKEN,{origin:"http://127.0.0.1:8767"});`],
       { env: { ...process.env, APRIS_CONSOLE_TOKEN: h.token }, stdio: ['ignore', 'ignore', 'pipe'] });
     host.stderr?.resume();
     const exited = new Promise<void>(resolve => host!.once('close', () => resolve()));
@@ -121,7 +121,7 @@ test('killed attached Node loses its run while operator stays present and guard 
     const state = await until(() => h.rpc.http('state'), s => s.session === null);
     assert.equal(state.control.operatorId, h.operatorId);
     assert.ok(state.guard); assert.equal(state.state.velocity.vx, 0);
-    await assert.rejects(runConsoleService(myService, h.token), /operator-must-recover/);
+    await assert.rejects(runConsoleService(myService, h.token, { origin: 'http://127.0.0.1:8767' }), /operator-must-recover/);
   } finally { host?.kill('SIGKILL'); await h.close(); }
 });
 
@@ -143,4 +143,45 @@ test('HTTP late-renew error delivers preceding terminal first; event gaps fail c
     };
     await assert.rejects(rpc.request('motion', { message: {} }), /event-gap/);
   } finally { rpc.close(); }
+});
+
+test('console launches, rejects double start, completes and restarts with fresh questions; stop retains guard', opts, async () => {
+  const h = await harness();
+  try {
+    const initial = await h.rpc.http('state');
+    const launch = () => h.rpc.http('service/launch', { controlEpoch: initial.controlEpoch, operatorId: h.operatorId });
+    const viewId = (await h.rpc.http('service/view', {})).viewId;
+    const answer = (s: any, value: string) => h.rpc.http('service/answer', { viewId, runEpoch: s.runEpoch, questionId: s.prompt.id, value });
+    const cancelled = await launch();
+    await h.rpc.http('service/stop', { controlEpoch: initial.controlEpoch, launchId: cancelled.id });
+    const cancelledState = await until(() => h.rpc.http('state'), s => !s.serviceProcess.active);
+    assert.equal(cancelledState.session, null); assert.ok(cancelledState.inhibited);
+    await h.control('recover', { operatorId: h.operatorId, guardId: null, confirmed: true });
+    const first = await launch();
+    await assert.rejects(launch(), /busy|recover/);
+    const person1 = await until(() => h.rpc.http('service/state'), s => !!s.prompt);
+    await answer(person1, person1.prompt.choices[0]);
+    const question1 = await until(() => h.rpc.http('service/state'), s => !!s.prompt && s.prompt.id !== person1.prompt.id);
+    await answer(question1, 'No');
+    const ended = await until(() => h.rpc.http('state'), s => !s.serviceProcess.active);
+    assert.equal(ended.serviceResult.status, 'completed');
+    const second = await launch(); assert.notEqual(second.id, first.id);
+    const person2 = await until(() => h.rpc.http('service/state'), s => s.live && s.runEpoch !== person1.runEpoch && !!s.prompt);
+    assert.notEqual(person1.prompt.id, person2.prompt.id);
+    await assert.rejects(answer(person1, person1.prompt.choices[0]), /stale/);
+    await assert.rejects(h.rpc.http('service/stop', { controlEpoch: initial.controlEpoch, launchId: first.id }), /stale/);
+    await answer(person2, person2.prompt.choices[0]);
+    const question2 = await until(() => h.rpc.http('service/state'), s => !!s.prompt && s.prompt.id !== person2.prompt.id);
+    await answer(question2, 'Yes');
+    await until(() => h.rpc.http('service/state'), s => s.prompt?.stationary === true);
+    await h.rpc.http('service/stop', { controlEpoch: initial.controlEpoch, launchId: second.id });
+    const stopped = await until(() => h.rpc.http('state'), s => !s.serviceProcess.active);
+    assert.ok(stopped.guard); assert.ok(stopped.inhibited);
+    assert.equal(stopped.state.velocity.vx, 0);
+    await assert.rejects(launch(), /recover-or-clear/);
+  } finally {
+    const s = await h.rpc.http('state');
+    if (s.serviceProcess?.active) await h.rpc.http('service/stop', { controlEpoch: s.controlEpoch, launchId: s.serviceProcess.id });
+    await h.close();
+  }
 });

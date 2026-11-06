@@ -66,3 +66,27 @@ test('hidden page renews acquired authority; restart does not reacquire or repla
     assert.equal(h.el('recover').disabled, true);
   } finally { h.dom.window.close(); }
 });
+
+test('service buttons scope start/stop and show failed launch without reusing old completion', async () => {
+  const h = await screen();
+  try {
+    await h.el('connect').onclick();
+    h.el('clearance').checked = true; await h.el('recover').onclick();
+    assert.equal(h.el('service-start').disabled, false);
+    await h.el('service-start').onclick();
+    assert.ok(h.requests.some(r => r.path === '/api/service/launch' && r.body.operatorId === 'operator'));
+    h.state.serviceProcess = { id: 'launch', active: true, status: 'starting', runEpoch: null };
+    await h.tick();
+    assert.equal(h.el('service-start').disabled, true);
+    assert.equal(h.el('service-stop').disabled, false);
+    await h.el('service-stop').onclick();
+    assert.ok(h.requests.some(r => r.path === '/api/service/stop' && r.body.launchId === 'launch'));
+    h.state.serviceProcess = { id: 'launch', active: false, status: 'failed', runEpoch: null, reason: 'node-missing' };
+    h.state.serviceRunEpoch = 'old-run';
+    h.state.serviceResult = { status: 'completed', reason: 'old-completion' };
+    await h.tick();
+    assert.match(h.el('service-status').textContent, /失敗.*node-missing/);
+    assert.doesNotMatch(h.el('service-status').textContent, /正常終了/);
+    assert.equal(h.el('service-start').textContent, '再実行');
+  } finally { h.dom.window.close(); }
+});

@@ -2,6 +2,7 @@
 
 [日本語](connected-service.ja.md) · [Operator console](operator-console.md)
 
+For the current UI-driven workflow, see [Console-managed service](managed-service.md). Manual Node launch below remains available for development.
 The Node host can now attach to the running Python console authority rather than
 launching a second simulator. `runConsoleService` reuses `runFakeService`'s activity
 runner, motion facade, questions and cleanup through a new HTTP transport binding.

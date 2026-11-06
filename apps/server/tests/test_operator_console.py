@@ -257,3 +257,22 @@ def test_browser_lease_tolerates_one_second_heartbeats_but_motion_ttl_stays_shor
         assert snapshot["session"] is None
         assert snapshot["state"]["velocity"]["vx"] == 0
         assert any(e.get("reason") == "command-ttl" for e in snapshot["events"])
+
+
+def test_managed_launch_requires_recovery_and_reports_missing_node():
+    with client_for(create_console(TOKEN, node="/missing/apris-node")) as client:
+        state = client.get("/api/state").json()
+        operator = control(client, state, "openOperator").json()["operatorId"]
+        command = dict(controlEpoch=state["controlEpoch"], operatorId=operator)
+        assert client.post("/api/service/launch", json=command).status_code == 409
+        control(client, state, "recover", operatorId=operator, guardId=None, confirmed=True)
+        assert client.post("/api/service/launch", json=command).status_code == 200
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            result = client.get("/api/state").json()["serviceProcess"]
+            if not result["active"]:
+                break
+            time.sleep(0.02)
+        assert result["status"] == "failed"
+        assert "FileNotFoundError" in result["reason"]
+        assert client.get("/api/state").json()["session"] is None

@@ -2,6 +2,7 @@
 
 [English（正本）](connected-service.md) · [運用コンソール](operator-console.ja.md)
 
+現在の推奨起動手順は[コンソールからの開始・再実行](managed-service.ja.md)。以下のNode手動起動は開発用として残す。
 Node hostを、起動済みのPython運用runtimeへ接続した。二つ目のSimulatorは起動しない。
 `runConsoleService` がHTTP通信を提供し、既存 `runFakeService` のactivity runner・
 移動facade・質問・終了処理を共用する。学生の `myService` は変更していない。
