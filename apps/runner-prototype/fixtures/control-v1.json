@@ -1,0 +1,299 @@
+[
+  {
+    "name": "openOperator0",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "openOperator"
+    }
+  },
+  {
+    "name": "operatorHeartbeat1",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "operatorHeartbeat",
+      "operatorId": "operator",
+      "sequence": 1
+    }
+  },
+  {
+    "name": "openRun2",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "openRun",
+      "operatorId": "operator",
+      "runId": "run"
+    }
+  },
+  {
+    "name": "closeRun3",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "closeRun",
+      "runId": "run",
+      "runEpoch": "run-epoch"
+    }
+  },
+  {
+    "name": "acquireHandover4",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "acquireHandover",
+      "runId": "run",
+      "runEpoch": "run-epoch"
+    }
+  },
+  {
+    "name": "runnerHeartbeat5",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "runnerHeartbeat",
+      "runId": "run",
+      "runEpoch": "run-epoch",
+      "sequence": 1
+    }
+  },
+  {
+    "name": "clearHandover6",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "clearHandover",
+      "operatorId": "operator",
+      "guardId": "guard",
+      "confirmed": true
+    }
+  },
+  {
+    "name": "recover7",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "recover",
+      "operatorId": "operator",
+      "guardId": null,
+      "confirmed": true
+    }
+  },
+  {
+    "name": "recover8",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "recover",
+      "operatorId": "operator",
+      "guardId": "guard",
+      "confirmed": true
+    }
+  },
+  {
+    "name": "globalStop9",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "globalStop"
+    }
+  },
+  {
+    "name": "snapshot10",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "snapshot"
+    }
+  },
+  {
+    "name": "controlReply11",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "controlReply",
+      "command": "openRun",
+      "operatorId": "operator",
+      "runId": "run",
+      "runEpoch": "run-epoch",
+      "guardId": null,
+      "inhibited": false,
+      "stopPending": false
+    }
+  },
+  {
+    "name": "controlReply12",
+    "valid": true,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "controlReply",
+      "command": "snapshot",
+      "operatorId": null,
+      "runId": null,
+      "runEpoch": null,
+      "guardId": "guard",
+      "inhibited": true,
+      "stopPending": true
+    }
+  },
+  {
+    "name": "clearHandover13",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "clearHandover",
+      "operatorId": "operator",
+      "guardId": "guard",
+      "confirmed": false
+    }
+  },
+  {
+    "name": "recover14",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "recover",
+      "operatorId": "operator",
+      "guardId": null,
+      "confirmed": 1
+    }
+  },
+  {
+    "name": "runnerHeartbeat15",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "runnerHeartbeat",
+      "runId": "run",
+      "runEpoch": "run-epoch",
+      "sequence": true
+    }
+  },
+  {
+    "name": "operatorHeartbeat16",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "operatorHeartbeat",
+      "operatorId": "operator",
+      "sequence": 0
+    }
+  },
+  {
+    "name": "openRun17",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "openRun",
+      "operatorId": "operator"
+    }
+  },
+  {
+    "name": "openOperator18",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "openOperator",
+      "role": "admin"
+    }
+  },
+  {
+    "name": "controlReply19",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "controlReply",
+      "command": "snapshot",
+      "operatorId": null,
+      "runId": "run",
+      "runEpoch": null,
+      "guardId": null,
+      "inhibited": false,
+      "stopPending": false
+    }
+  },
+  {
+    "name": "snapshot20",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "snapshot",
+      "extra": true
+    }
+  },
+  {
+    "name": "unknown21",
+    "valid": false,
+    "message": {
+      "protocolVersion": 1,
+      "connectionEpoch": "control-epoch",
+      "requestId": "request",
+      "robotId": "fake-only",
+      "kind": "unknown"
+    }
+  }
+]

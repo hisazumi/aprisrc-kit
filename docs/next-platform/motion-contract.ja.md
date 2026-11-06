@@ -115,3 +115,8 @@ Node suite に共通 fixture と新しい subprocess 3件を加え、CI に Pyth
 次は run・guard・運用者の契約と本番 transport、その後に activity runner（B）と
 共通操作権（C）を統合する。FastAPI／手動操作を含む guard、実際の位置変化を伴う Simulator（D）は未完了。
 今回の到達点は既存 fake port への移動契約の接続であり、段階 A 全体の完了ではない。
+
+## 制御契約の接続
+
+[制御契約](control-contract.ja.md)に run の受付・終了、受け渡しguard、独立した運用者 lease を実装した。
+次は runner と上限付き transport の統合、その後に共有 server 全体の操作権を統合する。

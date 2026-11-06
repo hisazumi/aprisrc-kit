@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { parseControlMessage } from './control-contract.ts';
 import { MotionClient, parseMotionMessage, type MotionTransport, type StartMotion } from './motion-contract.ts';
 
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures/motion-v1.json', import.meta.url), 'utf8'));
@@ -15,7 +16,7 @@ for (const fixture of fixtures) {
 }
 
 // Test-only harness for the existing trusted JSON-lines experiment; not a production transport.
-for (const mode of ['complete', 'cancel', 'missing-evidence'] as const) {
+for (const mode of ['complete', 'cancel', 'missing-evidence', 'control'] as const) {
   test('typed client to Python port: ' + mode, { skip: !process.env.APRIS_PYTHON, timeout: 6000 }, async () => {
     const child = spawn(process.env.APRIS_PYTHON!, ['-m', 'apris_server.runner_port_experiment'], {
       env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) },
@@ -49,8 +50,31 @@ for (const mode of ['complete', 'cancel', 'missing-evidence'] as const) {
     let client: MotionClient | undefined;
     try {
       await rpc('fixture', { front: 'CLEAR', ...(mode === 'missing-evidence' ? { evidenceDelay: 'missing' } : {}) });
-      const session = await rpc('admit');
-      heartbeat = setInterval(() => { void rpc('heartbeat', { session }).catch(() => {}); }, 50);
+      let session: string;
+      let controlSequence = 0;
+      if (mode === 'control') {
+        const epoch = (await rpc('snapshot')).controlEpoch;
+        const control = async (kind: string, fields: object = {}) => {
+          const value = parseControlMessage(await rpc('control', { message: { protocolVersion: 1, connectionEpoch: epoch, requestId: 'c' + (++controlSequence), robotId: 'fake-only', kind, ...fields } }));
+          if (value.kind !== 'controlReply') throw new Error('expected-control-reply');
+          return value;
+        };
+        const operatorId = (await control('openOperator')).operatorId;
+        await control('recover', { operatorId, guardId: null, confirmed: true });
+        session = (await control('openRun', { operatorId, runId: 'run' })).runEpoch!;
+        let sequence = 0;
+        heartbeat = setInterval(() => {
+          sequence++;
+          void control('operatorHeartbeat', { operatorId, sequence }).catch(() => {});
+          void control('runnerHeartbeat', { runId: 'run', runEpoch: session, sequence }).catch(() => {});
+        }, 50);
+        const held = await control('acquireHandover', { runId: 'run', runEpoch: session });
+        assert.ok(held.guardId);
+        await control('clearHandover', { operatorId, guardId: held.guardId, confirmed: true });
+      } else {
+        session = await rpc('admit');
+        heartbeat = setInterval(() => { void rpc('heartbeat', { session }).catch(() => {}); }, 50);
+      }
       const transport: MotionTransport = {
         send(m) { void rpc('motion', { session, message: m }).then(v => receive(v), e => disconnect(e.message)); },
         subscribe(message, close) { receive = message; disconnect = close; return () => { receive = () => {}; disconnect = () => {}; }; },
@@ -70,7 +94,7 @@ for (const mode of ['complete', 'cancel', 'missing-evidence'] as const) {
       const done = await result;
       assert.equal(done.kind, 'terminal');
       if (done.kind !== 'terminal') throw new Error('unexpected-rejection');
-      assert.equal(done.outcome, mode === 'complete' ? 'completed' : mode === 'cancel' ? 'cancelled' : 'stop-unconfirmed');
+      assert.equal(done.outcome, (mode === 'complete' || mode === 'control') ? 'completed' : mode === 'cancel' ? 'cancelled' : 'stop-unconfirmed');
       assert.equal(done.evidence.kind, mode === 'missing-evidence' ? 'unknown' : 'simulated');
       const snapshot = await rpc('snapshot');
       assert.equal(snapshot.moving, false);

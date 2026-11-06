@@ -123,3 +123,9 @@ Next add run/guard/operator contracts and the production transport, then consoli
 activity runner (B) and common authority (C). The shared FastAPI/manual-client guard and
 actual Simulator pose integration (D) are still outstanding. This is motion-contract
 integration into the existing fake port, not completion of all step-A control contracts.
+
+## Control integration
+
+The [control contract](control-contract.md) now implements run admission/closure,
+handover guards and the independent operator lease in the fake port. The next step
+is runner consolidation and a bounded transport, followed by shared-server authority.

@@ -13,6 +13,7 @@ from collections.abc import Callable, Coroutine
 from typing import Any
 
 from .adapter import BoundedMotionGoal, BoundedMotionResult, DeviceBoundedMotionAdapter
+from .control_contract import parse_control_message
 from .front_obstacle import FrontObstacleObservationInput
 from .models import MoveCommand, TurnCommand
 from .motion_contract import SCOPE_KEYS, parse_motion_message
@@ -80,6 +81,8 @@ class Inbox:
 
 
 class RunnerPort:
+    control_capacity = 256
+    operator_lease_s = 0.4
     motion_capacity = 256
     lease_s = 0.4
     command_ttl_s = 0.25
@@ -106,6 +109,15 @@ class RunnerPort:
         self.motion_records: dict[str, dict[str, Any]] = {}
         self.motion_requests: dict[str, tuple[dict, dict]] = {}
         self.motion_run: str | None = None
+        self.control_epoch = uuid.uuid4().hex
+        self.control_mode = False
+        self.control_records: dict[str, tuple[dict, dict | str]] = {}
+        self.operator_id: str | None = None
+        self.operator_deadline = 0.0
+        self.operator_sequence = 0
+        self.runner_sequence = 0
+        self.guard_id: str | None = None
+        self.used_runs: set[str] = set()
 
     async def start(self) -> None:
         await self.runtime.start()
@@ -129,144 +141,278 @@ class RunnerPort:
         async with self.lock:
             # Enforce expiry here too: a delayed renewal must not beat the watchdog.
             self._expire(time.monotonic())
-            action = message["action"]
-            if action == "admit":
-                if self.session or self.operation or self.guard or self.inhibited or self.io_tasks:
-                    raise ValueError("admission-inhibited")
-                self.client = await self.runtime.add_client(self.inbox)  # type: ignore[arg-type]
-                session = uuid.uuid4().hex
-                await self._send(
-                    {
-                        "type": "client_hello",
-                        "client_kind": "service_app",
-                        "device_id": "fake-runner",
-                        "session_id": session,
-                        "app_version": "experiment",
-                        "build_id": "fake-only",
-                    }
-                )
-                await self._send({"type": "acquire_control"})
-                if self.runtime.owner_client_id != self.client:
-                    await self.runtime.remove_client(self.client)
-                    self.client = None
-                    raise ValueError("control-busy")
-                self.motion_records.clear()
-                self.motion_requests.clear()
-                self.motion_run = None
-                self.session = session
-                self.lease = time.monotonic() + self.lease_s
-                return session
-            if action == "snapshot":
-                return {
-                    "target": "fake-only",
-                    "session": self.session,
-                    "guard": self.guard,
-                    "inhibited": self.inhibited,
-                    "moving": self.adapter.actuating,
-                    "owner": self.runtime.owner_client_id,
-                    "operation": self.operation,
-                    "pendingIo": len(self.io_tasks),
+            return await self._dispatch(message)
+
+    async def _dispatch(self, message: dict[str, Any], *, internal: bool = False) -> Any:
+        action = message["action"]
+        if action == "control":
+            return await self._control(message["message"])
+        if (
+            self.control_mode
+            and not internal
+            and action not in {"motion", "fixture", "snapshot", "revoke"}
+        ):
+            raise ValueError("control-mode-requires-typed-command")
+        if action == "admit":
+            if self.session or self.operation or self.guard or self.inhibited or self.io_tasks:
+                raise ValueError("admission-inhibited")
+            self.client = await self.runtime.add_client(self.inbox)  # type: ignore[arg-type]
+            session = uuid.uuid4().hex
+            await self._send(
+                {
+                    "type": "client_hello",
+                    "client_kind": "service_app",
+                    "device_id": "fake-runner",
+                    "session_id": session,
+                    "app_version": "experiment",
+                    "build_id": "fake-only",
                 }
-            if action == "revoke":
-                self._revoke(message.get("reason", "operator-stop"))
-                return None
-            if action == "recover":
-                if (
-                    message.get("confirmed") is not True
-                    or self.session
-                    or self.operation
-                    or self.adapter.actuating
-                    or self.io_tasks
-                ):
-                    raise ValueError("recovery-not-ready")
-                self.guard = None
-                self.inhibited = False
-                return None
-            if action == "fixture":
-                # Explicit trusted test input; not a capability available to service code.
-                if "evidenceDelay" in message:
-                    delay = message["evidenceDelay"]
-                    if delay == "missing":
-                        self.adapter.evidence_delay = math.inf
-                    elif isinstance(delay, (int, float)) and math.isfinite(delay) and delay >= 0:
-                        self.adapter.evidence_delay = delay
-                    else:
-                        raise ValueError("invalid-evidence-delay")
-                if "front" in message:
-                    await self.runtime.ingest_front_obstacle(
-                        FrontObstacleObservationInput(
-                            state=message["front"],
-                            perception_health="healthy",
-                            source="manual",
-                            confidence=1.0,
-                        )
+            )
+            await self._send({"type": "acquire_control"})
+            if self.runtime.owner_client_id != self.client:
+                await self.runtime.remove_client(self.client)
+                self.client = None
+                raise ValueError("control-busy")
+            self.motion_records.clear()
+            self.motion_requests.clear()
+            self.motion_run = None
+            self.session = session
+            self.lease = time.monotonic() + self.lease_s
+            return session
+        if action == "snapshot":
+            return {
+                "target": "fake-only",
+                "controlEpoch": self.control_epoch,
+                "session": self.session,
+                "guard": self.guard,
+                "inhibited": self.inhibited,
+                "moving": self.adapter.actuating,
+                "owner": self.runtime.owner_client_id,
+                "operation": self.operation,
+                "pendingIo": len(self.io_tasks),
+            }
+        if action == "revoke":
+            self._revoke(message.get("reason", "operator-stop"))
+            return None
+        if action == "recover":
+            if (
+                message.get("confirmed") is not True
+                or self.session
+                or self.operation
+                or self.adapter.actuating
+                or self.io_tasks
+            ):
+                raise ValueError("recovery-not-ready")
+            self.guard = None
+            self.inhibited = False
+            return None
+        if action == "fixture":
+            # Explicit trusted test input; not a capability available to service code.
+            if "evidenceDelay" in message:
+                delay = message["evidenceDelay"]
+                if delay == "missing":
+                    self.adapter.evidence_delay = math.inf
+                elif isinstance(delay, (int, float)) and math.isfinite(delay) and delay >= 0:
+                    self.adapter.evidence_delay = delay
+                else:
+                    raise ValueError("invalid-evidence-delay")
+            if "front" in message:
+                await self.runtime.ingest_front_obstacle(
+                    FrontObstacleObservationInput(
+                        state=message["front"],
+                        perception_health="healthy",
+                        source="manual",
+                        confidence=1.0,
                     )
-                return None
-            self._valid(message.get("session"))
-            if action == "motion":
-                return await self._motion(message["message"])
-            if action == "heartbeat":
-                if message.get("token"):
-                    self._token(message["token"])
-                    if not self.operation["finishing"]:
-                        self.operation["ttl"] = time.monotonic() + self.command_ttl_s
-                self.lease = time.monotonic() + self.lease_s
-                return None
-            if action == "move":
-                if self.operation or self.guard or self.inhibited:
-                    raise ValueError("motion-inhibited")
-                duration = message["duration"]
-                if (
-                    type(duration) not in (int, float)
-                    or not math.isfinite(duration)
-                    or not 0 < duration <= 1
-                ):
-                    raise ValueError("invalid-duration")
-                # Validate the converted SI request before allocating an operation.
-                generation = self.generation + 1
-                command = MoveCommand(
-                    type="move",
-                    request_id=str(generation),
-                    run_id=self.session,
-                    effect_id=str(generation),
-                    distance_m=duration * 0.1,
-                    speed_mps=0.1,
                 )
-                self.generation = generation
-                token = {"session": self.session, "generation": generation}
-                now = time.monotonic()
-                self.operation_io = []
-                self.operation = {
-                    "token": token,
-                    "request": str(generation),
-                    "ttl": now + self.command_ttl_s,
-                    "deadline": now + self.progress_s,
-                    "finishing": False,
-                    "override": None,
-                }
-                await self._send(command.model_dump(mode="json"))
-                return token  # Accepted by port; runtime may still reject with a terminal result.
-            if action == "stop":
+            return None
+        self._valid(message.get("session"))
+        if action == "motion":
+            return await self._motion(message["message"])
+        if action == "heartbeat":
+            if message.get("token"):
                 self._token(message["token"])
-                self.operation["override"] = "cancelled"
-                # Capture the client now; revocation may clear self.client before I/O runs.
-                job = self._start_io(
-                    self.runtime.handle_text(self.client, json.dumps({"type": "cancel_motion"}))
-                )
-                self.operation_io.append(job)
-                self._finish("cancelled", "scoped-stop")
-                return None
-            if action == "hold":
-                if self.operation or self.guard or self.inhibited:
-                    raise ValueError("not-stationary")
-                self.guard = self.session
-                return None
-            if action == "clear":
-                if self.guard != self.session or message.get("confirmed") is not True:
-                    raise ValueError("clearance-required")
-                self.guard = None
-                return None
-            raise ValueError("unsupported-action")
+                if not self.operation["finishing"]:
+                    self.operation["ttl"] = time.monotonic() + self.command_ttl_s
+            self.lease = time.monotonic() + self.lease_s
+            return None
+        if action == "move":
+            if self.operation or self.guard or self.inhibited:
+                raise ValueError("motion-inhibited")
+            duration = message["duration"]
+            if (
+                type(duration) not in (int, float)
+                or not math.isfinite(duration)
+                or not 0 < duration <= 1
+            ):
+                raise ValueError("invalid-duration")
+            # Validate the converted SI request before allocating an operation.
+            generation = self.generation + 1
+            command = MoveCommand(
+                type="move",
+                request_id=str(generation),
+                run_id=self.session,
+                effect_id=str(generation),
+                distance_m=duration * 0.1,
+                speed_mps=0.1,
+            )
+            self.generation = generation
+            token = {"session": self.session, "generation": generation}
+            now = time.monotonic()
+            self.operation_io = []
+            self.operation = {
+                "token": token,
+                "request": str(generation),
+                "ttl": now + self.command_ttl_s,
+                "deadline": now + self.progress_s,
+                "finishing": False,
+                "override": None,
+            }
+            await self._send(command.model_dump(mode="json"))
+            return token  # Accepted by port; runtime may still reject with a terminal result.
+        if action == "stop":
+            self._token(message["token"])
+            self.operation["override"] = "cancelled"
+            # Capture the client now; revocation may clear self.client before I/O runs.
+            job = self._start_io(
+                self.runtime.handle_text(self.client, json.dumps({"type": "cancel_motion"}))
+            )
+            self.operation_io.append(job)
+            self._finish("cancelled", "scoped-stop")
+            return None
+        if action == "hold":
+            if self.operation or self.guard or self.inhibited:
+                raise ValueError("not-stationary")
+            self.guard = self.session
+            return None
+        if action == "clear":
+            if self.guard != self.session or message.get("confirmed") is not True:
+                raise ValueError("clearance-required")
+            self.guard = None
+            return None
+        raise ValueError("unsupported-action")
+
+    def _control_reply(self, m: dict) -> dict:
+        return parse_control_message(
+            dict(
+                protocolVersion=1,
+                connectionEpoch=self.control_epoch,
+                requestId=m["requestId"],
+                robotId="fake-only",
+                kind="controlReply",
+                command=m["kind"],
+                operatorId=self.operator_id,
+                runId=(self.motion_run or "legacy-" + self.session) if self.session else None,
+                runEpoch=self.session,
+                guardId=self.guard_id,
+                inhibited=self.inhibited,
+                stopPending=bool(self.operation or self.io_tasks),
+            )
+        )
+
+    def _operator(self, m: dict) -> None:
+        if not self.operator_id or m["operatorId"] != self.operator_id:
+            raise ValueError("revoked-operator")
+
+    def _control_run(self, m: dict) -> None:
+        if not self.session or m["runEpoch"] != self.session or m["runId"] != self.motion_run:
+            raise ValueError("revoked-run")
+
+    def _stationary_evidence(self) -> None:
+        if self.operation or self.io_tasks or self.adapter.actuating:
+            raise ValueError("stop-pending")
+        if not self.adapter.evidence.is_set() or self.adapter.evidence_at > time.monotonic():
+            raise ValueError("stop-evidence-required")
+
+    async def _control(self, value: Any) -> dict:
+        # request() already checks expiry while holding the shared state lock.
+        m = parse_control_message(value)
+        kind = m["kind"]
+        if kind == "controlReply":
+            raise ValueError("wrong-direction")
+        if m["connectionEpoch"] != self.control_epoch or m["robotId"] != "fake-only":
+            raise ValueError("stale-control-epoch-or-robot")
+        # Stop/read paths cannot be blocked by exhausted business-command storage.
+        if kind == "globalStop":
+            self.inhibited = True
+            self._revoke("operator-global-stop")
+            return self._control_reply(m)
+        if kind == "snapshot":
+            return self._control_reply(m)
+        if kind == "operatorHeartbeat":
+            self._operator(m)
+            if m["sequence"] > self.operator_sequence:
+                self.operator_sequence = m["sequence"]
+                self.operator_deadline = time.monotonic() + self.operator_lease_s
+            return self._control_reply(m)
+        if kind == "runnerHeartbeat":
+            self._control_run(m)
+            if m["sequence"] > self.runner_sequence:
+                self.runner_sequence = m["sequence"]
+                self.lease = time.monotonic() + self.lease_s
+            return self._control_reply(m)
+        old = self.control_records.get(m["requestId"])
+        if old:
+            if old[0] != m:
+                raise ValueError("id-conflict")
+            if isinstance(old[1], str):
+                raise ValueError(old[1])
+            return old[1].copy()  # Historical acknowledgement, never re-execute it.
+        if len(self.control_records) >= self.control_capacity:
+            raise ValueError("control-capacity-exhausted")
+        try:
+            await self._apply_control(m)
+        except ValueError as error:
+            self.control_records[m["requestId"]] = (m, str(error))
+            raise
+        result = self._control_reply(m)
+        self.control_records[m["requestId"]] = (m, result)
+        return result.copy()
+
+    async def _apply_control(self, m: dict) -> None:
+        kind = m["kind"]
+        if kind == "openOperator":
+            if self.operator_id or self.session or self.operation or self.io_tasks:
+                raise ValueError("operator-admission-busy")
+            self.control_mode = True
+            self.inhibited = True  # Fresh authority requires explicit recovery.
+            self.operator_id = uuid.uuid4().hex
+            self.operator_sequence = 0
+            self.operator_deadline = time.monotonic() + self.operator_lease_s
+            if self.guard and not self.guard_id:
+                self.guard_id = uuid.uuid4().hex
+        elif kind == "openRun":
+            self._operator(m)
+            if m["runId"] in self.used_runs:
+                raise ValueError("run-id-reused")
+            await self._dispatch({"action": "admit"}, internal=True)
+            self.motion_run = m["runId"]
+            self.used_runs.add(m["runId"])
+            self.runner_sequence = 0
+        elif kind == "closeRun":
+            self._control_run(m)
+            self._revoke("run-closed")
+        elif kind == "acquireHandover":
+            self._control_run(m)
+            self._stationary_evidence()
+            await self._dispatch({"action": "hold", "session": self.session}, internal=True)
+            self.guard_id = uuid.uuid4().hex
+        elif kind == "clearHandover":
+            self._operator(m)
+            if not self.guard or m["guardId"] != self.guard_id:
+                raise ValueError("stale-guard")
+            self._stationary_evidence()
+            self.guard = None
+            self.guard_id = None
+        elif kind == "recover":
+            self._operator(m)
+            if m["guardId"] != self.guard_id:
+                raise ValueError("stale-guard")
+            self._stationary_evidence()
+            await self._dispatch({"action": "recover", "confirmed": True}, internal=True)
+            self.guard_id = None
+        else:
+            raise ValueError("unsupported-control")
 
     async def _motion(self, value: Any) -> dict:
         """Called under the port lock after expiry/session checks; fake-only bridge."""
@@ -367,6 +513,10 @@ class RunnerPort:
         return task
 
     def _expire(self, now: float) -> None:
+        if self.operator_id and now >= self.operator_deadline:
+            self.operator_id = None
+            self.inhibited = True
+            self._revoke("operator-lease-expired")
         if self.session and now >= self.lease:
             self._revoke("lease-expired")
         elif self.operation and not self.operation["finishing"]:
