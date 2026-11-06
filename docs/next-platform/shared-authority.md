@@ -55,3 +55,5 @@ still require a separate safety design and validation.
 
 Next is step D: exercise actual simulator pose/odometry through the same boundary.
 The current fake adapter models bounded-operation timing, not physical travel.
+
+See [Planar simulator integration](simulator-integration.md) for the subsequent simulator backend.

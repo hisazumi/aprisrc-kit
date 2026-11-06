@@ -19,13 +19,15 @@ function object(v: unknown): Record<string, unknown> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('invalid-server-object');
   return v as Record<string, unknown>;
 }
-/** Single host for the consolidated runner; deliberately launches only the fake Python port. */
+/** Single host for the consolidated runner; launches only local synthetic or planar simulator backends. */
 export async function runFakeService(definition: StudentService, inputs: ServiceInputs,
-  options: { python?: string; serviceMs?: number; evidenceDelay?: number | 'missing'; signal?: AbortSignal } = {}): Promise<HostReport> {
+  options: { backend?: 'fake' | 'simulator'; python?: string; serviceMs?: number; evidenceDelay?: number | 'missing'; signal?: AbortSignal } = {}): Promise<HostReport> {
+  const backend = options.backend ?? 'fake';
+  if (backend !== 'fake' && backend !== 'simulator') throw new Error('invalid-backend');
   const serviceMs = options.serviceMs ?? 5000;
   if (!Number.isSafeInteger(serviceMs) || serviceMs < 1) throw new Error('invalid-service-timeout');
   if (inputs.recoveryClearance !== true) throw new Error('initial-human-clearance-required');
-  const child = spawn(options.python ?? process.env.APRIS_PYTHON ?? 'python3', ['-m', 'apris_server.runner_port_experiment'], {
+  const child = spawn(options.python ?? process.env.APRIS_PYTHON ?? 'python3', ['-m', 'apris_server.runner_port_experiment', '--backend', backend], {
     env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -128,7 +130,7 @@ export async function runFakeService(definition: StudentService, inputs: Service
       },
       approachPerson: async () => {
         check(); const scope = active.activity(active.root);
-        try { completed(await wait(active.move(scope, { kind: 'move', distanceM: .008, speedMps: .1 })), 'completed'); check(); }
+        try { completed(await wait(active.move(scope, { kind: 'move', distanceM: backend === 'simulator' ? .04 : .008, speedMps: .1 })), 'completed'); check(); }
         finally { await active.cancel(scope); }
       },
       ask: async (message, phrases) => (await question(message, [{ value: 'Yes', label: 'Yes', phrases: phrases?.yes }, { value: 'No', label: 'No', phrases: phrases?.no }])) === 'Yes',

@@ -1,7 +1,8 @@
-"""Local JSON-lines experiment. Always constructs a fake; never loads a hardware adapter."""
+"""Local JSON-lines experiment: fake or planar simulator only, never hardware."""
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import json
@@ -17,6 +18,7 @@ from .control_contract import parse_control_message
 from .front_obstacle import FrontObstacleObservationInput
 from .models import MoveCommand, TurnCommand
 from .motion_contract import SCOPE_KEYS, parse_motion_message
+from .runner_simulator import PortSimulatorAdapter
 from .runtime import RoverRuntime
 from .simulator import DifferentialDriveSimulator
 
@@ -90,13 +92,21 @@ class RunnerPort:
     stop_s = 0.2
 
     def __init__(
-        self, emit: Callable[[dict[str, Any]], None], *, runtime: RoverRuntime | None = None
+        self, emit: Callable[[dict[str, Any]], None], *, runtime: RoverRuntime | None = None,
+        backend: str = "fake"
     ) -> None:
         self.emit = emit
-        if runtime is not None and type(runtime.adapter) is not PortFakeAdapter:
+        if backend not in {"fake", "simulator"}:
+            raise ValueError("unsupported-backend")
+        if runtime is not None and type(runtime.adapter) not in {
+            PortFakeAdapter, PortSimulatorAdapter
+        }:
             raise ValueError("runner-port-requires-fake-adapter")
         self._owns_runtime = runtime is None
-        self.adapter = runtime.adapter if runtime is not None else PortFakeAdapter()
+        self.adapter = runtime.adapter if runtime is not None else (
+            PortSimulatorAdapter() if backend == "simulator" else PortFakeAdapter()
+        )
+        self.backend = "simulator" if type(self.adapter) is PortSimulatorAdapter else "fake"
         self.runtime = runtime or RoverRuntime(self.adapter)
         self._guard_hold: str | None = None
         self._inhibit_hold: str | None = None
@@ -219,6 +229,8 @@ class RunnerPort:
         if action == "snapshot":
             return {
                 "target": "fake-only",
+                "backend": self.backend,
+                "state": (await self.adapter.state()).model_dump(mode="json"),
                 "controlEpoch": self.control_epoch,
                 "session": self.session,
                 "guard": self.guard,
@@ -246,6 +258,8 @@ class RunnerPort:
         if action == "fixture":
             # Explicit trusted test input; not a capability available to service code.
             if "evidenceDelay" in message:
+                if self.backend != "fake":
+                    raise ValueError("evidence-delay-is-fake-only")
                 delay = message["evidenceDelay"]
                 if delay == "missing":
                     self.adapter.evidence_delay = math.inf
@@ -643,7 +657,7 @@ class RunnerPort:
             evidence = (
                 {
                     "kind": "simulated",
-                    "epoch": "fake-" + op["token"]["session"],
+                    "epoch": self.backend + "-" + op["token"]["session"],
                     "observedAt": time.monotonic(),
                 }
                 if confirmed
@@ -721,11 +735,11 @@ class RunnerPort:
             await asyncio.wait(pending, timeout=0.05)
 
 
-async def main() -> None:
+async def main(backend: str = "fake") -> None:
     def emit(value: dict[str, Any]) -> None:
         print(json.dumps(value, allow_nan=False), flush=True)
 
-    port = RunnerPort(emit)
+    port = RunnerPort(emit, backend=backend)
     await port.start()
     try:
         while line := await asyncio.to_thread(sys.stdin.readline, 65_537):
@@ -760,4 +774,6 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--backend", choices=("fake", "simulator"), default="fake")
+    asyncio.run(main(parser.parse_args().backend))

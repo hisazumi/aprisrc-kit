@@ -89,3 +89,5 @@ Simulator へ置き換える（D）。現行 PWA の起動経路は変更して�
 fake backend を使う統合入口であって、公開済みの運用構成ではない。
 
 続く共通runtime境界の実装は[共通runtimeの移動操作権](shared-authority.ja.md)を参照。
+
+続くSimulator接続は[平面Simulatorとの接続](simulator-integration.ja.md)を参照。

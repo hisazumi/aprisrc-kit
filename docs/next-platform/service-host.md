@@ -94,3 +94,5 @@ pose/odometry execution (D). Current PWA startup is unchanged; this host is a re
 fake-backed integration entrypoint, not a released deployment profile.
 
 See [Shared runtime motion authority](shared-authority.md) for the subsequent runtime-boundary implementation.
+
+See [Planar simulator integration](simulator-integration.md) for the subsequent simulator backend.

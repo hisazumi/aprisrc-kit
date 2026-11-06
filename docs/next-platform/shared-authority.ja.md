@@ -54,3 +54,5 @@ interlockは新規の移動発行を防ぐ。設定自体が停止命令や物�
 
 次はDとして、実際に位置・オドメトリが変化するSimulatorを同じ境界につなぐ。
 現在のfake adapterは有限操作の所要時間を模擬するもので、物理的な移動の検証ではない。
+
+続くSimulator接続は[平面Simulatorとの接続](simulator-integration.ja.md)を参照。

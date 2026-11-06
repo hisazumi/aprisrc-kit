@@ -52,3 +52,14 @@ test('external cancellation aborts a noncooperative provider and closes the chil
     assert.match(e.message, /operator-cancelled/); assert.equal(e.report.closed, true); return true;
   });
 });
+
+
+test('student service reaches a real odometry displacement with simulator backend', opts, async () => {
+  const report = await runFakeService(myService, inputs(), { backend: 'simulator' });
+  assert.equal(report.closed, true);
+  assert.equal(report.snapshot?.backend, 'simulator');
+  const state = report.snapshot?.state as { pose: { x: number }; velocity: { vx: number; wz: number } };
+  assert.ok(state.pose.x > .02 && state.pose.x < .065, `unexpected displacement: ${state.pose.x}`);
+  assert.equal(state.velocity.vx, 0); assert.equal(state.velocity.wz, 0);
+  assert.equal(report.snapshot?.session, null);
+});
