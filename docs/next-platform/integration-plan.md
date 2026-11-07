@@ -154,9 +154,12 @@ downstream stopping are separate fault tests, not implied by runner-death succes
 Run the existing server safety suite and the same applicable adapter contract tests
 against the Simulator. Physical adapters require their own evidence and measured budgets.
 
-First implementation task: **A, the shared message/lifecycle contract and its tests**.
-Do not add another standalone experiment. After A–D, review the actual trace before
-adding broader navigation or a rich 3D simulator.
+The original first implementation task was A. As of 2026-11-07, the shared runtime,
+managed service and [reproducible service scenarios](service-scenarios.md) provide
+an initial integrated path through A–E; this does not claim every acceptance criterion
+or physical backend is qualified. The next design/implementation slice is
+[M1: shared map loading and localization contracts](map-localization.md).
+Clock/pause/reset and physical qualification remain separate outstanding work.
 
 ## 7. Scope and traceability
 
