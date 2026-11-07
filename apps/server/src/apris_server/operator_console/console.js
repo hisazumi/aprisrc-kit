@@ -32,6 +32,12 @@ function render() {
   $('localize').disabled = !loc || busy || !owned || !!c.runEpoch || !!c.guardId || !stopped || !!state.serviceProcess?.active || !$('placement').checked;
   const mp = loc?.snapshot?.mapPose;
   $('localization-status').textContent = loc ? `${loc.blocked ? '走行不可：' + loc.reason : loc.snapshot?.quality.status} / ${mp ? `x ${mp.xM.toFixed(3)} m, y ${mp.yM.toFixed(3)} m` : '位置未確定'}` : '';
+  const route = state.route, routing = route?.status === 'running';
+  $('route-panel').hidden = !loc;
+  const routeLabels = {running: '移動中', completed: '到着', cancelled: '中止', interrupted: '中断', failed: '失敗', 'stop-unconfirmed': '停止未確認'};
+  $('route-status').textContent = route ? `${routeLabels[route.status] || route.status}: ${route.reason || '移動中'} / 区間 ${route.waypoint}` : '未開始';
+  $('route-start').disabled = !loc || busy || !owned || !c.runEpoch || !!c.guardId || c.inhibited || !stopped || routing || !!state.serviceAttached || !!state.serviceProcess?.active;
+  $('route-cancel').disabled = !routing || !owned;
   const process = state.serviceProcess;
   const result = !process || process.runEpoch === state.serviceRunEpoch ? state.serviceResult : null;
   const labels = {starting:'起動中',running:'実行中',stopping:'停止処理中',completed:'正常終了',interrupted:'中断',failed:'失敗'};
@@ -45,7 +51,7 @@ function render() {
   $('recover').disabled = busy || !owned || !!c.runEpoch || !stopped || !$('clearance').checked || !!loc?.blocked;
   $('hold').disabled = state.serviceAttached || busy || !owned || !c.runEpoch || !!c.guardId || c.inhibited || !stopped;
   $('clear').disabled = busy || !owned || !c.guardId || !stopped || !$('clearance').checked;
-  for (const k of ['move', 'turn']) $(k).disabled = state.serviceAttached || busy || !owned || !c.runEpoch || c.inhibited || !!c.guardId || !stopped || !!active;
+  for (const k of ['move', 'turn']) $(k).disabled = state.serviceAttached || busy || !owned || !c.runEpoch || c.inhibited || !!c.guardId || !stopped || !!active || routing;
   $('events').textContent = state.events.slice(-8).map(e => e.kind === 'terminal' ? `${e.outcome}: ${e.reason} / 証拠: ${e.evidence?.kind}` : `${e.kind}: ${e.reason || ''}`).join('\n') || 'まだ操作はありません';
 }
 async function refresh() {
@@ -81,6 +87,9 @@ action('localize', async () => {
     localizationEpoch: state.localization.localizationEpoch, candidateId: 'start-placement', confirmed: true });
   $('placement').checked = false;
 });
+action('route-start', () => api('route/start', { controlEpoch: state.controlEpoch,
+  ...runFields(), requestId: id(), method: 'route', targetId: 'start-to-desk' }));
+action('route-cancel', () => api('route/cancel', { id: state.route.id, runEpoch: state.route.runEpoch }));
 action('service-start', () => api('service/launch', { controlEpoch: state.controlEpoch, operatorId }));
 action('service-stop', () => api('service/stop', { controlEpoch: state.controlEpoch, launchId: state.serviceProcess.id }));
 action('connect', async () => { operatorId = (await control('openOperator')).operatorId; sequence = 0; });

@@ -116,3 +116,27 @@ test('map mode requires placement confirmation and never initializes or recovers
     assert.equal(h.el('placement').checked, false);
   } finally { h.dom.window.close(); }
 });
+
+test('route controls require a localized test run and exclude direct motion', async () => {
+  const h = await screen();
+  try {
+    await h.el('connect').onclick();
+    h.state.localization = { blocked: false, localizationEpoch: 'loc', snapshot: {quality: {status: 'tracking'}} };
+    h.state.control.inhibited = false;
+    await h.tick();
+    assert.equal(h.el('route-start').disabled, true);
+    h.state.control.runEpoch = 'run-epoch'; h.state.control.runId = 'run';
+    await h.tick();
+    assert.equal(h.el('route-start').disabled, false);
+    await h.el('route-start').onclick();
+    const request = h.requests.find(r => r.path === '/api/route/start');
+    assert.equal(request?.body.targetId, 'start-to-desk');
+    assert.equal(request?.body.runEpoch, 'run-epoch');
+    h.state.route = { id: 'route-1', runEpoch: 'run-epoch', status: 'running', waypoint: 1 };
+    await h.tick();
+    assert.equal(h.el('move').disabled, true);
+    assert.equal(h.el('route-start').disabled, true);
+    await h.el('route-cancel').onclick();
+    assert.deepEqual(h.requests.find(r => r.path === '/api/route/cancel')?.body, {id: 'route-1', runEpoch: 'run-epoch'});
+  } finally { h.dom.window.close(); }
+});

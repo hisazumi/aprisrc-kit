@@ -52,6 +52,7 @@ class Route(Contract):
     from_: Identifier = Field(alias="from")
     to: Identifier
     via: tuple[Point, ...]
+    corridorWidthM: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
 
 
 class InitialPoseCandidate(Contract):

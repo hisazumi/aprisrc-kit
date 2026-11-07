@@ -18,6 +18,7 @@ from .control_contract import parse_control_message
 from .front_obstacle import FrontObstacleObservationInput
 from .models import MoveCommand, TurnCommand
 from .motion_contract import SCOPE_KEYS, parse_motion_message
+from .route_execution import RouteExecution, demo_route_profile
 from .runner_simulator import PortSimulatorAdapter
 from .runtime import RoverRuntime
 from .runtime_localization import LocalizationSetup, RuntimeLocalization
@@ -141,6 +142,7 @@ class RunnerPort:
         if localization is not None and self.backend != "simulator":
             raise ValueError("localization-requires-planar-simulator")
         self.localization = RuntimeLocalization(self, localization) if localization else None
+        self.routes = RouteExecution(self, demo_route_profile()) if localization else None
 
     @property
     def guard(self) -> str | None:
@@ -198,7 +200,14 @@ class RunnerPort:
 
     async def _dispatch(self, message: dict[str, Any], *, internal: bool = False) -> Any:
         action = message["action"]
+        if action in {"routeStart", "routeCancel"}:
+            if not self.routes:
+                raise ValueError("routes-unavailable")
+            return (self.routes.start(message["message"]) if action == "routeStart"
+                    else self.routes.cancel(message["message"]))
         if action == "localize":
+            if self.routes and self.routes.active:
+                raise ValueError("route-busy")
             if (set(message) != {"action", "controlEpoch", "operatorId", "localizationEpoch",
                                  "candidateId", "confirmed"} or message["confirmed"] is not True
                     or message["controlEpoch"] != self.control_epoch or not self.localization):
@@ -219,6 +228,8 @@ class RunnerPort:
         ):
             raise ValueError("control-mode-requires-typed-command")
         if action == "admit":
+            if self.routes and self.routes.active:
+                raise ValueError("route-busy")
             if self.localization:
                 self.localization.require_ready()
             if self.session or self.operation or self.guard or self.inhibited or self.io_tasks:
@@ -267,6 +278,7 @@ class RunnerPort:
                 "owner": self.runtime.owner_client_id,
                 "operation": self.operation,
                 "pendingIo": len(self.io_tasks),
+                "route": self.routes.snapshot() if self.routes else None,
                 "localization": self.localization.snapshot() if self.localization else None,
             }
         if action == "revoke":
@@ -319,6 +331,8 @@ class RunnerPort:
             self.lease = time.monotonic() + self.lease_s
             return None
         if action == "move":
+            if self.routes and self.routes.active:
+                raise ValueError("route-owns-motion")
             if self.operation or self.guard or self.inhibited:
                 raise ValueError("motion-inhibited")
             duration = message["duration"]
@@ -363,6 +377,8 @@ class RunnerPort:
             self._finish("cancelled", "scoped-stop")
             return None
         if action == "hold":
+            if self.routes and self.routes.active:
+                raise ValueError("route-busy")
             if self.operation or self.guard or self.inhibited:
                 raise ValueError("not-stationary")
             self.guard = self.session
@@ -497,8 +513,10 @@ class RunnerPort:
         else:
             raise ValueError("unsupported-control")
 
-    async def _motion(self, value: Any) -> dict:
+    async def _motion(self, value: Any, *, route_key=None) -> dict:
         """Called under the port lock after expiry/session checks; fake-only bridge."""
+        if self.routes and self.routes.active and route_key is not self.routes._key:
+            raise ValueError("route-owns-motion")
         m = parse_motion_message(value)
         kind = m["kind"]
         if kind not in {"startMotion", "renewMotion", "cancelMotion"}:
@@ -598,6 +616,8 @@ class RunnerPort:
         return task
 
     def _expire(self, now: float) -> None:
+        if self.routes:
+            self.routes.check()
         if self.localization:
             self.localization.check()
         if self.operator_id and now >= self.operator_deadline:
@@ -613,6 +633,8 @@ class RunnerPort:
                 self._revoke("progress-deadline")
 
     def _revoke(self, reason: str) -> None:
+        if self.routes:
+            self.routes.revoked(reason)
         session, self.session = self.session, None
         if self.localization:
             self.localization.release()
@@ -748,6 +770,8 @@ class RunnerPort:
                 self._expire(time.monotonic())
 
     async def close(self) -> None:
+        if self.routes:
+            await self.routes.close()
         if self.localization:
             await self.localization.close()
         async with self.lock:

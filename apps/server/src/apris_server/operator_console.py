@@ -168,6 +168,16 @@ def create_console(
             request, {"action": "localizationObservation", "observation": await body(request)}
         )
 
+    @app.post("/api/route/start")
+    async def route_start(request: Request):
+        if request.app.state.process.active:
+            raise HTTPException(409, "service-process-busy")
+        return await dispatch(request, {"action": "routeStart", "message": await body(request)})
+
+    @app.post("/api/route/cancel")
+    async def route_cancel(request: Request):
+        return await dispatch(request, {"action": "routeCancel", "message": await body(request)})
+
     @app.post("/api/motion")
     async def motion(request: Request):
         value = await body(request)

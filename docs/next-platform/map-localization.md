@@ -2,7 +2,7 @@
 
 [日本語](map-localization.ja.md)
 
-Status: M1/M2 and simulator runtime quality gate implemented, 2026-11-07; route API not implemented.
+Status: M1/M2 and minimal simulator registered-route execution implemented, 2026-11-07; physical and student API integration remain subsequent work.
 This refines [requirements F01–F04/F11 and Q01/Q04/Q06/Q08](requirements.md)
 and the [architecture](architecture.md). Inventory baseline:
 `next-platform` commit `39c6d92c98cd29404b17e1f26f9892f17f2a29f2`.
@@ -385,3 +385,71 @@ missing stop evidence, delayed admission holding the request lock, manual entryp
 odometry reset and stale observation replay. HTTP initialization/recovery and browser
 DOM tests are also included. Next implement registered routes with corridor/body-size
 checks. This is not completion of all M3 acceptance criteria.
+
+## 13. M3: minimal registered-route execution
+
+`route_plan.py` checks corridors and the body profile; `route_execution.py` sequences
+the existing RunnerPort bounded move/turn commands. Physical integration, arbitrary
+path search, obstacle avoidance and replacement of the student host guideTo facade
+are outside this slice.
+
+Map v1 routes gain optional `corridorWidthM`. Legacy maps remain readable but routes
+without a corridor cannot execute. Geometry is the ordered from→via→to polyline;
+each segment's traversable region is a capsule including endpoint discs of radius
+half the corridor width. Operators must establish that the entire region is traversable;
+this is not automatic wall/obstacle detection.
+
+Available center clearance subtracts the circumscribed body radius (including in-place
+rotation), stopping margin, maximum position error and finite-step heading-error
+lateral allowance from half the corridor width. Reject nonpositive clearance, missing
+references, zero-length segments and routes exceeding the action budget. Never drive
+off-route to join the start. method=place selects only a unique incoming registered
+route; multiple candidates require routeId. General route search/optimization is absent.
+
+Execution semantics:
+
+- Pin run, map, localizationEpoch, profile and route execution ID; preserve waypoint order.
+- Relative progress remains odometry-based. Re-evaluate map pose only after bounded
+  motion completion and stop evidence before selecting the next action.
+- Reserve bounded motion and prohibit handover acquisition while routing. Operator
+  global stop remains available.
+- Monitor pose/heading quality, current-segment deviation, abrupt map corrections and
+  overall deadline. Large corrections cannot skip waypoints into success. Failure or
+  cancellation revokes the run and retains motion inhibition.
+- Operator and runner leases still need external renewal; the route renews only its
+  own motion TTL.
+- Arrival requires distance plus position error, heading difference plus heading error,
+  respective tolerances, and stop evidence. Handover completion remains separate.
+- Same request ID returns the historical result without executing again; changed
+  content conflicts. Record rejections too; reject after 32 records rather than evict
+  old requests and permit replay.
+- Cancellation matches execution ID/runEpoch. Missing timely evidence retains
+  stop-unconfirmed; late evidence cannot rewrite it into arrival/cancellation success.
+
+Synthetic profile: `apps/server/scenarios/localization/route-profile.json`. Body radius
+18 cm, stopping margin 5 cm, maximum position error 10 cm; arrival includes uncertainty
+within 12 cm / 0.2 rad. Commands are at most 6 cm / 0.15 rad. Estimate segment time from
+the existing proportional deceleration, speed floor and completion tolerance, checking
+compatibility with the existing 1.2-second progress deadline before admission. Watchdog
+deadlines are not extended. Bound the full route to 30 seconds / 24 actions and retain
+existing motion-record capacity; exhaustion fails and stops. Values and error indicators
+are synthetic fixtures, not physical accuracy or safety qualification.
+
+`--localization` now uses `apps/server/config/maps/route-demo.json`: start (0,0), waypoint
+(0.16,0), desk (0.16,0.16), final heading π/2 and 1 m corridor. Keep demo-room.json as the
+format example. In the console, localize, recover, start a test run, then press the
+registered-route-to-desk button. Direct move/turn buttons are disabled while routing;
+show cancellation, segment and result. Reject manual route launch during a managed service.
+
+Additional endpoints retain the loopback/token/origin boundary:
+
+- `POST /api/route/start`: controlEpoch, runId, runEpoch, requestId, method (route/place), targetId.
+- `POST /api/route/cancel`: id (route execution ID), runEpoch.
+- `GET /api/state`, route: execution/map/profile identity, waypoint, actions, status, reason.
+
+Tests in test_route_plan.py, test_route_execution.py and existing HTTP/DOM suites cover
+L-route arrival/stopping, retry without replay, corridor/body mismatch, cancellation,
+quality loss, a marker correction accepted by M2 but large enough to interrupt the route,
+and deceleration-aware time budgets. Next connect this capability to the student service
+API for delivery/guidance scenarios. Physical qualification, detailed geometry, general
+path search and comprehensive M4 trace/replay remain subsequent work.

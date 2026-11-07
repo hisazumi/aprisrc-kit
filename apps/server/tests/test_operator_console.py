@@ -328,3 +328,28 @@ def test_localization_mode_requires_operator_placement_then_separate_recovery():
         assert client.post("/api/localization/observation", json={"drive": 1}).status_code == 409
         state = client.get("/api/state").json()
         assert state["localization"]["binding"]["map"] == state["localization"]["map"]
+        route = client.post(
+            "/api/route/start",
+            json=dict(
+                controlEpoch=state["controlEpoch"],
+                runId="localized-run",
+                runEpoch=state["session"],
+                requestId="route-api-test",
+                method="route",
+                targetId="start-to-desk",
+            ),
+        )
+        assert route.status_code == 200, route.text
+        job = route.json()
+        assert (
+            client.post(
+                "/api/route/cancel", json=dict(id="old", runEpoch=state["session"])
+            ).status_code
+            == 409
+        )
+        assert (
+            client.post(
+                "/api/route/cancel", json=dict(id=job["id"], runEpoch=job["runEpoch"])
+            ).status_code
+            == 200
+        )

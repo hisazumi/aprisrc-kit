@@ -1,0 +1,18 @@
+{
+  "id": "synthetic-route-v1",
+  "bodyRadiusM": 0.18,
+  "stoppingMarginM": 0.05,
+  "maxPositionErrorM": 0.1,
+  "maxHeadingErrorRad": 0.15,
+  "arrivalM": 0.12,
+  "arrivalHeadingRad": 0.2,
+  "headingToleranceRad": 0.04,
+  "maxStepM": 0.06,
+  "maxTurnRad": 0.15,
+  "speedMps": 0.1,
+  "turnSpeedRadS": 0.7,
+  "maxCorrectionM": 0.1,
+  "maxCorrectionRad": 0.2,
+  "maxActions": 24,
+  "deadlineS": 30.0
+}

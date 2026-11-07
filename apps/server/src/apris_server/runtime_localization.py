@@ -26,7 +26,7 @@ class LocalizationSetup:
 def demo_localization() -> LocalizationSetup:
     root = Path(__file__).resolve().parents[2]
     return LocalizationSetup(
-        (root / "config/maps/demo-room.json").read_bytes(),
+        (root / "config/maps/route-demo.json").read_bytes(),
         LocalizationProfile.model_validate_json(
             (root / "scenarios/localization/profile.json").read_bytes()
         ),
