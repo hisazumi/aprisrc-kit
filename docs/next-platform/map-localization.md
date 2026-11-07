@@ -450,6 +450,44 @@ Additional endpoints retain the loopback/token/origin boundary:
 Tests in test_route_plan.py, test_route_execution.py and existing HTTP/DOM suites cover
 L-route arrival/stopping, retry without replay, corridor/body mismatch, cancellation,
 quality loss, a marker correction accepted by M2 but large enough to interrupt the route,
-and deceleration-aware time budgets. Next connect this capability to the student service
+and deceleration-aware time budgets. See section 14 for the integration with the student service
 API for delivery/guidance scenarios. Physical qualification, detailed geometry, general
 path search and comprehensive M4 trace/replay remain subsequent work.
+
+## 14. Student service registered-place integration
+
+The attached Node host now implements `await service.guideTo('desk')` using the
+registered-route authority. It waits for the matching run/job to reach `completed`,
+including the server's arrival tolerances and stationary evidence. Acceptance alone
+is not arrival. Failure, cancellation, localization loss, missing capability and
+unknown destination reject the call, preventing subsequent arrival dialogue.
+Activity scope cleanup cancels and joins that exact job; uncertain cleanup fails.
+The host still renews only its run lease, never operator presence.
+
+`POST /api/service/route/start` validates the active service run ID and epoch before
+starting. This also works for managed services without opening the manual route
+endpoint during managed execution. The existing shared loopback token remains the
+security boundary; this is not independent role authentication.
+
+`apps/pwa/src/missions/registeredDelivery.ts` demonstrates guarded loading, route
+travel, arrival dialogue, guarded receipt and delivery completion. `myService.ts`
+is unchanged. Run from the repository root with server dependencies installed:
+
+```sh
+APRIS_SERVICE=registered-delivery PYTHONPATH=apps/server/src \
+  apps/server/.venv/bin/python -m apris_server.operator_console --localization
+```
+
+Open the printed console URL, connect the operator, initialize the start placement,
+explicitly recover, provide synthetic front CLEAR, then launch the service (do not
+open a manual test run). Answer loading/receipt on the separate `/app` page and
+clear each handover guard separately in `/console`. The default `APRIS_SERVICE`
+is `carry`; unknown names fail startup. Another run requires repositioning and
+explicit localization initialization; automatic return is not implemented.
+
+`registered-delivery.test.ts` uses isolated Python HTTP servers and Node hosts to
+verify managed L-route arrival before receipt, interruption without arrival speech,
+stale run rejection, unavailable localization and unknown destinations. This is
+synthetic planar simulator evidence, not physical delivery qualification.
+The next step is correlated localization, route and service event recording for
+failure diagnosis.

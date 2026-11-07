@@ -6,7 +6,7 @@ import { createServer, type AddressInfo } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ConsoleConnection } from './console-connection.ts';
 /** Isolated simulator-only harness. It never connects to the user's console. */
-export async function harness() {
+export async function harness(localization = false, service = 'carry') {
   if (!process.env.APRIS_PYTHON) throw new Error('APRIS_PYTHON is required');
   const listener = createServer();
   await new Promise<void>((resolve, reject) => { listener.once('error', reject); listener.listen(0, '127.0.0.1', resolve); });
@@ -14,8 +14,8 @@ export async function harness() {
   await new Promise<void>((resolve, reject) => listener.close(error => error ? reject(error) : resolve()));
   const origin = `http://127.0.0.1:${port}`;
   const token = randomUUID();
-  const child = spawn(process.env.APRIS_PYTHON!, ['-c', 'import sys,uvicorn; from apris_server.operator_console import create_console; uvicorn.run(create_console(sys.argv[1],origin="http://127.0.0.1:"+sys.argv[2]),host="127.0.0.1",port=int(sys.argv[2]),access_log=False)', token, String(port)], {
-    env: { ...process.env, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) }, stdio: ['ignore', 'ignore', 'pipe'],
+  const child = spawn(process.env.APRIS_PYTHON!, ['-c', 'import sys,uvicorn; from apris_server.operator_console import create_console; uvicorn.run(create_console(sys.argv[1],origin="http://127.0.0.1:"+sys.argv[2],localization=sys.argv[3]=="1"),host="127.0.0.1",port=int(sys.argv[2]),access_log=False)', token, String(port), localization ? "1" : "0"], {
+    env: { ...process.env, APRIS_SERVICE: service, PYTHONPATH: fileURLToPath(new URL('../server/src', import.meta.url)) }, stdio: ['ignore', 'ignore', 'pipe'],
   });
   let stderr = ''; child.stderr.on('data', b => { stderr = (stderr + b).slice(-2000); });
   let launchError: unknown; child.on('error', e => { launchError = e; });
@@ -24,8 +24,8 @@ export async function harness() {
   const cleanup = async () => { rpc.close(); child.kill(); const timer = setTimeout(() => child.kill('SIGKILL'), 800); try { await closed; } finally { clearTimeout(timer); } };
   let state: any;
   try {
-    const until = Date.now() + 3000;
-    while (Date.now() < until) {
+    const startupDeadline = Date.now() + 3000;
+    while (Date.now() < startupDeadline) {
       if (launchError || child.exitCode !== null) throw new Error('server-start: ' + stderr + launchError);
       try { state = await rpc.http('state'); break; } catch { await delay(40); }
     }
@@ -34,6 +34,11 @@ export async function harness() {
       protocolVersion: 1, connectionEpoch: state.controlEpoch, requestId: randomUUID(), robotId: 'fake-only', kind, ...fields,
     });
     const operatorId = (await control('openOperator')).operatorId;
+    if (localization) {
+      state = await until(() => rpc.http('state'), s => s.localization?.sampleAvailable === true);
+      await rpc.http('localization/initialize', { controlEpoch: state.controlEpoch, operatorId,
+        localizationEpoch: state.localization.localizationEpoch, candidateId: 'start-placement', confirmed: true });
+    }
     await control('recover', { operatorId, guardId: null, confirmed: true });
     await rpc.http('front', { clear: true });
     let sequence = 0, renewing = false, stopped = false;

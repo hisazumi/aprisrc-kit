@@ -61,6 +61,8 @@ export class ConsoleConnection {
     } catch (e) { this.lifecycle.abort(e); }
   }
   async request(action: string, data: any = {}): Promise<unknown> {
+    if (action === 'routeStart') return this.http('service/route/start', data.message);
+    if (action === 'routeCancel') return this.http('route/cancel', data.message);
     if (action === 'snapshot') return this.http('state');
     if (action === 'control') return this.http(action, data.message);
     if (action === 'motion') {

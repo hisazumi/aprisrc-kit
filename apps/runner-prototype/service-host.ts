@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -175,7 +176,48 @@ export async function runFakeService(definition: StudentService, inputs: Service
         } finally { await active.cancel(scope); }
       },
       say: message => { check(); if (report.messages.length >= 128 || message.length > 4096) throw new Error('speech-limit'); report.messages.push(message); inputs.say(message); },
-      greetPerson: unsupported, guideTo: unsupported,
+      greetPerson: unsupported,
+      guideTo: async destination => {
+        check();
+        if (!options.connection) return unsupported();
+        const scope = active.activity(active.root);
+        const signal = active.signal(scope);
+        // Cancellation joins the same job; never issue an unscoped motor stop.
+        const task = (async () => {
+          const job = object(await rpc.request('routeStart', { message: {
+            controlEpoch, runId, runEpoch, requestId: randomUUID(), method: 'place', targetId: destination,
+          } }));
+          if (typeof job.id !== 'string' || job.runEpoch !== runEpoch || job.runId !== runId)
+            throw new Error('invalid-route-job');
+          let cancelled = false;
+          const deadline = Date.now() + 32000;
+          while (Date.now() < deadline) {
+            if (signal.aborted && !cancelled) {
+              cancelled = true;
+              await rpc.request('routeCancel', { message: { id: job.id, runEpoch } });
+            }
+            const state = object(await rpc.request('snapshot'));
+            const route = object(state.route);
+            if (route.id !== job.id || route.runEpoch !== runEpoch || route.runId !== runId)
+              throw new Error('stale-route-job');
+            if (route.status !== 'running') {
+              if (route.status !== 'completed') throw new Error('route-' + route.status + ': ' + route.reason);
+              signal.throwIfAborted();
+              return;
+            }
+            await delay(40);
+          }
+          throw new Error('route-result-timeout');
+        })();
+        active.subscribe(scope, () => task);
+        let routeError: unknown;
+        try { await wait(task); check(); }
+        catch (error) { routeError = error; throw error; }
+        finally {
+          try { await active.cancel(scope); }
+          catch (cleanupError) { if (!routeError) throw cleanupError; }
+        }
+      },
     };
     await wait(Promise.resolve().then(() => definition.run(api))); check();
     if (active.failure) throw active.failure;

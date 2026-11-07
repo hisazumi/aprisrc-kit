@@ -288,6 +288,20 @@ def create_console(
             raise HTTPException(409, "service-ended")
         return service
 
+    @app.post("/api/service/route/start")
+    async def service_route_start(request: Request):
+        value = await body(request)
+        port = request.app.state.port
+        async with port.lock:
+            service = live_service(request)
+            if (value.get("runEpoch") != service["runEpoch"]
+                    or value.get("runId") != service["runId"]):
+                raise HTTPException(409, "stale-run")
+            try:
+                return await port._dispatch({"action": "routeStart", "message": value})
+            except (ValueError, KeyError, TypeError) as error:
+                raise HTTPException(409, str(error)) from error
+
     @app.post("/api/service/prompt")
     async def publish_prompt(request: Request):
         value = await body(request)

@@ -406,5 +406,42 @@ Map v1のrouteに任意の`corridorWidthM`を追加した。未指定の既存�
 テストは`test_route_plan.py`、`test_route_execution.py`、既存HTTP/DOM試験。
 L字完走と静止、同一要求の再送、機体・通行幅の不整合、キャンセル、位置品質喪失、
 M2では受理される大きさのマーカ補正による経路中断、終盤減速を含む時間見積りを検証する。
-次はこの能力を学生向けサービスAPIへ接続し、配送・案内のサービスとして通す。
+学生向けサービスAPIとの接続と配送例は14節を参照。
 実機試験、詳細geometry、一般的な経路探索、M4の包括的な記録・再生は別途残る。
+
+## 14. 学生向けサービスからの登録地点移動
+
+接続型Nodeホストの `await service.guideTo('desk')` を登録経路実行へ接続した。
+対象地点へ入る経路が一意で、現在位置がその開始地点にある場合だけ開始する。
+開始受付では完了せず、同じrun・route実行IDの到着判定と停止を待って戻る。
+経路失敗、中断、位置品質喪失、未登録地点では例外となり、その後の到着案内へ進まない。
+ActivityRunnerのスコープ終了時は当該経路を中止して結果を待つ。
+停止を確認できなければcleanup失敗として扱う。ホストはoperator leaseを更新しない。
+
+`POST /api/service/route/start` は現在のサービスrunId/runEpochを照合して開始する。
+既存の手動経路開始禁止を解除せず、managed serviceからも利用できる。
+認証は従来の共有ローカルトークンであり、独立したユーザ権限分離ではない。
+
+参照サービスは `apps/pwa/src/missions/registeredDelivery.ts`。
+荷積み確認→運用側の安全確認→登録地点へ移動→到着案内→荷受け確認→
+運用側の安全確認→配送完了、の順で進む。到着と受け渡し完了を区別する。
+既存 `myService.ts` は変更していない。
+
+起動例（server依存関係をインストール済みの環境、リポジトリルート）：
+
+```sh
+APRIS_SERVICE=registered-delivery PYTHONPATH=apps/server/src \
+  apps/server/.venv/bin/python -m apris_server.operator_console --localization
+```
+
+表示された `/console` を開き、operator接続、開始地点での位置合わせ、明示復帰、
+試験用の前方CLEAR入力を行い「サービス開始」を押す。手動試験runは開始しない。
+利用者は別の `/app` で荷積み・荷受けに回答し、運用者が別途安全確認を解除する。
+`APRIS_SERVICE` 未指定は従来のcarryサービス。未知の値は起動失敗となる。
+再実行には開始地点への戻しと位置合わせが必要で、自動帰還は行わない。
+
+`registered-delivery.test.ts` は独立したPython HTTPサーバとNodeホストを使用し、
+managed起動でのL字移動・到着後の受け取り確認、途中キャンセル時の停止と到着非通知、
+古いrunの拒否、位置機能なし・未登録地点の拒否を確認する。
+これは合成入力と平面シミュレータの検証であり、実機での配送検証ではない。
+次は位置・経路・サービスイベントを一緒に記録し、失敗原因を追跡できるようにする。
