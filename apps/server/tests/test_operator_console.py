@@ -276,3 +276,55 @@ def test_managed_launch_requires_recovery_and_reports_missing_node():
         assert result["status"] == "failed"
         assert "FileNotFoundError" in result["reason"]
         assert client.get("/api/state").json()["session"] is None
+
+
+def test_localization_mode_requires_operator_placement_then_separate_recovery():
+    with client_for(create_console(TOKEN, localization=True)) as client:
+        state = client.get("/api/state").json()
+        assert state["localization"]["blocked"]
+        assert client.get("/console").text.find("localization-panel") >= 0
+        operator = control(client, state, "openOperator").json()["operatorId"]
+        payload = dict(
+            controlEpoch=state["controlEpoch"],
+            operatorId=operator,
+            localizationEpoch=state["localization"]["localizationEpoch"],
+            candidateId="start-placement",
+            confirmed=True,
+        )
+        assert (
+            client.post(
+                "/api/localization/initialize", json=payload | {"operatorId": "old"}
+            ).status_code
+            == 409
+        )
+        assert (
+            control(
+                client, state, "recover", operatorId=operator, guardId=None, confirmed=True
+            ).status_code
+            == 409
+        )
+        # Wait for a healthy estimated sample; no truth injection and no motion command.
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            response = client.post("/api/localization/initialize", json=payload)
+            if response.status_code == 200:
+                break
+            time.sleep(0.01)
+        assert response.status_code == 200, response.text
+        assert not response.json()["blocked"]
+        assert client.post("/api/localization/initialize", json=payload).status_code == 409
+        state = client.get("/api/state").json()
+        assert state["control"]["inhibited"] and state["session"] is None
+        assert (
+            control(
+                client, state, "recover", operatorId=operator, guardId=None, confirmed=True
+            ).status_code
+            == 200
+        )
+        run = control(client, state, "openRun", operatorId=operator, runId="localized-run")
+        assert run.status_code == 200
+        payload["localizationEpoch"] = state["localization"]["localizationEpoch"]
+        assert client.post("/api/localization/initialize", json=payload).status_code == 409
+        assert client.post("/api/localization/observation", json={"drive": 1}).status_code == 409
+        state = client.get("/api/state").json()
+        assert state["localization"]["binding"]["map"] == state["localization"]["map"]

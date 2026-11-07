@@ -2,7 +2,7 @@
 
 [English（正本）](map-localization.md)
 
-状態：設計案＋M1/M2データ層の実装、2026-11-07。経路移動APIは未実装。
+状態：M1/M2＋Simulator実行系の品質ゲートまで実装、2026-11-07。経路移動APIは未実装。
 [要求 F01〜F03・F04・F11、Q01・Q04・Q06・Q08](requirements.ja.md)と
 [アーキテクチャ](architecture.ja.md)を具体化する。
 調査基準は `next-platform` の `39c6d92c98cd29404b17e1f26f9892f17f2a29f2`。
@@ -276,4 +276,69 @@ lostはラッチする。odom鮮度切れ・欠落・センサー利用不能・
 喪失ラッチ、古いepoch、時計逆行、履歴／記録容量、既存WheelImuOdometryからの入力を検証する。
 次はM3に向け、実行時のodom・校正済み観測をこの推定器へ結び付け、品質喪失を
 Pythonの共通走行保護へ伝える。その後に登録経路の移動を接続する。
-**M2単独では停止要求を送らず、走行許可も与えない。カメラ校正・実機精度・経路走行の検証は未実施。**
+**M2推定器単独では停止要求を送らず、走行許可も与えない。実行系との接続は次節。カメラ校正・実機精度・経路走行の検証は未実施。**
+
+## 12. M3の前段：Simulator実行系への接続
+
+`runtime_localization.py`がRunnerPortとM2推定器を接続する。
+現段階は固定の例地図と合成試験profileを使う、明示的に有効化するSimulator専用モード。
+登録経路実行や物理ロボットへの接続はまだ提供しない。
+
+```sh
+uv run --directory apps/server python -m apris_server.operator_console --localization
+```
+
+フラグなしの既存デモは従来のまま。上記モードでは全走行入口に位置品質を要求する。
+起動時から共通motion interlockを保持し、位置未確定のまま移動できない。
+独立したオドメトリ取得と品質監視を開始し、サービスrunnerや画面の監視コードに依存しない。
+
+運用手順：
+
+1. `/console`で操作権を取得する。初回のSimulatorは例地図の開始地点・開始方向にある。
+2. 配置確認をチェックし「開始地点で位置合わせ」を押す。
+3. 人の退避を確認して「明示復帰」する。
+4. 試験runまたはサービスを明示的に開始する。利用者画面は引き続き別の`/app`。
+5. 品質喪失後は停止確認・run終了を待つ。入力の障害を解消し、実際に開始地点と向きを
+   確認して再位置合わせ→明示復帰→新規開始とする。移動後に単にボタンを押して原点扱いにしない。
+
+地図・校正・品質profile・localizationEpochをrunの受付時に固定する。
+地図の差替えAPIは今回公開していない。位置合わせは運用者ID・controlEpoch・
+localizationEpoch・配置確認を検証し、run／guard／他の操作所有者がある間は拒否する。
+共通runtimeの静止状態とSimulatorの停止根拠、pending I/Oがないこと、freshで正常なodomを
+確認してから新しい位置推定世代へ進む。古い位置合わせ要求の再送は拒否する。
+位置合わせはguardやE-stopを解除せず、常に別の明示復帰を必要とする。
+
+Simulatorは同じロック内で、推定odom・その正確な単調時計の取得時刻・odomEpochを返す。
+ノイズ・古い状態・センサー故障の設定を経由した観測値を使い、真値へ置換しない。
+odomリセットはepochを変更し、同じ座標へ戻った場合も検知する。
+カメラ時計をここで推測変換することはしない。
+
+監視はtracking以外で走行を禁止する保守的なprofileとした。degradedも停止対象。
+オドメトリ取得失敗・取得task終了・更新停止・品質不足・epoch変更では、まずinterlockで
+すべての新規移動を禁止し、run失効と既存runtimeの停止処理へ進む。
+manual/legacy入口にも同じ禁止が効く。独立watchはportの要求ロックやadapter I/Oを待たずに
+禁止を設定し、遅延した要求はinterlock epochで排除する。
+止まれたrunはinterrupted、停止根拠を期限内に得られない場合はstop-unconfirmedとなる。
+遅いI/Oが残れば復帰を拒否し、入力復活だけでは走行禁止・run・質問を復活させない。
+
+試験用の実時間予算は取得間隔20ms、取得timeout 150ms、feed更新期限250ms、
+watch間隔10ms。推定器側のodom鮮度期限と既存run/command/stop期限も維持する。
+これらは実機の停止性能を保証する値ではない。
+状態表示はキャッシュ済みの観測を使い、表示要求がセンサーI/O待ちで監視を塞がない。
+取得前はstate=nullと位置未確定を表示する。
+
+接続先の最小API：
+
+- `GET /api/state`の`localization`：品質snapshot、禁止理由、地図identity、入力元世代、run binding。
+- `POST /api/localization/initialize`：運用者・世代・candidateId・confirmedを持つ明示位置合わせ。
+- `POST /api/localization/observation`：正規化済みのSimulatorマーカ観測。M2の完全なスコープと
+  `sourceId=simulator-marker`、現在のsourceEpochを必要とする。旧世代や曖昧な観測は拒否し、
+  禁止中の観測から再初期化しない。実カメラ入力用の校正・認証プロバイダではない。
+
+APIは既存loopback/token/origin境界を使う。入力元世代は認証情報ではなく照合用であり、
+共有tokenを持つローカル試験参加者を役割ごとに分離する認証はまだない。
+
+`test_runtime_localization.py`で移動中のセンサー故障・古い状態・遅延、停止根拠欠落、
+要求ロックを占有する遅延受付、manual入口、odom reset、旧観測の再送を試す。
+HTTPの位置合わせ／復帰順序とブラウザDOM操作も回帰試験に追加した。
+次は地図の通行範囲と機体寸法の確認を含めて登録経路能力を実装する。M3全体の完了ではない。

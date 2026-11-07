@@ -143,3 +143,23 @@ def test_zero_waypoints_is_explicit_straight_route():
     value = document()
     value["routes"][0]["via"] = []
     assert load_map(encoded(value)).document.routes[0].via == ()
+
+
+def test_relocalization_epoch_cannot_change_during_bound_run():
+    store = MapStore()
+    store.activate(EXAMPLE.read_bytes(), stopped=True)
+    old = store.localization_epoch
+    with pytest.raises(ValueError, match="stop-unconfirmed"):
+        store.relocalized("new", stopped=False)
+    assert store.localization_epoch == old
+    store.bind("run", robot_profile="r", calibration="c", quality_profile="q")
+    with pytest.raises(ValueError, match="active-run"):
+        store.relocalized("new", stopped=True)
+    store.release("run")
+    store.relocalized("new", stopped=True)
+    assert (
+        store.bind(
+            "next", robot_profile="r", calibration="c", quality_profile="q"
+        ).localizationEpoch
+        == "new"
+    )

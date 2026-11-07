@@ -8,7 +8,7 @@ import math
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 Identifier = Annotated[str, Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")]
 Finite = Annotated[float, Field(allow_inf_nan=False)]
@@ -224,6 +224,16 @@ class MapStore:
         self._active = candidate
         self._epoch = uuid4().hex
         return candidate
+
+    def relocalized(self, epoch: str, *, stopped: bool) -> None:
+        if self._runs:
+            raise ValueError("active-run")
+        if stopped is not True:
+            raise ValueError("stop-unconfirmed")
+        value = TypeAdapter(Identifier).validate_python(epoch, strict=True)
+        if value == self._epoch:
+            raise ValueError("new-localization-epoch-required")
+        self._epoch = value
 
     def bind(
         self, run_id: str, *, robot_profile: str, calibration: str, quality_profile: str

@@ -90,3 +90,29 @@ test('service buttons scope start/stop and show failed launch without reusing ol
     assert.equal(h.el('service-start').textContent, '再実行');
   } finally { h.dom.window.close(); }
 });
+
+test('map mode requires placement confirmation and never initializes or recovers automatically', async () => {
+  const h = await screen();
+  try {
+    h.state.localization = { blocked: true, reason: 'initialization-required', localizationEpoch: 'loc1', snapshot: null };
+    h.state.state = null;
+    await h.tick();
+    assert.equal(h.el('localization-panel').hidden, false);
+    assert.match(h.el('pose').textContent, /取得待ち/);
+    await h.el('connect').onclick();
+    h.el('clearance').checked = true; h.el('clearance').onchange();
+    assert.equal(h.el('recover').disabled, true);
+    assert.equal(h.el('localize').disabled, true);
+    assert.ok(!h.requests.some(r => r.path === '/api/localization/initialize'));
+    h.el('placement').checked = true; h.el('placement').onchange();
+    assert.equal(h.el('localize').disabled, false);
+    await h.el('localize').onclick();
+    const call = h.requests.find(r => r.path === '/api/localization/initialize');
+    assert.deepEqual(call?.body, { controlEpoch: 'epoch', operatorId: 'operator', localizationEpoch: 'loc1', candidateId: 'start-placement', confirmed: true });
+    assert.equal(h.el('placement').checked, false);
+    assert.ok(!h.requests.some(r => r.body?.kind === 'recover' || r.path === '/api/motion'));
+    h.el('placement').checked = true;
+    h.state.moving = true; await h.tick();
+    assert.equal(h.el('placement').checked, false);
+  } finally { h.dom.window.close(); }
+});

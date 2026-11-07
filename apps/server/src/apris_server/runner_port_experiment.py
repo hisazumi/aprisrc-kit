@@ -20,6 +20,7 @@ from .models import MoveCommand, TurnCommand
 from .motion_contract import SCOPE_KEYS, parse_motion_message
 from .runner_simulator import PortSimulatorAdapter
 from .runtime import RoverRuntime
+from .runtime_localization import LocalizationSetup, RuntimeLocalization
 from .simulator import DifferentialDriveSimulator
 
 
@@ -93,7 +94,7 @@ class RunnerPort:
 
     def __init__(
         self, emit: Callable[[dict[str, Any]], None], *, runtime: RoverRuntime | None = None,
-        backend: str = "fake"
+        backend: str = "fake", localization: LocalizationSetup | None = None
     ) -> None:
         self.emit = emit
         if backend not in {"fake", "simulator"}:
@@ -137,6 +138,9 @@ class RunnerPort:
         self.runner_sequence = 0
         self.guard_id: str | None = None
         self.used_runs: set[str] = set()
+        if localization is not None and self.backend != "simulator":
+            raise ValueError("localization-requires-planar-simulator")
+        self.localization = RuntimeLocalization(self, localization) if localization else None
 
     @property
     def guard(self) -> str | None:
@@ -169,6 +173,8 @@ class RunnerPort:
         if self._owns_runtime:
             await self.runtime.start()
         self.tasks = [asyncio.create_task(self._watch()), asyncio.create_task(self._events())]
+        if self.localization:
+            self.localization.start()
 
     async def _send(self, message: dict[str, Any]) -> None:
         if self.client is None:
@@ -192,6 +198,18 @@ class RunnerPort:
 
     async def _dispatch(self, message: dict[str, Any], *, internal: bool = False) -> Any:
         action = message["action"]
+        if action == "localize":
+            if (set(message) != {"action", "controlEpoch", "operatorId", "localizationEpoch",
+                                 "candidateId", "confirmed"} or message["confirmed"] is not True
+                    or message["controlEpoch"] != self.control_epoch or not self.localization):
+                raise ValueError("invalid-localization-request")
+            self._operator(message)
+            self.localization.initialize(message["candidateId"], message["localizationEpoch"])
+            return self.localization.snapshot()
+        if action == "localizationObservation":
+            if not self.localization:
+                raise ValueError("localization-unavailable")
+            return self.localization.observation(message["observation"])
         if action == "control":
             return await self._control(message["message"])
         if (
@@ -201,6 +219,8 @@ class RunnerPort:
         ):
             raise ValueError("control-mode-requires-typed-command")
         if action == "admit":
+            if self.localization:
+                self.localization.require_ready()
             if self.session or self.operation or self.guard or self.inhibited or self.io_tasks:
                 raise ValueError("admission-inhibited")
             self.client = await self.runtime.add_client(self.inbox)  # type: ignore[arg-type]
@@ -225,12 +245,20 @@ class RunnerPort:
             self.motion_run = None
             self.session = session
             self.lease = time.monotonic() + self.lease_s
+            if self.localization:
+                try:
+                    self.localization.bind(session)
+                except ValueError:
+                    self._revoke("localization-admission-failed")
+                    raise
             return session
         if action == "snapshot":
+            state = (self.localization.last_state if self.localization
+                     else await self.adapter.state())
             return {
                 "target": "fake-only",
                 "backend": self.backend,
-                "state": (await self.adapter.state()).model_dump(mode="json"),
+                "state": state.model_dump(mode="json") if state else None,
                 "controlEpoch": self.control_epoch,
                 "session": self.session,
                 "guard": self.guard,
@@ -239,11 +267,14 @@ class RunnerPort:
                 "owner": self.runtime.owner_client_id,
                 "operation": self.operation,
                 "pendingIo": len(self.io_tasks),
+                "localization": self.localization.snapshot() if self.localization else None,
             }
         if action == "revoke":
             self._revoke(message.get("reason", "operator-stop"))
             return None
         if action == "recover":
+            if self.localization:
+                self.localization.require_ready()
             if (
                 message.get("confirmed") is not True
                 or self.session
@@ -567,6 +598,8 @@ class RunnerPort:
         return task
 
     def _expire(self, now: float) -> None:
+        if self.localization:
+            self.localization.check()
         if self.operator_id and now >= self.operator_deadline:
             self.operator_id = None
             self.inhibited = True
@@ -581,6 +614,8 @@ class RunnerPort:
 
     def _revoke(self, reason: str) -> None:
         session, self.session = self.session, None
+        if self.localization:
+            self.localization.release()
         if self.operation:
             self.operation["override"] = "interrupted"
         if self.client:
@@ -713,6 +748,8 @@ class RunnerPort:
                 self._expire(time.monotonic())
 
     async def close(self) -> None:
+        if self.localization:
+            await self.localization.close()
         async with self.lock:
             self._revoke("port-closed")
         if self.finishing:

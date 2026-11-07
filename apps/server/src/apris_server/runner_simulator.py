@@ -16,6 +16,14 @@ class PortSimulatorAdapter(DifferentialDriveSimulator):
         self.evidence.set()
         self.evidence_at = time.monotonic()
 
+    async def localization_state(self):
+        """Estimated (not ground-truth) state with exact source time and epoch."""
+        return await self._state_snapshot()
+
+    @property
+    def odometry_epoch(self) -> str:
+        return self._odometry_epoch
+
     @property
     def actuating(self) -> bool:
         return self._vx != 0.0 or self._wz != 0.0

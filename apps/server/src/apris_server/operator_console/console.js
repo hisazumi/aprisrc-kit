@@ -24,9 +24,14 @@ function render() {
   $('owner').textContent = owned ? 'この画面が操作中' : c.operatorId ? '別の接続が操作中' : '未取得';
   $('motion').textContent = c.stopPending ? '処理中／停止確認待ち' : state.moving ? '移動中' : c.inhibited ? '移動禁止' : '待機';
   $('guard').textContent = c.guardId ? '受け渡し中（移動禁止）' : 'なし';
-  const p = state.state.pose; $('pose').textContent = `x ${p.x.toFixed(3)} m / y ${p.y.toFixed(3)} m / ${p.yaw.toFixed(3)} rad`;
+  const p = state.state?.pose; $('pose').textContent = p ? `odom: x ${p.x.toFixed(3)} m / y ${p.y.toFixed(3)} m / ${p.yaw.toFixed(3)} rad` : 'オドメトリ取得待ち';
   $('connect').disabled = busy || !!c.operatorId || c.stopPending;
   $('stop').disabled = false;
+  const loc = state.localization;
+  $('localization-panel').hidden = !loc;
+  $('localize').disabled = !loc || busy || !owned || !!c.runEpoch || !!c.guardId || !stopped || !!state.serviceProcess?.active || !$('placement').checked;
+  const mp = loc?.snapshot?.mapPose;
+  $('localization-status').textContent = loc ? `${loc.blocked ? '走行不可：' + loc.reason : loc.snapshot?.quality.status} / ${mp ? `x ${mp.xM.toFixed(3)} m, y ${mp.yM.toFixed(3)} m` : '位置未確定'}` : '';
   const process = state.serviceProcess;
   const result = !process || process.runEpoch === state.serviceRunEpoch ? state.serviceResult : null;
   const labels = {starting:'起動中',running:'実行中',stopping:'停止処理中',completed:'正常終了',interrupted:'中断',failed:'失敗'};
@@ -37,7 +42,7 @@ function render() {
   $('service-stop').disabled = !process?.active;
   $('start').disabled = !!process?.active || busy || !owned || !!c.runEpoch || !!c.guardId || c.inhibited || !stopped;
   $('close').disabled = busy || !owned || !c.runEpoch;
-  $('recover').disabled = busy || !owned || !!c.runEpoch || !stopped || !$('clearance').checked;
+  $('recover').disabled = busy || !owned || !!c.runEpoch || !stopped || !$('clearance').checked || !!loc?.blocked;
   $('hold').disabled = state.serviceAttached || busy || !owned || !c.runEpoch || !!c.guardId || c.inhibited || !stopped;
   $('clear').disabled = busy || !owned || !c.guardId || !stopped || !$('clearance').checked;
   for (const k of ['move', 'turn']) $(k).disabled = state.serviceAttached || busy || !owned || !c.runEpoch || c.inhibited || !!c.guardId || !stopped || !!active;
@@ -45,6 +50,8 @@ function render() {
 }
 async function refresh() {
   const next = await api('state');
+  if (next.moving || state?.control?.runEpoch !== next.control.runEpoch ||
+      state?.localization?.localizationEpoch !== next.localization?.localizationEpoch) $('placement').checked = false;
   if (seenEpoch !== next.controlEpoch || seenGuard !== next.control.guardId) $('clearance').checked = false;
   if (seenEpoch && seenEpoch !== next.controlEpoch) { operatorId = null; active = null; }
   seenEpoch = next.controlEpoch; seenGuard = next.control.guardId; state = next; connected = true;
@@ -59,7 +66,7 @@ function lost(error) {
   $('error').textContent = String(error);
   for (const button of document.querySelectorAll('button')) button.disabled = true;
 }
-for (const k of ['clearance']) $(k).onchange = () => state && render();
+for (const k of ['clearance', 'placement']) $(k).onchange = () => state && render();
 function action(name, fn) {
   $(name).onclick = async () => {
     if (!state || !connected) return;
@@ -68,6 +75,12 @@ function action(name, fn) {
     finally { busy = false; if (state) render(); }
   };
 }
+action('localize', async () => {
+  if (!$('placement').checked) throw new Error('配置確認が必要です');
+  await api('localization/initialize', { controlEpoch: state.controlEpoch, operatorId,
+    localizationEpoch: state.localization.localizationEpoch, candidateId: 'start-placement', confirmed: true });
+  $('placement').checked = false;
+});
 action('service-start', () => api('service/launch', { controlEpoch: state.controlEpoch, operatorId }));
 action('service-stop', () => api('service/stop', { controlEpoch: state.controlEpoch, launchId: state.serviceProcess.id }));
 action('connect', async () => { operatorId = (await control('openOperator')).operatorId; sequence = 0; });

@@ -2,7 +2,7 @@
 
 [日本語](map-localization.ja.md)
 
-Status: design proposal plus M1/M2 data-layer implementation, 2026-11-07; route API not implemented.
+Status: M1/M2 and simulator runtime quality gate implemented, 2026-11-07; route API not implemented.
 This refines [requirements F01–F04/F11 and Q01/Q04/Q06/Q08](requirements.md)
 and the [architecture](architecture.md). Inventory baseline:
 `next-platform` commit `39c6d92c98cd29404b17e1f26f9892f17f2a29f2`.
@@ -310,5 +310,78 @@ threshold boundaries, degradation/recovery, latched loss, old epochs, clock regr
 history/dedup capacity and input from existing WheelImuOdometry. Next, toward M3, wire
 runtime odometry and calibrated observations into this estimator and connect quality
 loss to Python's shared motion protection, then add registered-route execution.
-**M2 alone neither sends stop requests nor grants motion. Camera calibration, physical
-accuracy and route execution have not been qualified.**
+**The M2 estimator alone neither sends stop requests nor grants motion. Runtime integration is
+described below; camera calibration, physical accuracy and route execution remain unqualified.**
+
+## 12. Toward M3: simulator runtime integration
+
+`runtime_localization.py` connects RunnerPort to M2. This is an opt-in simulator-only
+mode using a fixed example map and synthetic qualification profile. It does not yet
+provide registered-route execution or a physical robot connection.
+
+```sh
+uv run --directory apps/server python -m apris_server.operator_console --localization
+```
+
+Without this flag, existing demos are unchanged. Enabled mode requires localization
+quality for every motion entrypoint. Startup holds the shared motion interlock, so
+an unlocalized robot cannot move. Independent sampling and quality monitoring do not
+rely on student runner or browser code.
+
+Operator procedure:
+
+1. Acquire operator authority in `/console`. The initial simulator pose matches the
+   example start placement and heading.
+2. Confirm placement and press the start-placement localization button.
+3. Confirm people are clear and explicitly recover motion authority.
+4. Explicitly start a test run or service. `/app` remains the separate service view.
+5. After quality loss, wait for stopping/run termination, repair the input problem,
+   and confirm actual placement/heading before re-localizing, recovering and starting
+   a new run. Do not simply relabel a moved robot as being at the origin.
+
+Run admission pins map/calibration/quality identity and localizationEpoch. No map
+replacement API is exposed in this slice. Initialization checks operator ID,
+control/localization epochs and explicit placement confirmation; reject active runs,
+handover guards or another runtime owner. Require stationary runtime state, simulator
+stop evidence, no pending I/O and fresh healthy odometry before changing localization
+epoch. Old initialization retries are rejected. Initialization never clears a guard
+or E-stop, and always requires a separate explicit recovery afterward.
+
+The simulator returns estimated odometry, its exact monotonic sample time and its
+odomEpoch under one lock. Noise, stale-state and sensor faults remain observable;
+truth is not substituted. Reset changes odomEpoch even when coordinates are unchanged.
+This integration does not guess camera clock conversions.
+
+The initial runtime profile conservatively stops for any status other than tracking,
+including degraded. Failed/stalled sampling, terminated input tasks, poor quality or
+epoch changes first inhibit every new motion through the shared interlock, then revoke
+the run and invoke existing runtime stopping. Manual/legacy entrypoints share the hold.
+An independent watch fences effects without waiting for the port request lock or
+adapter I/O; delayed commands are rejected by interlock epoch. Confirmed stopped runs
+end interrupted; missing timely stop evidence produces stop-unconfirmed. Pending late
+I/O blocks recovery. Input recovery never revives a run, question or motion permission.
+
+Synthetic real-time budgets are 20 ms sampling, 150 ms read timeout, 250 ms feed liveness
+and a 10 ms watch period. Estimator odometry freshness and existing run/command/stop
+limits also remain enforced. These do not guarantee physical stopping performance.
+Status reads use cached observations, preventing display requests from blocking quality
+monitoring on sensor I/O. Before the first sample, state=null and location is unknown.
+
+Minimal endpoints:
+
+- `GET /api/state`: localization snapshot, inhibition reason, map identity, source epoch
+  and run binding under `localization`.
+- `POST /api/localization/initialize`: operator/epoch/candidateId/confirmed placement.
+- `POST /api/localization/observation`: a body-normalized simulator marker observation
+  carrying complete M2 scope, sourceId=simulator-marker and the current sourceEpoch.
+  Reject old epochs/ambiguity; observations cannot reinitialize while inhibited. This
+  is not a calibrated/authenticated physical camera provider.
+
+Existing loopback/token/origin protections apply. Source epoch is correlation metadata,
+not a credential; distinct roles among local holders of the shared token remain future work.
+
+`test_runtime_localization.py` covers sensor faults/stale data/delay during motion,
+missing stop evidence, delayed admission holding the request lock, manual entrypoints,
+odometry reset and stale observation replay. HTTP initialization/recovery and browser
+DOM tests are also included. Next implement registered routes with corridor/body-size
+checks. This is not completion of all M3 acceptance criteria.

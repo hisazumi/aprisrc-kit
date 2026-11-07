@@ -155,6 +155,10 @@ class Localization:
         self._snapshot_sequence = 0
 
     @property
+    def requires_reset(self) -> bool:
+        return self._reset_required
+
+    @property
     def history_size(self) -> int:
         return len(self._history)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass
 
@@ -80,6 +81,7 @@ class DifferentialDriveSimulator(RoverAdapter):
         self._left_distance = 0.0
         self._right_distance = 0.0
         self._odometry = WheelImuOdometry(OdometryConfig())
+        self._odometry_epoch = uuid.uuid4().hex
         self._last_update = time.monotonic()
         self._odometry.update(
             timestamp=self._last_update,
@@ -208,6 +210,7 @@ class DifferentialDriveSimulator(RoverAdapter):
             self._left_distance = 0.0
             self._right_distance = 0.0
             self._odometry.reset()
+            self._odometry_epoch = uuid.uuid4().hex
             now = time.monotonic()
             self._odometry.update(
                 timestamp=now,
@@ -232,6 +235,13 @@ class DifferentialDriveSimulator(RoverAdapter):
             return self._faults.model_copy(deep=True)
 
     async def state(self, command_age_ms: float | None = None) -> RoverState:
+        state, _, _ = await self._state_snapshot(command_age_ms)
+        return state
+
+    async def _state_snapshot(
+        self, command_age_ms: float | None = None
+    ) -> tuple[RoverState, float, str]:
+        # Pose, exact monotonic sampling time and odometry epoch share one lock.
         latency_ms = self._faults.state_latency_ms
         if latency_ms:
             await asyncio.sleep(latency_ms / 1000.0)
@@ -254,7 +264,7 @@ class DifferentialDriveSimulator(RoverAdapter):
             quality.confidence *= max(0.0, 1.0 - min(quality.age_ms, 5000.0) / 6000.0)
             if faults.stale_state_ms:
                 quality.anomalies = [*quality.anomalies, "state_stale"]
-            return RoverState(
+            state = RoverState(
                 timestamp=time.time() - sample_age,
                 connected=self._running,
                 pose=Pose(x=x, y=y, yaw=yaw),
@@ -268,3 +278,5 @@ class DifferentialDriveSimulator(RoverAdapter):
                 command_age_ms=command_age_ms,
                 pose_quality=quality,
             )
+
+            return state, sample.monotonic_time, self._odometry_epoch

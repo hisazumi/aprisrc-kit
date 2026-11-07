@@ -8,6 +8,11 @@
 <article><h2>移動状態</h2><p id="motion">不明</p></article>
 <article><h2>受け渡し</h2><p id="guard">不明</p></article>
 <article><h2>位置・角度</h2><p id="pose">不明</p></article></section>
+<section id="localization-panel" hidden><h2>地図上の位置</h2>
+<p id="localization-status">未位置合わせ</p>
+<label><input type="checkbox" id="placement">機体を地図の開始地点・開始方向に配置したことを確認した</label>
+<button disabled id="localize">開始地点で位置合わせ</button>
+<p>run終了・停止確認後に操作します。位置合わせの後は「明示復帰」が必要です。移動後に開始地点へ戻さず押さないでください。</p></section>
 <section><h2>学生サービス</h2><p id="service-status">未開始</p><div class="buttons"><button disabled id="service-start">サービス開始</button><button disabled id="service-stop">サービス停止</button></div><p>終了後は「再実行」で新しいサービスを開始します。停止後は先に明示復帰してください。</p></section>
 <section><h2>運用操作</h2><div class="buttons">
 <button disabled id="connect">操作権を取得</button><button disabled id="stop" class="danger">停止・移動禁止</button>

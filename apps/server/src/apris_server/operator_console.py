@@ -1,5 +1,6 @@
 """Loopback-only operator console for the existing planar simulator port."""
 
+import argparse
 import asyncio
 import json
 import secrets
@@ -14,13 +15,16 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from .runner_port_experiment import RunnerPort
+from .runtime_localization import demo_localization
 from .service_process import ServiceProcess
 
 ORIGIN = "http://127.0.0.1:8766"
 STATIC = Path(__file__).with_name("operator_console")
 
 
-def create_console(token: str, *, node: str | None = None, origin: str = ORIGIN) -> FastAPI:
+def create_console(
+    token: str, *, node: str | None = None, origin: str = ORIGIN, localization: bool = False
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         events = deque(maxlen=64)
@@ -35,7 +39,9 @@ def create_console(token: str, *, node: str | None = None, origin: str = ORIGIN)
         app.state.numbered = numbered
         app.state.service = None
         app.state.view_id = None
-        port = RunnerPort(emit, backend="simulator")
+        port = RunnerPort(
+            emit, backend="simulator", localization=demo_localization() if localization else None
+        )
         # Browser connection liveness has a different budget from runner/motion safety.
         port.operator_lease_s = 3.0
         port.inhibited = True
@@ -145,6 +151,22 @@ def create_console(token: str, *, node: str | None = None, origin: str = ORIGIN)
         if value.get("kind") == "globalStop":
             manager.request_stop()
         return result
+
+    @app.post("/api/localization/initialize")
+    async def initialize_localization(request: Request):
+        value = await body(request)
+        if "action" in value:
+            raise HTTPException(400, "invalid-localization-request")
+        if request.app.state.process.active:
+            raise HTTPException(409, "service-process-busy")
+        return await dispatch(request, {**value, "action": "localize"})
+
+    @app.post("/api/localization/observation")
+    async def localization_observation(request: Request):
+        # Fixed simulator input path; no physical camera calibration is claimed.
+        return await dispatch(
+            request, {"action": "localizationObservation", "observation": await body(request)}
+        )
 
     @app.post("/api/motion")
     async def motion(request: Request):
@@ -398,10 +420,20 @@ def create_console(token: str, *, node: str | None = None, origin: str = ORIGIN)
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--localization", action="store_true", help="enable map quality gate (simulator only)"
+    )
+    args = parser.parse_args()
     token = secrets.token_urlsafe(32)
     print(f"Operator console (simulator only): {ORIGIN}/console#{token}", flush=True)
     print(f"Service page: {ORIGIN}/app#{token}", flush=True)
-    uvicorn.run(create_console(token), host="127.0.0.1", port=8766, access_log=False)
+    uvicorn.run(
+        create_console(token, localization=args.localization),
+        host="127.0.0.1",
+        port=8766,
+        access_log=False,
+    )
 
 
 if __name__ == "__main__":
