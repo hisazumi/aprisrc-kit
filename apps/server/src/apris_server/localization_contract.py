@@ -107,6 +107,7 @@ class MarkerObservation(LocalizationScope, ClockScope):
     family: Identifier
     markerId: Annotated[int, Field(ge=0, le=1_000_000)]
     frameId: Literal["base"]
+    poseAmbiguous: bool
     relativePose: MarkerPose
     confidence: Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
     provenance: Provenance

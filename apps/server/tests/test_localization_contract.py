@@ -66,6 +66,7 @@ def observation():
         "family": "example-square",
         "markerId": 1,
         "frameId": "base",
+        "poseAmbiguous": False,
         "relativePose": {**pose(), "zM": 1.0, "rollRad": 0.0, "pitchRad": 0.0},
         "confidence": 0.9,
         "provenance": "synthetic",

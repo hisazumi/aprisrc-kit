@@ -2,7 +2,7 @@
 
 [日本語](map-localization.ja.md)
 
-Status: design proposal plus M1 data-layer implementation, 2026-11-07; route API not implemented.
+Status: design proposal plus M1/M2 data-layer implementation, 2026-11-07; route API not implemented.
 This refines [requirements F01–F04/F11 and Q01/Q04/Q06/Q08](requirements.md)
 and the [architecture](architecture.md). Inventory baseline:
 `next-platform` commit `39c6d92c98cd29404b17e1f26f9892f17f2a29f2`.
@@ -248,9 +248,67 @@ History is process-local; cross-restart revision consistency needs persistence l
 existing runtime runs or physical stopping. Authority integration, atomic run admission
 and capability/calibration profile resolution belong to M2/M3 integration tests.
 Shape validation does not implement transforms, live observation order/epoch matching,
-error-model qualification or motion permission. M2 next implements history, clocks,
-initialization, correction and quality degradation.
+error-model qualification or motion permission. The M2 implementation scope is described below.
 
 Tests are `test_course_map.py` and `test_localization_contract.py`, covering unlocalized
 nulls, missing pose/transform pairs, inconsistent quality/correction metadata, future
 capture timestamps and unchanged active state after failed replacement.
+
+## 11. M2 localization implementation
+
+`localization.py` provides an independent synchronous `Localization` estimator;
+`localization_geometry.py` supplies planar transforms/interpolation and 3D marker
+composition. Existing PoseFusion and live services are unchanged.
+
+- `add_odometry` validates robot/control/odom/clock identity, sequence, timestamps and
+  provenance into bounded history. Detect jumps, speed/rate excess and coordinate
+  limits without mutating input odometry.
+- `initialize_placement` establishes the transform from a configured placement and
+  latest odometry after trusted operator confirmation of stopping.
+- `initialize_marker` establishes pose from an unambiguous full pose observation with
+  trusted stopping confirmation, without innovation against arbitrary zero pose.
+- `correct` requires prior initialization, interpolates capture-time odometry and
+  validates position/heading innovations. Compose full 3D transforms before projecting
+  a body pose whose height/tilt meets the profile. This replaces the transform using a
+  validated observation; it is not smoothing or an EKF.
+- `snapshot` supplies odom/map pose, transform, quality, reasons, error indicators and
+  last correction. Before any odometry it raises odometry-unavailable; after odometry
+  but before initialization, mapPose is null.
+- `reset` requires stopping and new localization/odom epochs, then clears history,
+  correction and dedup records. Clock regression also requires a new clock epoch.
+  Map/profile replacement requires another estimator instance.
+
+MarkerObservation now requires `poseAmbiguous`; true is rejected for initialization
+and correction. Register source/session identities at construction, with at most 16
+sources. Match calibration, map and quality profile versions. Clock conversion is an
+upstream responsibility; this API accepts times already normalized to one clock.
+Require bounded clock uncertainty and history covering capture time ± uncertainty.
+Reject duplicate IDs, nonincreasing capture times/source sequences, missing history,
+stale observations and provenance mismatches. Rejection never renews correction age
+or error estimates.
+
+Position and heading error indicators each combine initial/marker error with elapsed
+time, accumulated distance and rotation. Add clock uncertainty contributions at
+correction. These are profile-tagged heuristic indicators, not statistical covariance
+or physically guaranteed upper bounds. Apply degraded/lost thresholds to both axes.
+Marker absence alone does not cause loss; qualified deployment profiles must determine
+how far dead reckoning is acceptable.
+
+Lost is latched. Fresh input cannot silently clear stale/gapped/unavailable odometry
+or excess error. The next odometry arrival also evaluates the preceding freshness
+deadline. Explicit re-localization is required; captures preceding loss cannot restore
+localization. Odometry jumps and clock faults require an epoch reset, not just placement.
+
+The synthetic profile is `apps/server/scenarios/localization/profile.json`. It explicitly
+sets limits including 256 samples/3 seconds and 256 accepted observation IDs. Exhausted
+ID capacity rejects further corrections instead of evicting IDs and accepting replay;
+use stopping and an epoch reset if needed. Values are test fixtures, not recommended
+physical deployment settings.
+
+`test_localization.py` uses an injected clock for delayed interpolation, ±π, 3D poses,
+threshold boundaries, degradation/recovery, latched loss, old epochs, clock regression,
+history/dedup capacity and input from existing WheelImuOdometry. Next, toward M3, wire
+runtime odometry and calibrated observations into this estimator and connect quality
+loss to Python's shared motion protection, then add registered-route execution.
+**M2 alone neither sends stop requests nor grants motion. Camera calibration, physical
+accuracy and route execution have not been qualified.**
