@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "mapId": "apris-demo-room",
+  "revision": "1",
+  "frameId": "map",
+  "units": { "length": "m", "angle": "rad" },
+  "markers": [
+    { "family": "example-square", "id": 1, "sizeM": 0.16,
+      "pose": { "xM": 0.0, "yM": 0.0, "zM": 0.8,
+        "rollRad": 0.0, "pitchRad": 0.0, "yawRad": 0.0 } }
+  ],
+  "places": [
+    { "id": "start", "label": "Start", "pose": { "xM": 0.0, "yM": 0.0, "yawRad": 0.0 } },
+    { "id": "desk", "label": "Desk", "pose": { "xM": 2.0, "yM": 0.0, "yawRad": 0.0 } }
+  ],
+  "routes": [
+    { "id": "start-to-desk", "from": "start", "to": "desk",
+      "via": [ { "xM": 1.0, "yM": 0.0 } ] }
+  ],
+  "initialPoseCandidates": [ { "id": "start-placement", "placeId": "start" } ]
+}

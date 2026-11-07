@@ -2,7 +2,7 @@
 
 [日本語](map-localization.ja.md)
 
-Status: design proposal, 2026-11-07; not an implemented API.
+Status: design proposal plus M1 data-layer implementation, 2026-11-07; route API not implemented.
 This refines [requirements F01–F04/F11 and Q01/Q04/Q06/Q08](requirements.md)
 and the [architecture](architecture.md). Inventory baseline:
 `next-platform` commit `39c6d92c98cd29404b17e1f26f9892f17f2a29f2`.
@@ -219,6 +219,38 @@ missing size/family/calibration instead of enabling route motion through silent
 defaults. Preserve existing course display and marker-approach services as legacy
 paths distinct from new map-pose semantics. Host guideTo stays unsupported until M3.
 
-This change is documentation only. The boundaries allow M1–M4 evaluation with the
+The boundaries allow M1–M4 evaluation with the
 lightweight Simulator before selecting ROS/Hakoniwa/Godot/MuJoCo. Rich 3D simulation
 and improved perception providers can subsequently implement the same contracts.
+
+## 10. M1 implementation status
+
+`course_map.py` supplies immutable Pydantic models, `load_map(bytes)` and `MapStore`.
+`localization_contract.py` defines snapshots and body-normalized marker observations.
+The fixture is `apps/server/config/maps/demo-room.json`; its detector family is illustrative.
+
+Default MapLimits: 256 KiB, 256 markers, 256 places, 512 routes, 256 initial candidates,
+256 intermediate points per route, absolute coordinates/marker size up to 1000 metres.
+Identifiers are bounded to 64 characters and labels to 256. These are resource/fixture
+limits, not physical operating limits. Contracts reject numeric strings, booleans as
+numbers, nonfinite values and extra fields. Observation timestamps already share one
+normalized clock; capture after reception is rejected.
+
+MapStore is an internal synchronous single-threaded coordinator. Registered runs
+block replacement; bind freezes map/profile identity; release does not establish stop
+evidence. `activate(stopped=True)` must later be called by trusted authority after
+checking evidence, not by a browser supplying permission. Successful reactivation,
+even of the same map, changes localizationEpoch. Failure preserves map and epoch.
+Revision history defaults to 256 entries, runs to one; capacity exhaustion rejects.
+History is process-local; cross-restart revision consistency needs persistence later.
+
+**No live HTTP service is connected yet.** This component cannot independently discover
+existing runtime runs or physical stopping. Authority integration, atomic run admission
+and capability/calibration profile resolution belong to M2/M3 integration tests.
+Shape validation does not implement transforms, live observation order/epoch matching,
+error-model qualification or motion permission. M2 next implements history, clocks,
+initialization, correction and quality degradation.
+
+Tests are `test_course_map.py` and `test_localization_contract.py`, covering unlocalized
+nulls, missing pose/transform pairs, inconsistent quality/correction metadata, future
+capture timestamps and unchanged active state after failed replacement.
