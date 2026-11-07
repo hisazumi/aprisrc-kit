@@ -140,3 +140,18 @@ test('route controls require a localized test run and exclude direct motion', as
     assert.deepEqual(h.requests.find(r => r.path === '/api/route/cancel')?.body, {id: 'route-1', runEpoch: 'run-epoch'});
   } finally { h.dom.window.close(); }
 });
+
+test('diagnostic download only reads trace and never acquires or renews authority', async () => {
+  const h = await screen();
+  try {
+    let blob: unknown;
+    h.w.URL.createObjectURL = (value: unknown) => { blob = value; return 'blob:trace'; };
+    h.w.URL.revokeObjectURL = () => {};
+    h.w.HTMLAnchorElement.prototype.click = () => {};
+    h.requests.length = 0;
+    await h.el('trace-export').onclick();
+    assert.ok(blob);
+    assert.deepEqual(h.requests.map(r => r.path), ['/api/trace']);
+    assert.equal(h.requests[0].body, undefined);
+  } finally { h.dom.window.close(); }
+});

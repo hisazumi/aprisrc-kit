@@ -27,6 +27,7 @@ function render() {
   const p = state.state?.pose; $('pose').textContent = p ? `odom: x ${p.x.toFixed(3)} m / y ${p.y.toFixed(3)} m / ${p.yaw.toFixed(3)} rad` : 'オドメトリ取得待ち';
   $('connect').disabled = busy || !!c.operatorId || c.stopPending;
   $('stop').disabled = false;
+  $('trace-export').disabled = false;
   const loc = state.localization;
   $('localization-panel').hidden = !loc;
   $('localize').disabled = !loc || busy || !owned || !!c.runEpoch || !!c.guardId || !stopped || !!state.serviceProcess?.active || !$('placement').checked;
@@ -130,3 +131,13 @@ async function tick() {
   finally { updating = false; }
 }
 await tick(); setInterval(tick, 100);
+
+$('trace-export').onclick = async () => {
+  try {
+    const trace = await api('trace');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(trace)], {type: 'application/json'}));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'apris-diagnostic-trace.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) { $('error').textContent = String(error); }
+};

@@ -29,5 +29,5 @@
 <label><input type="checkbox" id="front">試験入力：前方が安全という合成観測を送る</label>
 <div class="buttons"><button disabled id="move">4 cm 前進</button><button disabled id="turn">0.1 rad 左旋回</button></div>
 <p>前方観測は合成入力です。タブを切り替えても操作許可を更新します。画面を閉じる・通信が途切れると失効します。</p></section>
-<section><h2>操作結果</h2><p id="error" role="alert"></p><pre id="events">まだ操作はありません</pre></section>
+<section><h2>操作結果</h2><button id="trace-export">診断ログを保存</button><p>位置・経路・サービスの記録をJSONで保存します。容量超過時の欠落数も含みます。</p><p id="error" role="alert"></p><pre id="events">まだ操作はありません</pre></section>
 </main><script type="module" src="/console/console.js"></script></body></html>

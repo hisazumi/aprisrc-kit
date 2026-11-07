@@ -491,3 +491,6 @@ stale run rejection, unavailable localization and unknown destinations. This is
 synthetic planar simulator evidence, not physical delivery qualification.
 The next step is correlated localization, route and service event recording for
 failure diagnosis.
+
+An initial correlated diagnostic recorder is now available. See
+[diagnostic traces](diagnostic-trace.md) for export, bounds and replay limitations.

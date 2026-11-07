@@ -99,9 +99,26 @@ def create_console(
 
     async def dispatch(request, message):
         try:
-            return await request.app.state.port.request(message)
+            port = request.app.state.port
+            result = await port.request(message)
+            command = message.get("message", {}).get("kind")
+            if message["action"] == "localize" or (
+                message["action"] == "control" and command not in
+                {"snapshot", "operatorHeartbeat", "runnerHeartbeat"}
+            ):
+                fields = message.get("message", {})
+                port.record_trace("operatorAction", {"command": command or "localize"},
+                                  run_epoch=fields.get("runEpoch"), run_id=fields.get("runId"))
+            return result
         except (ValueError, KeyError, TypeError) as error:
             raise HTTPException(409, str(error)) from error
+
+    @app.get("/api/trace")
+    async def trace_export(request: Request):
+        # Export does not renew leases, clear guards or replay any effects.
+        return JSONResponse(request.app.state.port.trace.export(), headers={
+            "Content-Disposition": 'attachment; filename="apris-diagnostic-trace.json"'
+        })
 
     @app.get("/app")
     async def service_page():
@@ -273,6 +290,7 @@ def create_console(
                 messages=[],
                 result=None,
             )
+            port.record_trace("serviceStarted", run_epoch=opened["runEpoch"], run_id=run_id)
             return dict(
                 controlEpoch=port.control_epoch,
                 operatorId=port.operator_id,
@@ -328,6 +346,8 @@ def create_console(
             service["prompt"] = prompt
             service["answered"] = None
             service["used"].append(prompt["id"])
+            request.app.state.port.record_trace("serviceQuestion", {
+                "questionId": prompt["id"], "stationary": prompt["stationary"]})
             return {"ok": True}
 
     @app.post("/api/service/view")
@@ -381,6 +401,7 @@ def create_console(
             ):
                 raise HTTPException(409, "stale-or-invalid-answer")
             service["answered"] = {"questionId": prompt["id"], "value": value["value"]}
+            request.app.state.port.record_trace("serviceAnswer", {"questionId": prompt["id"]})
             return {"ok": True}
 
     @app.post("/api/service/consume")
@@ -398,6 +419,7 @@ def create_console(
             ):
                 raise HTTPException(409, "question-not-ready")
             result = service["answered"]
+            request.app.state.port.record_trace("serviceConsumed", {"questionId": prompt["id"]})
             service["prompt"] = service["answered"] = None
             return result
 
@@ -414,6 +436,8 @@ def create_console(
             ):
                 raise HTTPException(409, "invalid-message-or-capacity")
             service["messages"].append(value["message"])
+            request.app.state.port.record_trace(
+                "serviceSpeech", {"index": len(service["messages"]) - 1})
             return {"ok": True}
 
     @app.post("/api/service/finish")
@@ -437,6 +461,8 @@ def create_console(
             if service["result"] is not None and service["result"] != result:
                 raise HTTPException(409, "result-already-recorded")
             service["result"] = result
+            port.record_trace("serviceFinished", result, run_epoch=service["runEpoch"],
+                              run_id=service["runId"])
             service["prompt"] = service["answered"] = None
             return {"ok": True}
 

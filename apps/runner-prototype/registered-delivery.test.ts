@@ -53,6 +53,29 @@ for (const interrupt of [false, true]) test(`registered delivery: ${interrupt ? 
       await until(() => h.rpc.http('state'), s => !s.serviceProcess.active);
       assert.equal((await h.rpc.http('service/state')).result.status, 'completed');
     }
+    const trace = await h.rpc.http('trace');
+    assert.equal(trace.purpose, 'diagnostic-only');
+    assert.equal(trace.complete, true);
+    const events = trace.entries;
+    const start = events.find((e: any) => e.kind === 'routeStarted');
+    const terminal = events.find((e: any) => e.kind === 'routeTerminal');
+    const finished = events.find((e: any) => e.kind === 'serviceFinished');
+    assert.ok(start && terminal && finished);
+    assert.equal(start.context.runEpoch, finished.context.runEpoch);
+    assert.equal(terminal.context.runEpoch, start.context.runEpoch);
+    assert.equal(terminal.context.route.id, start.context.route.id);
+    assert.ok(start.context.localization.mapPose);
+    assert.ok(events.some((e: any) => e.kind === 'routeAction'));
+    if (interrupt) {
+      assert.ok(events.some((e: any) => e.kind === 'revoked' && e.context.runEpoch === start.context.runEpoch));
+      assert.notEqual(terminal.detail.status, 'completed');
+    } else {
+      const consumed = events.filter((e: any) => e.kind === 'serviceConsumed');
+      assert.equal(consumed.length, 2);
+      assert.ok(consumed[0].cursor < start.cursor);
+      assert.ok(terminal.cursor < consumed[1].cursor);
+      assert.ok(events.some((e: any) => e.kind === 'localizationSample'));
+    }
   } finally {
     controller.abort(); await task?.catch(() => {});
     const s = await h.rpc.http('state');

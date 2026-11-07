@@ -15,6 +15,7 @@ from typing import Any
 
 from .adapter import BoundedMotionGoal, BoundedMotionResult, DeviceBoundedMotionAdapter
 from .control_contract import parse_control_message
+from .diagnostic_trace import DiagnosticTrace
 from .front_obstacle import FrontObstacleObservationInput
 from .models import MoveCommand, TurnCommand
 from .motion_contract import SCOPE_KEYS, parse_motion_message
@@ -97,7 +98,13 @@ class RunnerPort:
         self, emit: Callable[[dict[str, Any]], None], *, runtime: RoverRuntime | None = None,
         backend: str = "fake", localization: LocalizationSetup | None = None
     ) -> None:
-        self.emit = emit
+        self.trace = DiagnosticTrace()
+
+        def traced_emit(event):
+            self.record_trace(event.get("kind", "event"), event)
+            emit(event)
+
+        self.emit = traced_emit
         if backend not in {"fake", "simulator"}:
             raise ValueError("unsupported-backend")
         if runtime is not None and type(runtime.adapter) not in {
@@ -632,6 +639,30 @@ class RunnerPort:
             elif now >= self.operation["deadline"]:
                 self._revoke("progress-deadline")
 
+    def record_trace(self, kind, detail=None, *, run_epoch=None, run_id=None):
+        # Reuse the gate's last evaluation; recording must not advance estimator state.
+        loc = self.localization
+        snapshot = loc.diagnostic_snapshot if loc else None
+        pose = {key: snapshot[key] for key in (
+            "map", "localizationEpoch", "odomEpoch", "clockEpoch", "sampleTime", "receivedTime",
+            "odomPose", "mapPose", "mapFromOdom", "quality", "provenance"
+        ) if key in snapshot} if snapshot else None
+        event = detail or {}
+        event_epoch = event.get("connectionEpoch") if event.get("protocolVersion") == 1 else None
+        epoch = run_epoch or event.get("runEpoch") or event_epoch or self.session
+        route = self.routes.snapshot() if self.routes else None
+        context = dict(controlEpoch=self.control_epoch, runEpoch=epoch,
+                       runId=run_id or (detail or {}).get("runId") or
+                       (self.motion_run if epoch else None),
+                       route={key: route[key] for key in
+                              ("id", "routeId", "waypoint", "actions", "status", "reason")}
+                       if route and route["runEpoch"] == epoch else None,
+                       localization=pose,
+                       localizationGate=dict(blocked=loc.blocked, reason=loc.reason,
+                                             localizationEpoch=loc.epoch) if loc else None,
+                       guardId=self.guard_id, inhibited=self.inhibited)
+        self.trace.record(kind, context, detail)
+
     def _revoke(self, reason: str) -> None:
         if self.routes:
             self.routes.revoked(reason)
@@ -647,7 +678,8 @@ class RunnerPort:
                 self.operation_io.append(job)
         self._finish("interrupted", reason)
         if session:
-            self.emit({"kind": "revoked", "reason": reason})
+            self.emit({"kind": "revoked", "reason": reason, "runEpoch": session,
+                       "runId": self.motion_run})
 
     def _finish(self, status: str, reason: str) -> None:
         op = self.operation

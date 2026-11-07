@@ -151,6 +151,7 @@ class RouteExecution:
         self.stop_reason = None
         self.stop_status = None
         self.task = asyncio.create_task(self._run(), name="registered-route")
+        self.port.record_trace("routeStarted", dict(self.job))
         return dict(self.job)
 
     def revoked(self, reason):
@@ -223,6 +224,7 @@ class RouteExecution:
             self.port._expire(time.monotonic())
             if self.stop_reason:
                 raise ValueError(self.stop_reason)
+            self.port.record_trace("routeAction", dict(operationId=operation, goal=goal))
             accepted = await self.port._motion(
                 dict(scope, kind="startMotion", goal=goal), route_key=self._key
             )

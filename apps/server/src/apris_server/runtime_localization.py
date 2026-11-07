@@ -41,6 +41,7 @@ class RuntimeLocalization:
 
     def __init__(self, port: RunnerPort, setup: LocalizationSetup):
         self.port = port
+        self.diagnostic_snapshot = None
         self.profile = setup.profile
         self.store = MapStore()
         self.store.activate(setup.map_bytes, stopped=True)  # Data loading, not runtime permission.
@@ -97,6 +98,7 @@ class RuntimeLocalization:
             return
         try:
             snapshot = self.estimator.snapshot()
+            self.diagnostic_snapshot = snapshot.model_dump(mode="json")
             if snapshot.quality.status != "tracking":
                 self.fail(
                     snapshot.quality.reasons[0] if snapshot.quality.reasons else "quality-low"
@@ -161,6 +163,8 @@ class RuntimeLocalization:
                                 self._last_ingested = stamp
                             # Equal/older frames never refresh estimator timestamps.
                         self.check()
+                        if self.port.session and self.port.trace.sample_due():
+                            self.port.record_trace("localizationSample")
                 except asyncio.CancelledError:
                     raise
                 except Exception as error:
@@ -255,6 +259,7 @@ class RuntimeLocalization:
             raise ValueError("explicit-localization-required")
         obs = MarkerObservation.model_validate(value)
         result = self.estimator.correct(obs)
+        self.port.record_trace("markerCorrection", result.model_dump(mode="json"))
         self.check()
         return result.model_dump(mode="json")
 
